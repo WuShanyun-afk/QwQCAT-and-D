@@ -106,6 +106,37 @@
              color:#150f14;font-family:inherit;font-size:14px;font-weight:bold;padding:10px;cursor:pointer}
   #sheet .go:hover{background:#d8b183}
 
+  /* ---------- 菜单 / 配方页 ---------- */
+  #menuOv{
+    position:absolute;inset:0;background:rgba(11,8,16,.92);display:none;
+    align-items:flex-start;justify-content:center;padding:10px;overflow:auto;
+    font-size:12px;line-height:1.5;
+  }
+  #menuOv.on{display:flex}
+  #menuSheet{background:#241a24;border:2px solid #8a6247;padding:12px;width:100%;max-width:460px}
+  #menuSheet h2{margin:0 0 8px;font-size:14px;color:#f2c14e;letter-spacing:1px}
+  #menuSheet .sec{margin:10px 0 5px;font-size:11px;color:#8a7a6a;letter-spacing:1px}
+  .stockline{display:flex;gap:10px;flex-wrap:wrap;background:#150f14;
+             border:1px solid #4a3040;padding:6px 8px;font-size:11px}
+  .stockline span{white-space:nowrap}
+  .stockline b{color:#f2c14e}
+  .stockline i,.rec .ing i{display:inline-block;width:8px;height:8px;
+             border:1px solid #4a3040;margin-right:4px;vertical-align:middle}
+  .rec{display:flex;gap:8px;align-items:center;background:#150f14;
+       border:1px solid #4a3040;padding:6px 8px;margin-bottom:4px}
+  .rec.lock{opacity:.45}
+  .rec .ic{flex:0 0 26px;height:26px;border:1px solid #4a3040;position:relative}
+  .rec .cup2{position:absolute;inset:4px 7px;border:1px solid #6b4a3a}
+  .rec .nm{flex:1;font-size:12.5px;line-height:1.45}
+  .rec .nm b{display:block;color:#f2c14e;font-size:10.5px;font-weight:normal}
+  .rec .ing{font-size:10px;color:#a09080;text-align:right;line-height:1.7;white-space:nowrap}
+  .rec .ing i{width:7px;height:7px;margin-right:3px}
+  .rec .can{flex:0 0 66px;text-align:right;font-size:10px;color:#8a7a6a}
+  #menuSheet .go{display:block;width:100%;margin-top:10px;background:#8a6247;
+    border:2px solid #d8b183;color:#150f14;font-family:inherit;font-size:14px;
+    font-weight:bold;padding:10px;cursor:pointer}
+  #menuSheet .go:hover{background:#d8b183}
+
   @media (max-width:520px){
     #topbar{font-size:11px;gap:5px;padding:5px 6px}
     .chip{padding:3px 5px}
@@ -123,6 +154,7 @@
     <span class="chip">💰 <b id="moneyL">200</b></span>
     <span class="chip good">⭐ 口碑 <b id="repL">30</b></span>
     <span class="sp"></span>
+    <span class="chip" id="menuBtn">📖 菜单</span>
     <span class="chip" id="speedBtn">▶ 1×</span>
   </div>
 
@@ -130,6 +162,7 @@
     <canvas id="cv" width="320" height="180"></canvas>
     <div id="toast"></div>
     <div id="overlay"><div id="sheet"></div></div>
+    <div id="menuOv"><div id="menuSheet"></div></div>
   </div>
 
   <div id="panel">
@@ -557,7 +590,7 @@ function freshGame() {
     lv: { machine: 1, seat: 0, staff: 0, sofa: 0, sign: 0 },
     unlocked: { americano: true, latte: true, cappuccino: true, mocha: false, matcha: false, caramel: false },
     cups: [], brewing: [], guests: [], tables: [],
-    phase: 'open', speed: 1, paused: false,
+    phase: 'open', speed: 1, paused: false, menuOpen: false,
     staffT: 9, spawnT: 3,
     served: 0, good: 0, revenue: 0, tips: 0, angry: 0,
     sell: 0, rent: 0, net: 0,
@@ -614,7 +647,7 @@ let spawnSeq = 0;
 
 function tick(dt) {
   sceneTime += dt;
-  if (G.phase === 'shop' || G.paused) return;
+  if (G.phase === 'shop' || G.paused || G.menuOpen) return;
 
   /* 时间 */
   if (G.phase === 'open') {
@@ -1103,6 +1136,69 @@ $('speedBtn').addEventListener('click', function () {
 });
 
 /* ---------------------------------------------------------------
+   10.5 菜单 / 配方页
+   --------------------------------------------------------------- */
+function canMake(d) {
+  let n = Infinity;
+  for (const k in d.need) n = Math.min(n, Math.floor((G.stock[k] || 0) / d.need[k]));
+  return n === Infinity ? 0 : n;
+}
+
+function renderMenu() {
+  const sh = $('menuSheet');
+  const stockLine = Object.keys(GOODS).map(function (k) {
+    return '<span><i style="background:' + GOODS[k].c + '"></i>' + GOODS[k].n +
+      ' <b>' + (G.stock[k] || 0) + '</b></span>';
+  }).join('');
+
+  const rows = DRINKS.map(function (d) {
+    const locked = !G.unlocked[d.id];
+    const can = canMake(d);
+    const ing = Object.keys(d.need).map(function (k) {
+      return '<span><i style="background:' + GOODS[k].c + '"></i>' +
+        GOODS[k].n + ' ×' + d.need[k] + '</span>';
+    }).join('<br>');
+    const t = brewTime(d, 1, 0).toFixed(1);
+    const right = locked ? '🔒 ' + d.unlock + ' 元'
+      : (can > 0 ? '还能做 ' + can + ' 杯' : '原料不够');
+    return '<div class="rec' + (locked ? ' lock' : '') + '">' +
+      '<div class="ic"><div class="cup2" style="background:linear-gradient(#0000 0 34%,' +
+      d.c + ' 34% 100%);box-shadow:inset 0 4px 0 ' + d.foam + '"></div></div>' +
+      '<div class="nm">' + d.n + '<b>' + d.price + ' 元 · 出杯 ' + t + ' 秒</b></div>' +
+      '<div class="ing">' + ing + '</div>' +
+      '<div class="can">' + right + '</div>' +
+      '</div>';
+  }).join('');
+
+  sh.innerHTML =
+    '<h2>📖 菜单 · 配方</h2>' +
+    '<div class="sec">现在手上有多少原料</div>' +
+    '<div class="stockline">' + stockLine + '</div>' +
+    '<div class="sec">每做一杯要扣什么（按中杯热饮算）</div>' + rows +
+    '<div class="sec">小贴士</div>' +
+    '<div style="color:#8a7a6a;line-height:1.9">' +
+    '· 杯型只改价格和出杯时间：小杯 −3 元，大杯 +4 元<br>' +
+    '· 冰饮 +2 元，出杯慢一点点<br>' +
+    '· 打烊结算里能补货、能解锁带 🔒 的菜单<br>' +
+    '· 原料 10 个一份，豆 3 元 / 奶 2 元 / 糖浆 4 元 / 杯子 1 元' +
+    '</div>' +
+    '<button class="go" id="menuClose">知道啦</button>';
+  $('menuClose').addEventListener('click', closeMenu);
+}
+
+function openMenu() {
+  renderMenu();
+  $('menuOv').classList.add('on');
+  G.menuOpen = true;
+}
+function closeMenu() {
+  $('menuOv').classList.remove('on');
+  G.menuOpen = false;
+}
+$('menuBtn').addEventListener('click', openMenu);
+$('menuOv').addEventListener('click', function (e) { if (e.target === this) closeMenu(); });
+
+/* ---------------------------------------------------------------
    11. 日结 + 商店
    --------------------------------------------------------------- */
 function endDay() {
@@ -1180,7 +1276,7 @@ function openShop() {
       '<div class="kv"><span>今日净赚</span><b>' + (G.net >= 0 ? '+' : '') + Math.round(G.net) + '</b></div>' +
       '<div class="kv"><span>手上现金</span><b>' + Math.round(G.money) + ' 元</b></div>' +
       '<div class="sec">口碑 ' + Math.round(G.rep) + ' · 明天房租 ' +
-      (CFG.BASE_RENT + G.day * CFG.RENT_STEP) + ' 元</div>' +
+      (CFG.BASE_RENT + G.day * CFG.RENT_STEP) + ' 元 · 拿不准配方就点上面的 📖 菜单</div>' +
       goodsRows() +
       '<div class="sec">升级设备</div>' + upgRows() +
       menuRows() +
@@ -1291,7 +1387,7 @@ function boot() {
   buildControls();
   buildTray();
   if (loadGame()) toast('欢迎回来，第 ' + G.day + ' 天 ☕');
-  else toast('点客人头上的气泡，把咖啡送过去 ☕');
+  else toast('点客人头上的气泡把咖啡送过去 ☕ 配方看上面的「📖 菜单」');
   uiTick(true);
   requestAnimationFrame(loop);
 }
@@ -1306,6 +1402,7 @@ if (typeof window !== 'undefined') {
     tick: tick, startBrew: startBrew, serveGuest: serveGuest, autoBrew: autoBrew,
     spawnInterval: spawnInterval, brewTime: brewTime, freshGame: freshGame,
     startDay: startDay, tableCount: tableCount, uiTick: uiTick, patienceMax: patienceMax,
+    openMenu: openMenu, closeMenu: closeMenu, canMake: canMake,
   };
 }
 </script>
