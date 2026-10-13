@@ -8,26 +8,27 @@ echo   ================================================
 echo      🐋  小鲸鱼 → GitHub 推送
 echo   ================================================
 echo.
-echo   等一下会弹出一个窗口（Git Credential Manager）
-echo.
-echo     [1] 点「Sign in with browser」/「通过浏览器登录」
-echo     [2] 浏览器打开后，点绿色的  Authorize  授权
-echo     [3] 回来看到 Success 就成了
-echo.
-echo   如果没弹窗，看看任务栏有没有闪烁的图标~
+echo   正在把作品集推上去，稍等一下...
 echo.
 echo   ------------------------------------------------
 echo.
 
-git push -u origin main --force
+git add -A
+git commit -m "更新：%date% %time%"
+git push origin main
 
 echo.
 echo   ================================================
 if %errorlevel%==0 (
-  echo      ✅  成功！作品集已经上网了
-  echo      去看看：https://github.com/WuShanyun-afk/QwQCAT-and-D
+  echo      ✅  推送成功！
+  echo.
+  echo      线上看这里：https://wushanyun-afk.github.io/QwQCAT-and-D/
+  echo      仓库在这里：https://github.com/WuShanyun-afk/QwQCAT-and-D
 ) else (
-  echo      ❌  没成功，把上面的红字截图给小D看
+  echo      ❌  没成功。
+  echo.
+  echo      先试试多跑一次这个 bat（网络抽风很常见）。
+  echo      要是还不行，把窗口里的红字截图给小D看。
 )
 echo   ================================================
 echo.

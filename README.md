@@ -129,7 +129,9 @@
 - 全工作区目前约 **41.5 MB**（2026-10-13 大扫除前是 127 MB），其中 `.git` 占 12 MB、`备份/` 占 17 MB —— 真正属于「作品」的只有 8.5 MB。
 - 🌐 **已上线 GitHub Pages**：<https://wushanyun-afk.github.io/QwQCAT-and-D/>
   - 仓库：<https://github.com/WuShanyun-afk/QwQCAT-and-D>（**公开**，2026-10-13 由小D 改的）
+  - 推送走 **SSH**（`git@github.com:WuShanyun-afk/QwQCAT-and-D.git`），密钥在 `~/.ssh/id_ed25519`，已挂到 GitHub 上并验证通过
+  - 电脑上还留了 `github-443` 备用通道（`ssh.github.com:443`），端口 22 被封时能用
   - 以后想再推一次，双击 `工具/推送到GitHub.bat` 就行
-  - ⚠️ 国内访问 github.com 偶尔抽风（`github.com:443` 连不上），但 `github.io` 的展示站一般没事，多刷新几次即可
+  - ⚠️ 国内访问 `github.com` 偶尔抽风（HTTPS 会卡在 `github.com:443`），**SSH 通道基本不受影响**；展示站 `github.io` 也一般没事
 - 🗑️ **2026-10-13 清理记录**：把 360 残留 **85.4 MB** 移进回收站（A 缓存日志 26.5 + B 插件本地存储 45.0 + C 下载器回收站 13.9）。书签/历史/登录等精华已安全备份在 `备份/360浏览器-精华/`。回收站清空后空间才真正释放。
 - 手机端 → 电脑端的搬运流程：手机打包 zip → 传过来 → 跑 `工具/手机端作品-解包.py` → 跑 `工具/生成预览图.py` → 在 `gallery.html` 的 `GROUPS` 里照抄一行。
