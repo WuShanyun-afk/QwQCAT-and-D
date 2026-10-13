@@ -200,6 +200,42 @@ const openEl = document.getElementById('open');
 const gridwrap = document.getElementById('gridwrap');
 const grid = document.getElementById('grid');
 const buttons = [];
+const btnMap = {};        /* "gi:wi" -> 侧栏按钮，深链接时用来定位 */
+
+/* ====== 地址栏锚点：刷新不丢、能直接发人 ====== */
+let fromHash = false;     /* 防止 select 和 hashchange 互相触发 */
+
+function hashKeyOf(g, wi) {
+  return g.works ? g.works[wi].f : g.name;   /* 作品用文件路径，整组静图用组名 */
+}
+
+function setHash(key) {
+  const h = '#/' + encodeURI(key);
+  if (location.hash !== h) location.hash = h;
+}
+
+function findIdx(key) {
+  for (let gi = 0; gi < GROUPS.length; gi++) {
+    const g = GROUPS[gi];
+    if (g.name === key) return [gi, 0];
+    const list = g.works || g.images || [];
+    for (let wi = 0; wi < list.length; wi++) {
+      if (list[wi].f === key) return [gi, wi];
+    }
+  }
+  return null;
+}
+
+function applyHash() {
+  const key = decodeURI(location.hash.replace(/^#\/?/, ''));
+  if (!key) return false;
+  const hit = findIdx(key);
+  if (!hit) return false;
+  fromHash = true;
+  select(hit[0], hit[1], btnMap[hit[0] + ':' + hit[1]]);
+  fromHash = false;
+  return true;
+}
 
 let nWorks = 0, nImgs = 0;
 GROUPS.forEach(g => {
@@ -225,6 +261,7 @@ GROUPS.forEach((g, gi) => {
     b.addEventListener('click', () => select(gi, wi, b));
     nav.appendChild(b);
     buttons.push(b);
+    btnMap[gi + ':' + wi] = b;
   });
 });
 
@@ -233,7 +270,11 @@ function clearOn() { buttons.forEach(b => b.classList.remove('on')); }
 function select(gi, wi, btn) {
   const g = GROUPS[gi];
   clearOn();
-  btn.classList.add('on');
+  if (btn) {
+    btn.classList.add('on');
+    if (fromHash) btn.scrollIntoView({ block: 'nearest' });   /* 深链接时把按钮滚进视野 */
+  }
+  if (!fromHash) setHash(hashKeyOf(g, wi));
 
   if (g.images) {                       /* 静图：网格 */
     frame.hidden = true;
@@ -260,8 +301,9 @@ function select(gi, wi, btn) {
   openEl.style.visibility = 'visible';
 }
 
-/* 默认打开第一件 */
-select(0, 0, buttons[0]);
+/* 默认打开第一件；如果地址栏带锚点，就照着锚点开 */
+if (!applyHash()) select(0, 0, buttons[0]);
+window.addEventListener('hashchange', applyHash);
 </script>
 </body>
 </html>
