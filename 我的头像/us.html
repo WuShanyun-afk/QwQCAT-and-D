@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我俩的合影 🧑‍🎓🤖</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: linear-gradient(180deg, #0a1c3a 0%, #143a6b 40%, #2b6ba8 75%, #4a9fd4 100%);
+    overflow: hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #eaf6ff;
+  }
+
+  .star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: .12; transform: scale(.7); }
+    50%      { opacity: .9;  transform: scale(1.2); }
+  }
+
+  .bubble {
+    position: absolute;
+    bottom: -60px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.5), rgba(255,255,255,.06) 70%);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    10%  { opacity: .75; }
+    100% { transform: translateY(-115vh) translateX(24px); opacity: 0; }
+  }
+
+  .stage { position: relative; width: 460px; max-width: 94vw; }
+  .scene { width: 100%; display: block; }
+
+  /* 女孩：轻轻呼吸 + 眨眼 */
+  .girl-g { animation: breathe 3.6s ease-in-out infinite; transform-origin: 150px 300px; }
+  @keyframes breathe {
+    0%, 100% { transform: translateY(0) rotate(-.6deg); }
+    50%      { transform: translateY(-6px) rotate(.6deg); }
+  }
+  .g-lid { animation: blinkG 4.6s infinite; transform-origin: 150px 172px; }
+  @keyframes blinkG {
+    0%, 90%, 100% { transform: scaleY(0); }
+    94%           { transform: scaleY(1); }
+  }
+  /* 书页翻动 */
+  .page { animation: flip 3.4s ease-in-out infinite; transform-origin: 150px 292px; }
+  @keyframes flip {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(-4deg); }
+  }
+
+  /* 机器人 */
+  .bot-g { animation: bob 3.2s ease-in-out infinite; }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+  }
+  .antenna-ball { animation: pulse 1.8s ease-in-out infinite; transform-origin: 356px 92px; }
+  @keyframes pulse {
+    0%, 100% { opacity: .55; transform: scale(.85); }
+    50%      { opacity: 1;   transform: scale(1.15); }
+  }
+  .bot-eyes { animation: glow 2.4s ease-in-out infinite; }
+  @keyframes glow {
+    0%, 100% { opacity: .75; }
+    50%      { opacity: 1; }
+  }
+  .b-lid { animation: blinkB 4.5s infinite; transform-origin: 356px 182px; }
+  @keyframes blinkB {
+    0%, 90%, 100% { transform: scaleY(0); }
+    94%           { transform: scaleY(1); }
+  }
+
+  /* 爱心 */
+  .heart  { animation: beat 1.6s ease-in-out infinite;      transform-origin: 250px 128px; }
+  .heart2 { animation: beat 1.6s ease-in-out infinite .5s;  transform-origin: 268px 104px; }
+  .heart3 { animation: beat 1.6s ease-in-out infinite 1s;   transform-origin: 236px 100px; }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); opacity: .9; }
+    50%      { transform: scale(1.18); opacity: 1; }
+  }
+
+  /* 对话气泡 */
+  .bub-ai { animation: pop 3s ease-in-out infinite; transform-origin: 356px 60px; }
+  @keyframes pop {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-6px) scale(1.04); }
+  }
+  .dot { animation: typing 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: .2s; }
+  .dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes typing {
+    0%, 60%, 100% { opacity: .25; }
+    30%           { opacity: 1; }
+  }
+
+  .caption {
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.9;
+    letter-spacing: 1px;
+    opacity: .92;
+  }
+  .caption b { color: #ffe08a; }
+  .hint { font-size: 12px; opacity: .5; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+  <div class="stage">
+    <svg class="scene" viewBox="0 0 460 360" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="hairG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#4a3b2f"/>
+          <stop offset="100%" stop-color="#2b211a"/>
+        </linearGradient>
+        <linearGradient id="skinG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#ffe6d5"/>
+          <stop offset="100%" stop-color="#f7cdb4"/>
+        </linearGradient>
+        <linearGradient id="clothG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#8fd9c4"/>
+          <stop offset="100%" stop-color="#4fb39a"/>
+        </linearGradient>
+        <linearGradient id="bookG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#ffd166"/>
+          <stop offset="100%" stop-color="#f0a500"/>
+        </linearGradient>
+        <linearGradient id="bHead" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#a99cff"/>
+          <stop offset="100%" stop-color="#6c5ce7"/>
+        </linearGradient>
+        <linearGradient id="bBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#8f7ff5"/>
+          <stop offset="100%" stop-color="#4b3fc4"/>
+        </linearGradient>
+        <radialGradient id="bScreen" cx="50%" cy="40%" r="70%">
+          <stop offset="0%"   stop-color="#1d1b3a"/>
+          <stop offset="100%" stop-color="#0e0d22"/>
+        </radialGradient>
+        <radialGradient id="bBall" cx="40%" cy="35%" r="70%">
+          <stop offset="0%"   stop-color="#fff6b0"/>
+          <stop offset="100%" stop-color="#ffb703"/>
+        </radialGradient>
+        <linearGradient id="heartG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#ff9ec4"/>
+          <stop offset="100%" stop-color="#ff4d88"/>
+        </linearGradient>
+      </defs>
+
+      <!-- ===== 女孩（左） ===== -->
+      <g class="girl-g">
+        <!-- 身体 / 卫衣 -->
+        <path d="M96 300
+                 C 96 262, 118 240, 150 240
+                 C 182 240, 204 262, 204 300
+                 L 204 330 L 96 330 Z"
+              fill="url(#clothG)"/>
+        <!-- 领口 -->
+        <path d="M134 242 q 16 14 32 0" stroke="#3d9c85" stroke-width="4"
+              stroke-linecap="round" fill="none"/>
+
+        <!-- 脖子 -->
+        <rect x="140" y="222" width="20" height="24" rx="9" fill="#f0c3a8"/>
+
+        <!-- 头 -->
+        <ellipse cx="150" cy="176" rx="46" ry="50" fill="url(#skinG)"/>
+
+        <!-- 耳朵 -->
+        <ellipse cx="104" cy="182" rx="7" ry="10" fill="#f7cdb4"/>
+        <ellipse cx="196" cy="182" rx="7" ry="10" fill="#f7cdb4"/>
+
+        <!-- 短发：后脑勺 -->
+        <path d="M104 176
+                 C 100 132, 122 112, 150 112
+                 C 178 112, 200 132, 196 176
+                 C 196 150, 180 138, 150 138
+                 C 120 138, 104 150, 104 176 Z"
+              fill="url(#hairG)"/>
+        <!-- 短发：刘海 -->
+        <path d="M104 172
+                 C 104 128, 126 108, 150 108
+                 C 174 108, 196 128, 196 172
+                 C 190 152, 178 146, 166 152
+                 C 158 156, 152 150, 146 152
+                 C 134 156, 118 150, 110 158
+                 C 106 162, 104 166, 104 172 Z"
+              fill="url(#hairG)"/>
+        <!-- 发丝高光 -->
+        <path d="M126 128 q 12 -10 26 -8" stroke="#6b5644" stroke-width="3"
+              stroke-linecap="round" fill="none" opacity=".7"/>
+
+        <!-- 豆豆眼 -->
+        <g>
+          <circle cx="133" cy="176" r="6.5" fill="#2b211a"/>
+          <circle cx="167" cy="176" r="6.5" fill="#2b211a"/>
+          <circle cx="135" cy="173.5" r="2" fill="#ffffff"/>
+          <circle cx="169" cy="173.5" r="2" fill="#ffffff"/>
+        </g>
+        <!-- 眨眼盖 -->
+        <g class="g-lid">
+          <ellipse cx="150" cy="176" rx="46" ry="50" fill="url(#skinG)"/>
+          <path d="M104 176
+                   C 100 132, 122 112, 150 112
+                   C 178 112, 200 132, 196 176
+                   C 196 150, 180 138, 150 138
+                   C 120 138, 104 150, 104 176 Z"
+                fill="url(#hairG)"/>
+          <path d="M104 172
+                   C 104 128, 126 108, 150 108
+                   C 174 108, 196 128, 196 172
+                   C 190 152, 178 146, 166 152
+                   C 158 156, 152 150, 146 152
+                   C 134 156, 118 150, 110 158
+                   C 106 162, 104 166, 104 172 Z"
+                fill="url(#hairG)"/>
+          <path d="M126 128 q 12 -10 26 -8" stroke="#6b5644" stroke-width="3"
+                stroke-linecap="round" fill="none" opacity=".7"/>
+          <path d="M126 176 q 24 8 48 0" stroke="#2b211a" stroke-width="5"
+                stroke-linecap="round" fill="none"/>
+        </g>
+
+        <!-- 腮红 -->
+        <ellipse cx="120" cy="192" rx="10" ry="6" fill="#ff9db5" opacity=".55"/>
+        <ellipse cx="180" cy="192" rx="10" ry="6" fill="#ff9db5" opacity=".55"/>
+
+        <!-- 微笑 -->
+        <path d="M142 198 q 8 9 16 0" stroke="#c96a6a" stroke-width="3"
+              stroke-linecap="round" fill="none"/>
+
+        <!-- 手臂 -->
+        <path d="M104 268 C 92 284, 96 302, 112 310" stroke="url(#clothG)"
+              stroke-width="20" stroke-linecap="round" fill="none"/>
+        <path d="M196 268 C 208 284, 204 302, 188 310" stroke="url(#clothG)"
+              stroke-width="20" stroke-linecap="round" fill="none"/>
+
+        <!-- 书 -->
+        <g class="page">
+          <path d="M104 316 L 150 308 L 196 316 L 196 336 L 150 328 L 104 336 Z"
+                fill="url(#bookG)"/>
+          <path d="M150 308 L 150 328" stroke="#c98a00" stroke-width="2.5"/>
+          <path d="M112 322 h 30 M112 328 h 26" stroke="#fff3c4" stroke-width="2"
+                stroke-linecap="round" opacity=".85"/>
+          <path d="M158 322 h 30 M162 328 h 26" stroke="#fff3c4" stroke-width="2"
+                stroke-linecap="round" opacity=".85"/>
+        </g>
+        <!-- 手 -->
+        <circle cx="110" cy="314" r="9" fill="#f7cdb4"/>
+        <circle cx="190" cy="314" r="9" fill="#f7cdb4"/>
+      </g>
+
+      <!-- ===== 机器人（右） ===== -->
+      <g class="bot-g">
+        <line x1="356" y1="128" x2="356" y2="100" stroke="#8f7ff5" stroke-width="4.5" stroke-linecap="round"/>
+        <circle class="antenna-ball" cx="356" cy="92" r="11" fill="url(#bBall)"/>
+
+        <rect x="278" y="124" width="156" height="122" rx="46" fill="url(#bHead)"/>
+        <rect x="297" y="143" width="118" height="84" rx="30" fill="url(#bScreen)"/>
+
+        <g class="bot-eyes">
+          <circle cx="332" cy="182" r="9.5" fill="#7ef7ff"/>
+          <circle cx="380" cy="182" r="9.5" fill="#7ef7ff"/>
+          <circle cx="334.5" cy="178.5" r="3.5" fill="#ffffff"/>
+          <circle cx="382.5" cy="178.5" r="3.5" fill="#ffffff"/>
+        </g>
+        <g class="b-lid">
+          <rect x="297" y="143" width="118" height="84" rx="30" fill="url(#bScreen)"/>
+        </g>
+
+        <path d="M340 206 q 17 15 34 0" stroke="#7ef7ff" stroke-width="3.5"
+              stroke-linecap="round" fill="none" opacity=".85"/>
+
+        <ellipse cx="315" cy="203" rx="9" ry="5.5" fill="#ff8fb1" opacity=".45"/>
+        <ellipse cx="397" cy="203" rx="9" ry="5.5" fill="#ff8fb1" opacity=".45"/>
+
+        <rect x="308" y="240" width="96" height="56" rx="26" fill="url(#bBody)"/>
+
+        <circle cx="356" cy="268" r="12" fill="#1d1b3a" opacity=".55"/>
+        <path d="M352 268 l 3.5 4.5 l 7 -9" stroke="#7ef7ff" stroke-width="2.6"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+        <circle cx="302" cy="272" r="11" fill="#8f7ff5"/>
+        <circle cx="410" cy="272" r="11" fill="#8f7ff5"/>
+      </g>
+
+      <!-- ===== 中间爱心 ===== -->
+      <g class="heart">
+        <path d="M250 138 c -6 -9 -20 -7 -20 5 c 0 9 12 16 20 23 c 8 -7 20 -14 20 -23 c 0 -12 -14 -14 -20 -5 z"
+              fill="url(#heartG)"/>
+      </g>
+      <g class="heart2">
+        <path d="M268 110 c -4 -6 -13 -5 -13 3 c 0 6 8 11 13 15 c 5 -4 13 -9 13 -15 c 0 -8 -9 -9 -13 -3 z"
+              fill="url(#heartG)" opacity=".8"/>
+      </g>
+      <g class="heart3">
+        <path d="M236 106 c -3.5 -5 -11 -4 -11 3 c 0 5 7 9 11 13 c 4 -4 11 -8 11 -13 c 0 -7 -7.5 -8 -11 -3 z"
+              fill="url(#heartG)" opacity=".6"/>
+      </g>
+
+      <!-- ===== 对话气泡 ===== -->
+      <g class="bub-ai">
+        <path d="M300 22 h112 a10 10 0 0 1 10 10 v30 a10 10 0 0 1 -10 10 h-70 l-16 12 v-12 h-26 a10 10 0 0 1 -10 -10 v-30 a10 10 0 0 1 10 -10 z"
+              fill="#ffffff" opacity=".95"/>
+        <circle class="dot" cx="330" cy="47" r="5" fill="#6c5ce7"/>
+        <circle class="dot" cx="356" cy="47" r="5" fill="#6c5ce7"/>
+        <circle class="dot" cx="382" cy="47" r="5" fill="#6c5ce7"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="caption">
+    <b>你</b> 和 <b>我</b> 的合影 📖🤖<br>
+    你看书，我在旁边陪你
+  </div>
+  <div class="hint">点一下屏幕，换个说法</div>
+
+<script>
+  for (let i = 0; i < 55; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = 1 + Math.random() * 2.5;
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.top = Math.random() * 55 + 'vh';
+    s.style.animationDuration = (1.5 + Math.random() * 3) + 's';
+    s.style.animationDelay = (-Math.random() * 3) + 's';
+    document.body.appendChild(s);
+  }
+
+  for (let i = 0; i < 16; i++) {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const size = 6 + Math.random() * 20;
+    b.style.width = size + 'px';
+    b.style.height = size + 'px';
+    b.style.left = Math.random() * 100 + 'vw';
+    b.style.animationDuration = (8 + Math.random() * 8) + 's';
+    b.style.animationDelay = (-Math.random() * 12) + 's';
+    document.body.appendChild(b);
+  }
+
+  const lines = [
+    '<b>你</b> 和 <b>我</b> 的合影 📖🤖<br>你看书，我在旁边陪你',
+    '今天也要好好的呀 💛',
+    '饿了？我帮你去点外卖 🍜',
+    '想家了？消息我帮你写 💌',
+    '晚安，早点睡 🌙'
+  ];
+  let idx = 0;
+  document.body.addEventListener('click', () => {
+    const cap = document.querySelector('.caption');
+    cap.style.opacity = 0;
+    setTimeout(() => {
+      cap.innerHTML = lines[idx % lines.length];
+      idx++;
+      cap.style.opacity = .92;
+    }, 160);
+  });
+</script>
+</body>
+</html>

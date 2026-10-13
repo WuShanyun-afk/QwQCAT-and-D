@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>麦田星空 · 风景画 🌾✨</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #050a18; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 28px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.6s ease both;
+  }
+  .caption h1 {
+    font-size: 19px; font-weight: 600; letter-spacing: 5px;
+    color: #eaf2ff;
+    text-shadow: 0 0 20px rgba(150,190,255,.6), 0 2px 8px rgba(0,0,0,.7);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #8fa4c8;
+    margin-top: 7px;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #7d90b8;
+    opacity: .85; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下夜空 · 会划过一颗流星 🌠</div>
+<div class="caption">
+  <h1>麦 田 星 空</h1>
+  <p>银河 · 流星 · 风过的麦浪</p>
+</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+let seed = 31415926;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+
+/* ---------- 星星 ---------- */
+const stars = [];
+for (let i = 0; i < 220; i++) {
+  stars.push({
+    x: rnd(), y: rnd() * .72,
+    r: .5 + rnd() * 1.7,
+    ph: rnd() * Math.PI * 2,
+    sp: .5 + rnd() * 2.2,
+    warm: rnd() > .78
+  });
+}
+
+/* ---------- 银河（粒子带） ---------- */
+const galaxy = [];
+for (let i = 0; i < 320; i++) {
+  const t = rnd();
+  const gx = .18 + t * .72 + (rnd() - .5) * .10;
+  const gy = .62 - t * .50 + (rnd() - .5) * .10;
+  galaxy.push({ x: gx, y: gy, r: .4 + rnd() * 1.1, a: .10 + rnd() * .35 });
+}
+
+/* ---------- 流星 ---------- */
+const meteors = [];
+function spawnMeteor(x, y) {
+  meteors.push({
+    x: x !== undefined ? x : Math.random() * W * .8,
+    y: y !== undefined ? y : Math.random() * H * .3,
+    len: 90 + Math.random() * 130,
+    sp: 480 + Math.random() * 320,
+    life: 1,
+    ang: Math.PI * .78
+  });
+}
+
+/* ---------- 麦穗 ---------- */
+const wheat = [];
+for (let i = 0; i < 150; i++) {
+  wheat.push({
+    x: rnd(),
+    h: .07 + rnd() * .11,
+    ph: rnd() * Math.PI * 2,
+    w: 1 + rnd() * 1.6,
+    lean: (rnd() - .5) * .3
+  });
+}
+
+let time = 0, last = performance.now();
+
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, .05);
+  last = now; time += dt;
+
+  const horizon = H * .66;
+
+  /* --- 夜空 --- */
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon + 30);
+  sky.addColorStop(0,   '#050a1c');
+  sky.addColorStop(.40, '#0a1430');
+  sky.addColorStop(.72, '#152a4a');
+  sky.addColorStop(1,   '#24405e');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, horizon + 30);
+
+  /* --- 银河 --- */
+  galaxy.forEach(g => {
+    ctx.fillStyle = `rgba(190,210,255,${g.a})`;
+    ctx.beginPath();
+    ctx.arc(g.x * W, g.y * H, g.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* --- 星星闪烁 --- */
+  stars.forEach(s => {
+    s.ph += dt * s.sp;
+    const a = .30 + Math.sin(s.ph) * .45;
+    if (a <= 0) return;
+    ctx.fillStyle = s.warm
+      ? `rgba(255,225,190,${a})`
+      : `rgba(215,232,255,${a})`;
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* --- 流星 --- */
+  if (Math.random() < dt * .35) spawnMeteor();
+  for (let i = meteors.length - 1; i >= 0; i--) {
+    const m = meteors[i];
+    m.x += Math.cos(m.ang) * m.sp * dt;
+    m.y += Math.sin(m.ang) * m.sp * dt;
+    m.life -= dt * .55;
+    if (m.life <= 0 || m.x < -200 || m.y > H) { meteors.splice(i, 1); continue; }
+    const tx = m.x - Math.cos(m.ang) * m.len;
+    const ty = m.y - Math.sin(m.ang) * m.len;
+    const g = ctx.createLinearGradient(tx, ty, m.x, m.y);
+    g.addColorStop(0, 'rgba(200,225,255,0)');
+    g.addColorStop(.7, `rgba(210,235,255,${.45 * m.life})`);
+    g.addColorStop(1, `rgba(255,255,255,${.95 * m.life})`);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(m.x, m.y);
+    ctx.stroke();
+    // 头部光点
+    ctx.fillStyle = `rgba(255,255,255,${m.life})`;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* --- 远山剪影 --- */
+  ctx.fillStyle = '#0c1526';
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  for (let x = 0; x <= W + 12; x += 12) {
+    const p = x / W;
+    const y = horizon - H * .035
+      + Math.sin(p * 4.8 + 1.2) * H * .026
+      + Math.sin(p * 11.3 + 2.4) * H * .012;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fill();
+
+  /* --- 地平线微光 --- */
+  const glow = ctx.createLinearGradient(0, horizon - H * .05, 0, horizon + H * .06);
+  glow.addColorStop(0, 'rgba(120,170,220,0)');
+  glow.addColorStop(.5, 'rgba(140,180,225,.18)');
+  glow.addColorStop(1, 'rgba(80,120,170,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, horizon - H * .05, W, H * .11);
+
+  /* --- 麦田 --- */
+  const field = ctx.createLinearGradient(0, horizon, 0, H);
+  field.addColorStop(0, '#1a2233');
+  field.addColorStop(.45, '#141a28');
+  field.addColorStop(1, '#080c14');
+  ctx.fillStyle = field;
+  ctx.fillRect(0, horizon, W, H - horizon);
+
+  // 麦浪：越近越大
+  wheat.forEach(w => {
+    const depth = .35 + (w.x * 7 % 1) * .65;   // 0~1 近远
+    const bx = w.x * W;
+    const baseY = horizon + (H - horizon) * (.25 + depth * .75);
+    const hh = w.h * H * (.6 + depth * .9);
+    const sway = Math.sin(time * 1.5 + w.ph + w.x * 6) * (.10 + depth * .16);
+    const tipX = bx + (sway + w.lean) * hh;
+    const tipY = baseY - hh;
+
+    // 麦秆
+    ctx.strokeStyle = `rgba(190,175,120,${.18 + depth * .40})`;
+    ctx.lineWidth = w.w * (.6 + depth * .7);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(bx, baseY);
+    ctx.quadraticCurveTo(bx + sway * hh * .4, baseY - hh * .55, tipX, tipY);
+    ctx.stroke();
+
+    // 麦穗
+    ctx.fillStyle = `rgba(225,205,140,${.20 + depth * .45})`;
+    ctx.beginPath();
+    ctx.ellipse(tipX, tipY, w.w * 1.1, hh * .13, sway * .6, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* --- 前景暗角 --- */
+  const vig = ctx.createRadialGradient(W * .5, H * .5, Math.min(W, H) * .35, W * .5, H * .5, Math.max(W, H) * .78);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+window.addEventListener('pointerdown', e => spawnMeteor(e.clientX, e.clientY));
+</script>
+</body>
+</html>

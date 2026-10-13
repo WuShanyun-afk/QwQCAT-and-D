@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小 D 的头像 🐋</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: radial-gradient(circle at 50% 35%, #2b2350 0%, #171436 55%, #0c0a1f 100%);
+    overflow: hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #e6e1ff;
+  }
+
+  .star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: .12; transform: scale(.7); }
+    50%      { opacity: .9;  transform: scale(1.2); }
+  }
+
+  /* 头像框：正方形，适合直接截图当头像 */
+  .avatar {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, #3a2f6e 0%, #1c1840 70%, #12102b 100%);
+    box-shadow: 0 0 0 3px rgba(160,140,255,.35), 0 0 44px rgba(140,120,255,.5);
+    animation: bob 3.4s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+
+  /* 光晕 */
+  .halo {
+    position: absolute;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(140,120,255,.45) 0%, transparent 70%);
+    top: 40px; left: 50%;
+    transform: translateX(-50%);
+  }
+
+  svg { position: relative; display: block; width: 100%; height: 100%; }
+
+  .antenna-ball { animation: pulse 1.8s ease-in-out infinite; transform-origin: 150px 52px; }
+  @keyframes pulse {
+    0%, 100% { opacity: .55; transform: scale(.85); }
+    50%      { opacity: 1;   transform: scale(1.18); }
+  }
+
+  .eyes { animation: glow 2.4s ease-in-out infinite; }
+  @keyframes glow {
+    0%, 100% { opacity: .75; }
+    50%      { opacity: 1; }
+  }
+
+  .lid { animation: blink 4.5s infinite; transform-origin: 150px 148px; }
+  @keyframes blink {
+    0%, 91%, 100% { transform: scaleY(0); }
+    95%           { transform: scaleY(1); }
+  }
+
+  /* 打字点点 */
+  .dot { animation: typing 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: .2s; }
+  .dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes typing {
+    0%, 60%, 100% { opacity: .2; }
+    30%           { opacity: 1; }
+  }
+
+  .caption { text-align: center; font-size: 14px; line-height: 1.9; opacity: .85; letter-spacing: .5px; }
+  .caption b { color: #b9a7ff; }
+  .hint { font-size: 11px; opacity: .4; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+  <div class="avatar">
+    <div class="halo"></div>
+    <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="headGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#a99cff"/>
+          <stop offset="100%" stop-color="#6c5ce7"/>
+        </linearGradient>
+        <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#8f7ff5"/>
+          <stop offset="100%" stop-color="#4b3fc4"/>
+        </linearGradient>
+        <radialGradient id="screenGrad" cx="50%" cy="40%" r="70%">
+          <stop offset="0%"   stop-color="#1d1b3a"/>
+          <stop offset="100%" stop-color="#0e0d22"/>
+        </radialGradient>
+        <radialGradient id="ballGrad" cx="40%" cy="35%" r="70%">
+          <stop offset="0%"   stop-color="#fff6b0"/>
+          <stop offset="100%" stop-color="#ffb703"/>
+        </radialGradient>
+      </defs>
+
+      <!-- 天线 -->
+      <line x1="150" y1="88" x2="150" y2="58" stroke="#8f7ff5" stroke-width="5" stroke-linecap="round"/>
+      <circle class="antenna-ball" cx="150" cy="52" r="11" fill="url(#ballGrad)"/>
+
+      <!-- 脑袋 -->
+      <rect x="66" y="84" width="168" height="130" rx="48" fill="url(#headGrad)"/>
+
+      <!-- 屏幕脸 -->
+      <rect x="86" y="104" width="128" height="90" rx="32" fill="url(#screenGrad)"/>
+
+      <!-- 眼睛 -->
+      <g class="eyes">
+        <circle cx="124" cy="142" r="10" fill="#7ef7ff"/>
+        <circle cx="176" cy="142" r="10" fill="#7ef7ff"/>
+        <circle cx="127" cy="138" r="3.5" fill="#ffffff"/>
+        <circle cx="179" cy="138" r="3.5" fill="#ffffff"/>
+      </g>
+      <g class="lid">
+        <rect x="86" y="104" width="128" height="90" rx="32" fill="url(#screenGrad)"/>
+      </g>
+
+      <!-- 微笑 -->
+      <path d="M132 168 q 18 16 36 0" stroke="#7ef7ff" stroke-width="4"
+            stroke-linecap="round" fill="none" opacity=".85"/>
+
+      <!-- 腮红 -->
+      <ellipse cx="104" cy="164" rx="9" ry="5.5" fill="#ff8fb1" opacity=".45"/>
+      <ellipse cx="196" cy="164" rx="9" ry="5.5" fill="#ff8fb1" opacity=".45"/>
+
+      <!-- 身体 -->
+      <rect x="96" y="208" width="108" height="62" rx="28" fill="url(#bodyGrad)"/>
+
+      <!-- 小胸章 -->
+      <circle cx="150" cy="238" r="13" fill="#1d1b3a" opacity=".55"/>
+      <path d="M145 238 l 4 5 l 8 -10" stroke="#7ef7ff" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <!-- 小手 -->
+      <circle cx="88"  cy="244" r="12" fill="#8f7ff5"/>
+      <circle cx="212" cy="244" r="12" fill="#8f7ff5"/>
+
+      <!-- 打字气泡（小，右上） -->
+      <g>
+        <path d="M196 62 h56 a9 9 0 0 1 9 9 v18 a9 9 0 0 1 -9 9 h-30 l-11 9 v-9 h-15 a9 9 0 0 1 -9 -9 v-18 a9 9 0 0 1 9 -9 z"
+              fill="#ffffff" opacity=".93"/>
+        <circle class="dot" cx="214" cy="80" r="4" fill="#6c5ce7"/>
+        <circle class="dot" cx="229" cy="80" r="4" fill="#6c5ce7"/>
+        <circle class="dot" cx="244" cy="80" r="4" fill="#6c5ce7"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="caption">
+    <b>小 D</b> · 你的电子宠物 🐋<br>
+    吃 token 长大，每周十块钱管饱
+  </div>
+  <div class="hint">长按截图 → 存下来当头像</div>
+
+<script>
+  for (let i = 0; i < 45; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = 1 + Math.random() * 2.2;
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.top = Math.random() * 100 + 'vh';
+    s.style.animationDuration = (1.5 + Math.random() * 3) + 's';
+    s.style.animationDelay = (-Math.random() * 3) + 's';
+    document.body.appendChild(s);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>奶牛猫 · 给最好的朋友 🐄🐱</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
+  body {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:12px; padding:16px;
+    background: radial-gradient(circle at 50% 0%, #3a3f4b 0%, #23262e 60%, #16181d 100%);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:#e9ecf1; overflow:hidden; user-select:none;
+  }
+
+  /* ---------- 开场 ---------- */
+  #intro {
+    position:fixed; inset:0; z-index:60;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    background:radial-gradient(circle at 50% 30%, #2c313b, #14161a);
+    transition:opacity .7s ease;
+  }
+  #intro.gone { opacity:0; pointer-events:none; }
+  .intro-cat { font-size:70px; animation:wiggle 1.8s ease-in-out infinite; }
+  @keyframes wiggle { 0%,100%{transform:rotate(-7deg)} 50%{transform:rotate(7deg) scale(1.07)} }
+  .intro-title { font-size:20px; font-weight:800; letter-spacing:3px;
+    background:linear-gradient(90deg,#fff,#9fd0ff,#fff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .intro-sub { font-size:12.5px; color:#8b93a3; letter-spacing:1px; text-align:center; line-height:1.9; }
+  .intro-btn {
+    margin-top:4px; padding:14px 42px; border:none; border-radius:999px;
+    font-size:15px; font-weight:800; letter-spacing:3px; color:#1b1e24; cursor:pointer;
+    background:linear-gradient(135deg,#ffffff,#c9d6e8);
+    box-shadow:0 10px 26px rgba(200,220,255,.28);
+    animation:breathe 2s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+
+  /* ---------- 主卡片 ---------- */
+  .card {
+    width:100%; max-width:380px;
+    background:rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.13);
+    border-radius:28px; padding:14px 14px 16px;
+    box-shadow:0 18px 46px rgba(0,0,0,.5);
+    backdrop-filter:blur(8px);
+    display:flex; flex-direction:column; align-items:center; gap:11px;
+  }
+  .title { font-size:14px; font-weight:800; letter-spacing:2px; color:#dfe6f2; }
+  .title span { font-size:11px; font-weight:400; color:#7d8798; letter-spacing:0; }
+
+  .stage { position:relative; width:100%; display:flex; justify-content:center; }
+
+  /* 好感度 */
+  .bar-wrap { width:100%; display:flex; align-items:center; gap:8px; font-size:11px; color:#8b93a3; }
+  .bar { flex:1; height:9px; border-radius:99px; background:rgba(255,255,255,.1); overflow:hidden; }
+  .bar-fill { height:100%; width:0%; border-radius:99px;
+    background:linear-gradient(90deg,#7fb2ff,#b7d6ff,#fff); transition:width .35s ease; }
+
+  /* 猫 */
+  .cat { width:190px; height:190px; cursor:pointer; transition:transform .12s ease; }
+  .cat:active { transform:scale(.94); }
+  .cat.happy { animation:hop .5s ease; }
+  @keyframes hop { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-14px) rotate(-4deg)} 70%{transform:translateY(-5px) rotate(3deg)} }
+  .cat.sleep { animation:sleepy 3s ease-in-out infinite; }
+  @keyframes sleepy { 0%,100%{transform:scale(1)} 50%{transform:scale(.97) translateY(3px)} }
+
+  .bubble {
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%) scale(.6);
+    background:#fff; color:#25292f; font-size:12.5px; font-weight:700;
+    padding:7px 13px; border-radius:14px; white-space:nowrap;
+    opacity:0; transition:.25s ease; pointer-events:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.4);
+  }
+  .bubble.show { opacity:1; transform:translateX(-50%) scale(1); }
+
+  /* 按钮 */
+  .btns { display:flex; gap:9px; width:100%; }
+  .btn {
+    flex:1; padding:11px 0; border:none; border-radius:16px; cursor:pointer;
+    font-size:13px; font-weight:700; letter-spacing:1px; color:#e9ecf1;
+    background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.13);
+    transition:.18s ease;
+  }
+  .btn:active { transform:scale(.95); background:rgba(255,255,255,.18); }
+  .btn.main { background:linear-gradient(135deg,#8ab6ff,#5f8fe0); color:#0f1216; border:none; }
+
+  .hint { font-size:11px; color:#6f7889; letter-spacing:.5px; text-align:center; line-height:1.7; }
+  .hint b { color:#9fb8dd; }
+</style>
+</head>
+<body>
+
+<!-- 开场 -->
+<div id="intro">
+  <div class="intro-cat">🐄🐱</div>
+  <div class="intro-title">一只奶牛猫正在路上</div>
+  <div class="intro-sub">
+    它有点笨，但很努力<br>
+    专门来陪你写代码 / 摸鱼 / 发呆
+  </div>
+  <button class="intro-btn" onclick="startGame()">拆开它 🎁</button>
+</div>
+
+<!-- 主界面 -->
+<div class="card">
+  <div class="title">奶牛猫 · 小奶盖 <span>（它还没名字，等你起）</span></div>
+
+  <div class="stage">
+    <div class="bubble" id="bubble">喵~</div>
+    <svg class="cat" id="cat" viewBox="0 0 200 200">
+      <!-- 尾巴 -->
+      <path id="tail" d="M158 132 q34 -6 26 -40" stroke="#1b1d21" stroke-width="11" fill="none" stroke-linecap="round"/>
+      <!-- 身体 -->
+      <ellipse cx="100" cy="128" rx="52" ry="44" fill="#ffffff"/>
+      <path d="M52 120 q20 -22 46 -14 q-8 30 -30 40 q-16 -8 -16 -26z" fill="#1b1d21"/>
+      <ellipse cx="126" cy="140" rx="20" ry="16" fill="#1b1d21"/>
+      <!-- 耳朵 -->
+      <path d="M62 62 L52 32 L86 50 Z" fill="#ffffff"/>
+      <path d="M138 62 L148 32 L114 50 Z" fill="#ffffff"/>
+      <path d="M66 58 L60 42 L80 52 Z" fill="#1b1d21"/>
+      <path d="M134 58 L140 42 L120 52 Z" fill="#1b1d21"/>
+      <!-- 头 -->
+      <ellipse cx="100" cy="80" rx="46" ry="40" fill="#ffffff"/>
+      <!-- 黑斑 -->
+      <path d="M100 40 q46 0 46 40 q-26 -14 -46 -6z" fill="#1b1d21"/>
+      <path d="M58 74 q10 -22 30 -26 q-6 22 -14 30z" fill="#1b1d21"/>
+      <!-- 眼睛 -->
+      <ellipse id="eyeL" cx="82" cy="82" rx="8" ry="9" fill="#1b1d21"/>
+      <ellipse id="eyeR" cx="118" cy="82" rx="8" ry="9" fill="#1b1d21"/>
+      <circle cx="84.5" cy="79" r="2.6" fill="#fff"/>
+      <circle cx="120.5" cy="79" r="2.6" fill="#fff"/>
+      <!-- 鼻子 + 嘴 -->
+      <path d="M100 94 l-5 -5 h10 z" fill="#ff9db0"/>
+      <path d="M100 94 q-7 8 -13 2 M100 94 q7 8 13 2" stroke="#1b1d21" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <!-- 胡须 -->
+      <path d="M60 88 h-22 M60 95 h-20 M140 88 h22 M140 95 h20" stroke="#8a93a3" stroke-width="1.6" stroke-linecap="round"/>
+      <!-- 爪 -->
+      <ellipse cx="80" cy="168" rx="15" ry="10" fill="#fff"/>
+      <ellipse cx="120" cy="168" rx="15" ry="10" fill="#fff"/>
+    </svg>
+  </div>
+
+  <div class="bar-wrap">
+    <span>好感度</span>
+    <div class="bar"><div class="bar-fill" id="fill"></div></div>
+    <span id="lv">1</span>
+  </div>
+
+  <div class="btns">
+    <button class="btn main" onclick="pet()">摸摸头 🖐️</button>
+    <button class="btn" onclick="meow()">喵一声 🔊</button>
+  </div>
+  <div class="btns">
+    <button class="btn" onclick="feed()">投喂小鱼干 🐟</button>
+    <button class="btn" onclick="sleepToggle()">让它睡觉 💤</button>
+  </div>
+
+  <div class="hint" id="hint">点它、摸它、喂它，好感度满了有<b>惊喜</b> ✨</div>
+</div>
+
+<script>
+/* ================= 音频：合成喵叫（无需外部文件） ================= */
+let ac = null;
+function audio() {
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'suspended') ac.resume();
+  return ac;
+}
+
+/* 一声"喵"：两段滑音 + 共振峰感 */
+function playMeow(pitch = 1, dur = 0.42) {
+  const ctx = audio(), t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filt = ctx.createBiquadFilter();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(620 * pitch, t);
+  osc.frequency.exponentialRampToValueAtTime(880 * pitch, t + dur * 0.28);
+  osc.frequency.exponentialRampToValueAtTime(430 * pitch, t + dur);
+
+  filt.type = 'bandpass';
+  filt.frequency.setValueAtTime(1100 * pitch, t);
+  filt.frequency.exponentialRampToValueAtTime(700 * pitch, t + dur);
+  filt.Q.value = 4;
+
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.22, t + 0.05);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  osc.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+
+/* 呼噜声 */
+function playPurr() {
+  const ctx = audio(), t = ctx.currentTime;
+  const osc = ctx.createOscillator(), g = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = 26;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.16, t + 0.15);
+  g.gain.linearRampToValueAtTime(0.0001, t + 1.1);
+  osc.connect(g); g.connect(ctx.destination);
+  osc.start(t); osc.stop(t + 1.15);
+}
+
+/* ================= 游戏状态 ================= */
+let love = 0, sleeping = false, finished = false;
+const MAX = 100;
+
+const bubble = document.getElementById('bubble');
+const fill   = document.getElementById('fill');
+const lvEl   = document.getElementById('lv');
+const catEl  = document.getElementById('cat');
+const hintEl = document.getElementById('hint');
+
+const meows = ['喵~','喵呜~','喵喵喵！','咪呜…','喵嗷~','咕噜咕噜…','喵？','喵♡'];
+const petWords = ['呼噜噜…','再来一下嘛~','舒服到眯眼了','喵呜♡','蹭蹭你'];
+const feedWords = ['小鱼干！','咔嚓咔嚓…','好吃到摇尾巴','喵！还要！'];
+
+function say(text, ms = 1200) {
+  bubble.textContent = text;
+  bubble.classList.add('show');
+  clearTimeout(say._t);
+  say._t = setTimeout(() => bubble.classList.remove('show'), ms);
+}
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+function addLove(n) {
+  if (finished) return;
+  love = Math.min(MAX, love + n);
+  fill.style.width = love + '%';
+  lvEl.textContent = Math.floor(love / 20) + 1;
+  if (love >= MAX) finish();
+}
+
+function hop() {
+  catEl.classList.remove('happy');
+  void catEl.offsetWidth;
+  catEl.classList.add('happy');
+  setTimeout(() => catEl.classList.remove('happy'), 520);
+}
+
+/* ================= 互动 ================= */
+function pet() {
+  if (sleeping) { say('zzz…别吵…'); return; }
+  hop();
+  playPurr();
+  say(pick(petWords));
+  addLove(6);
+}
+
+function meow() {
+  if (sleeping) { say('zzz…'); return; }
+  const p = 0.85 + Math.random() * 0.5;
+  playMeow(p);
+  say(pick(meows));
+  addLove(4);
+}
+
+function feed() {
+  if (sleeping) { say('睡着了，明天再喂吧~'); return; }
+  playMeow(1.15, 0.3);
+  setTimeout(() => playMeow(0.9, 0.35), 220);
+  say(pick(feedWords));
+  addLove(9);
+}
+
+function sleepToggle() {
+  sleeping = !sleeping;
+  catEl.classList.toggle('sleep', sleeping);
+  if (sleeping) { say('呼…呼…💤', 2000); }
+  else { playMeow(1.25, 0.25); say('喵！醒了醒了'); }
+}
+
+/* 点猫本体 = 撸猫 */
+catEl.addEventListener('click', () => { audio(); pet(); });
+
+/* ================= 结局彩蛋 ================= */
+function finish() {
+  finished = true;
+  hintEl.innerHTML = '好感度满啦！<b>它把爪子搭在你手上了</b> 🐾';
+  say('喵呜——♡', 3000);
+  playPurr();
+  setTimeout(() => playMeow(1.2, 0.5), 700);
+  setTimeout(() => playMeow(0.95, 0.55), 1200);
+
+  const box = document.createElement('div');
+  box.style.cssText = `position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;padding:26px;text-align:center;
+    background:radial-gradient(circle at 50% 40%, #2b3140, #101216);opacity:0;transition:opacity .6s ease;`;
+  box.innerHTML = `
+    <div style="font-size:56px">🐄🐱</div>
+    <div style="font-size:17px;font-weight:800;letter-spacing:2px;color:#cfe0ff">满 好 感 度 达 成</div>
+    <div style="font-size:13px;line-height:2.1;color:#98a3b6;max-width:300px">
+      这只奶牛猫现在只认你一个人了。<br>
+      它不会写代码，但它会一直喵喵叫陪你。<br><br>
+      <span style="color:#cfe0ff">—— 送给最好的朋友</span>
+    </div>
+    <button onclick="this.parentNode.remove()" style="margin-top:8px;padding:12px 34px;border:none;border-radius:999px;
+      font-size:14px;font-weight:800;letter-spacing:2px;color:#12151a;cursor:pointer;
+      background:linear-gradient(135deg,#fff,#c9d6e8)">继续陪它 🐾</button>`;
+  document.body.appendChild(box);
+  requestAnimationFrame(() => box.style.opacity = 1);
+}
+
+/* ================= 开场 ================= */
+function startGame() {
+  audio();                 // 用户手势里初始化音频，避免被浏览器拦截
+  playMeow(1.0, 0.45);
+  const intro = document.getElementById('intro');
+  intro.classList.add('gone');
+  setTimeout(() => intro.remove(), 800);
+  setTimeout(() => say('喵~ 你好呀', 1600), 500);
+}
+
+/* 尾巴摇一摇 */
+(function tailWag() {
+  const tail = document.getElementById('tail');
+  let a = 0;
+  setInterval(() => {
+    a += 0.12;
+    tail.setAttribute('d', `M158 132 q${34 + Math.sin(a) * 8} ${-6 + Math.cos(a) * 5} 26 -40`);
+  }, 60);
+})();
+</script>
+</body>
+</html>

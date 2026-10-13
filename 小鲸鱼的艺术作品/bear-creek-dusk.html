@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>溪边黄昏 · 棕熊 🐻🍂</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #2a1c14; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 28px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 19px; font-weight: 600; letter-spacing: 5px;
+    color: #ffe9c4;
+    text-shadow: 0 0 22px rgba(255,180,90,.65), 0 2px 8px rgba(0,0,0,.75);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #d9b184;
+    margin-top: 7px;
+    text-shadow: 0 1px 8px rgba(0,0,0,.7);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #e0b98a;
+    opacity: .88; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(0,0,0,.7);
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下溪面 · 会溅起一圈金色水花 💦</div>
+<div class="caption">
+  <h1>溪 边 黄 昏</h1>
+  <p>落日 · 溪水 · 一只抓鱼的大棕熊</p>
+</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+let seed = 991017;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+
+/* ---------- 远山 ---------- */
+function makeRidge(baseY, amp, freq, phase, step) {
+  const pts = [];
+  for (let x = 0; x <= 1.0001; x += step) {
+    const y = baseY
+      + Math.sin(x * freq + phase) * amp
+      + Math.sin(x * freq * 2.5 + phase * 1.6) * amp * .40
+      + Math.sin(x * freq * 5.9 + phase * .8) * amp * .15;
+    pts.push({ x, y });
+  }
+  return pts;
+}
+const ridgeFar  = makeRidge(.400, .038, 2.4, 1.4, .02);
+const ridgeMid  = makeRidge(.462, .050, 1.8, 3.3, .02);
+const ridgeNear = makeRidge(.528, .034, 4.0, 5.6, .02);
+
+/* ---------- 落叶 ---------- */
+const leaves = [];
+for (let i = 0; i < 34; i++) {
+  leaves.push({
+    x: rnd(), y: rnd(),
+    r: 3 + rnd() * 5,
+    sp: .020 + rnd() * .055,
+    ph: rnd() * Math.PI * 2,
+    rot: rnd() * Math.PI * 2,
+    rotSp: (rnd() - .5) * 2.2,
+    hue: rnd()
+  });
+}
+
+/* ---------- 水花 ---------- */
+const splashes = [];
+function spawnSplash(x, y) {
+  for (let i = 0; i < 20; i++) {
+    const a = -Math.PI * .5 + (Math.random() - .5) * 2.2;
+    const v = 60 + Math.random() * 190;
+    splashes.push({
+      x, y,
+      vx: Math.cos(a) * v * .7,
+      vy: Math.sin(a) * v,
+      r: 1.2 + Math.random() * 3,
+      life: 1
+    });
+  }
+}
+
+/* ---------- 溪面碎金 ---------- */
+const sparks = [];
+for (let i = 0; i < 120; i++) {
+  sparks.push({
+    x: rnd(), y: .60 + rnd() * .40,
+    ph: rnd() * Math.PI * 2,
+    sp: .8 + rnd() * 3.2,
+    r: .6 + rnd() * 1.6
+  });
+}
+
+let time = 0, last = performance.now();
+
+/* ---------- 棕熊 ---------- */
+function drawBear(cx, baseY, s, t) {
+  const breathe = Math.sin(t * 1.0) * .008;
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.scale(s, s);
+  ctx.translate(0, breathe * 100);
+
+  // 影子
+  ctx.fillStyle = 'rgba(50,30,15,.28)';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 52, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const fur   = '#6d4a2e';
+  const furD  = '#523venue'.replace('venue','61c'); // '#52361c'
+  const furL  = '#8a6440';
+  const snout = '#c49a6c';
+  const dark  = '#241812';
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  /* --- 四条粗腿（棕熊很壮） --- */
+  ctx.strokeStyle = furD;
+  ctx.lineWidth = 22;
+  ctx.beginPath(); ctx.moveTo(-30, -38); ctx.lineTo(-32, -6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-12, -38); ctx.lineTo(-11, -6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16, -40);  ctx.lineTo(19, -6);  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(34, -38);  ctx.lineTo(38, -6);  ctx.stroke();
+  // 脚掌
+  ctx.fillStyle = '#3d2a1a';
+  [[-32,-6],[-11,-6],[19,-6],[38,-6]].forEach(p => {
+    ctx.beginPath();
+    ctx.ellipse(p[0], p[1], 11, 5.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* --- 身体（大而圆） --- */
+  ctx.fillStyle = fur;
+  ctx.beginPath();
+  ctx.ellipse(0, -58, 46, 30, -.03, 0, Math.PI * 2);
+  ctx.fill();
+  // 背部高光
+  ctx.fillStyle = 'rgba(150,110,70,.30)';
+  ctx.beginPath();
+  ctx.ellipse(-6, -76, 34, 12, -.06, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* --- 脖子 + 头 --- */
+  ctx.strokeStyle = fur;
+  ctx.lineWidth = 30;
+  ctx.beginPath();
+  ctx.moveTo(28, -74);
+  ctx.quadraticCurveTo(44, -82, 50, -92);
+  ctx.stroke();
+
+  const headX = 54, headY = -98;
+  ctx.save();
+  ctx.translate(headX, headY);
+  ctx.rotate(-.10);
+
+  // 头
+  ctx.fillStyle = fur;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 22, 19, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 耳朵（圆）
+  ctx.fillStyle = furD;
+  ctx.beginPath(); ctx.arc(-13, -15, 8.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(12, -16, 8.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#4a2f1c';
+  ctx.beginPath(); ctx.arc(-13, -15, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(12, -16, 4.5, 0, Math.PI * 2); ctx.fill();
+
+  // 口鼻
+  ctx.fillStyle = snout;
+  ctx.beginPath();
+  ctx.ellipse(11, 6, 13, 10, .06, 0, Math.PI * 2);
+  ctx.fill();
+  // 鼻头
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.ellipse(19, 3, 5.2, 4.0, .10, 0, Math.PI * 2);
+  ctx.fill();
+  // 嘴
+  ctx.strokeStyle = 'rgba(50,32,20,.75)';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(19, 7);
+  ctx.quadraticCurveTo(14, 13, 6, 11);
+  ctx.stroke();
+
+  // 眼睛（眨眼）
+  const blink = (Math.sin(t * .85) > .978) ? .10 : 1;
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.ellipse(-2, -3, 3.0, 3.0 * blink, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (blink > .5) {
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.beginPath();
+    ctx.arc(-1.0, -4.1, 1.0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  /* --- 抬起的前爪（伸向水面，抓鱼姿势） --- */
+  const pawLift = Math.sin(t * 1.5) * 5;
+  ctx.save();
+  ctx.translate(40, -66 + pawLift);
+  ctx.rotate(.62);          // 向前下方伸
+  ctx.strokeStyle = fur;
+  ctx.lineWidth = 19;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(30, 0);
+  ctx.stroke();
+  ctx.fillStyle = '#3d2a1a';
+  ctx.beginPath();
+  ctx.ellipse(33, 0, 10, 7.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 爪子
+  ctx.strokeStyle = '#e8dcc8';
+  ctx.lineWidth = 2.2;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(38, i * 4.4);
+    ctx.lineTo(44, i * 4.4 + 1);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, .05);
+  last = now; time += dt;
+
+  const horizon = H * .545;
+
+  /* ================= 黄昏天空 ================= */
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon + 20);
+  sky.addColorStop(0,   '#3a3560');
+  sky.addColorStop(.24, '#6b4a68');
+  sky.addColorStop(.48, '#b5645c');
+  sky.addColorStop(.70, '#e08a52');
+  sky.addColorStop(.88, '#f6b96a');
+  sky.addColorStop(1,   '#ffd894');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, horizon + 20);
+
+  /* --- 落日（贴近山脊） --- */
+  const sunX = W * .66, sunY = horizon - H * .035;
+  const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, H * .46);
+  sunGlow.addColorStop(0,  'rgba(255,238,190,.95)');
+  sunGlow.addColorStop(.10,'rgba(255,205,130,.62)');
+  sunGlow.addColorStop(.32,'rgba(255,160,90,.26)');
+  sunGlow.addColorStop(.65,'rgba(230,120,80,.09)');
+  sunGlow.addColorStop(1,  'rgba(200,100,70,0)');
+  ctx.fillStyle = sunGlow;
+  ctx.fillRect(0, 0, W, horizon + 20);
+
+  ctx.fillStyle = 'rgba(255,246,214,.96)';
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, H * .045, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* --- 晚霞云带 --- */
+  for (let i = 0; i < 7; i++) {
+    const p = i / 7;
+    const y = H * (.10 + p * .34);
+    const a = .10 + p * .22;
+    const off = Math.sin(time * .10 + i * 1.3) * W * .02;
+    ctx.fillStyle = `rgba(${255 - i * 6},${190 - i * 14},${150 - i * 16},${a})`;
+    ctx.beginPath();
+    ctx.ellipse(W * (.5 + Math.sin(i * 2.1) * .34) + off, y, W * (.20 + (i % 3) * .10), H * (.012 + (i % 2) * .008), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ================= 远山（暖色调） ================= */
+  function drawRidge(pts, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    pts.forEach(p => ctx.lineTo(p.x * W, p.y * H));
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+  drawRidge(ridgeFar,  'rgba(120,92,110,.55)');
+  drawRidge(ridgeMid,  'rgba(88,66,84,.75)');
+  drawRidge(ridgeNear, 'rgba(58,44,58,.92)');
+
+  /* --- 山脚暖雾 --- */
+  const haze = ctx.createLinearGradient(0, H * .46, 0, H * .60);
+  haze.addColorStop(0,   'rgba(255,190,130,0)');
+  haze.addColorStop(.45, 'rgba(255,185,125,.34)');
+  haze.addColorStop(1,   'rgba(255,175,115,0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, H * .46, W, H * .14);
+
+  /* ================= 溪水 ================= */
+  const water = ctx.createLinearGradient(0, horizon, 0, H);
+  water.addColorStop(0,   '#c98a52');
+  water.addColorStop(.16, '#a86a45');
+  water.addColorStop(.42, '#7a4c3c');
+  water.addColorStop(.72, '#4e322f');
+  water.addColorStop(1,   '#2e2024');
+  ctx.fillStyle = water;
+  ctx.fillRect(0, horizon, W, H - horizon);
+
+  /* --- 落日在水中的碎光带 --- */
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, horizon, W, H - horizon);
+  ctx.clip();
+  for (let i = 0; i < 40; i++) {
+    const p = i / 40;
+    const y = horizon + Math.pow(p, 1.45) * (H - horizon) * .96;
+    const spread = W * (.030 + p * .15);
+    const a = (.42 - p * .36) * (.72 + .28 * Math.sin(time * 1.5 + i * .85));
+    if (a <= 0) continue;
+    const off = Math.sin(time * .95 + i * 1.6) * W * .014 * (1 + p * 3.4);
+    ctx.fillStyle = `rgba(255,222,160,${a})`;
+    ctx.beginPath();
+    ctx.ellipse(sunX + off, y, spread, Math.max(1.2, 2.0 + p * 3.6), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  /* --- 水流横纹 --- */
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, horizon, W, H - horizon);
+  ctx.clip();
+  for (let i = 0; i < 52; i++) {
+    const p = i / 52;
+    const y = horizon + Math.pow(p, 1.65) * (H - horizon);
+    const a = .05 + p * .14;
+    ctx.strokeStyle = `rgba(255,215,170,${a})`;
+    ctx.lineWidth = .6 + p * 1.8;
+    ctx.beginPath();
+    const wave = Math.sin(time * .9 + i * .65) * W * .014;
+    ctx.moveTo(-20 + wave, y);
+    ctx.bezierCurveTo(W * .3, y + 2.4, W * .7, y - 2.4, W + 20 + wave, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  /* --- 溪面碎金 --- */
+  sparks.forEach(s => {
+    s.ph += dt * s.sp;
+    const a = .20 + Math.sin(s.ph) * .42;
+    if (a <= 0) return;
+    ctx.fillStyle = `rgba(255,240,200,${a})`;
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* ================= 岸边（缓坡，熊站在坡上） ================= */
+  const bankTop = H * .845;
+  const bank = ctx.createLinearGradient(0, bankTop - H * .10, 0, H);
+  bank.addColorStop(0,   'rgba(70,48,34,0)');
+  bank.addColorStop(.30, 'rgba(62,42,30,.55)');
+  bank.addColorStop(.52, 'rgba(52,36,26,.92)');
+  bank.addColorStop(.78, 'rgba(38,26,19,.99)');
+  bank.addColorStop(1,   '#1a1310');
+  ctx.fillStyle = bank;
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.lineTo(0, bankTop - H * .035);
+  for (let x = 0; x <= W + 10; x += 10) {
+    const p = x / W;
+    const y = bankTop - H * .030
+      + Math.sin(p * 4.6 + .9) * H * .013
+      + Math.sin(p * 12 + 2.6) * H * .005
+      + p * H * .030;                    // 向右缓缓下沉
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fill();
+
+  /* --- 岸边草叶/碎石点缀 --- */
+  for (let i = 0; i < 46; i++) {
+    const q = (i * 0.618) % 1;
+    const x = q * W;
+    const y = bankTop - H * .015 + (i % 6) * H * .020 + q * H * .02;
+    if (y > H - 8) continue;
+    ctx.fillStyle = `rgba(${88 + (i % 3) * 22},${68 + (i % 4) * 15},${46},${.26 + (i % 3) * .13})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 5 + (i % 4) * 3, 2 + (i % 3) * 1.4, (i % 5) * .6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ================= 棕熊（站在岸坡上） ================= */
+  const bearScale = Math.min(W, H) / 700;
+  const bearX = W * .30;
+  const bearY = bankTop - H * .030 + (bearX / W) * H * .030 + H * .048;
+  drawBear(bearX, bearY, bearScale * 1.45, time);
+
+  /* --- 熊掌拍水的水花 --- */
+  const bs = bearScale * 1.45;
+  const pawX = bearX + 40 * bs, pawY = bearY - 66 * bs;
+  if (Math.floor(time * 1.5) !== Math.floor((time - dt) * 1.5)) {
+    spawnSplash(pawX + 34 * bs, pawY + 46 * bs);
+  }
+
+  /* --- 水花粒子 --- */
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    const p = splashes[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 420 * dt;
+    p.life -= dt * 1.5;
+    if (p.life <= 0) { splashes.splice(i, 1); continue; }
+    ctx.fillStyle = `rgba(255,232,180,${.9 * p.life})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ================= 落叶 ================= */
+  leaves.forEach(l => {
+    l.y += l.sp * dt;
+    l.x += (Math.sin(time * .7 + l.ph) * .022) * dt;
+    l.rot += l.rotSp * dt;
+    if (l.y > 1.03) { l.y = -.03; l.x = Math.random(); }
+    const a = .55 + Math.sin(time * 1.2 + l.ph) * .25;
+    const col = l.hue > .5 ? `rgba(214,140,60,${a})` : `rgba(180,96,48,${a})`;
+    ctx.save();
+    ctx.translate(l.x * W, l.y * H);
+    ctx.rotate(l.rot);
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, l.r, l.r * .55, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  /* ================= 暖调暗角 ================= */
+  const vig = ctx.createRadialGradient(W * .5, H * .48, Math.min(W, H) * .38, W * .5, H * .5, Math.max(W, H) * .82);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(40,18,8,.50)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+window.addEventListener('pointerdown', e => {
+  if (e.clientY > H * .545) spawnSplash(e.clientX, e.clientY);
+  else spawnSplash(e.clientX, H * (.62 + Math.random() * .3));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#061a2c" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>赛博虎鲸宠物 🐋 · 网页版</title>
+<style>
+:root{
+  --cyan:#3ee6d6; --blue:#4aa8ff; --pink:#ff7bd5; --yellow:#ffd75e; --red:#ff6b6b;
+  --txt:#dcf3ff; --dim:#7c9cb0; --line:rgba(62,230,214,.22);
+  --panel:rgba(8,28,46,.72);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,sans-serif;
+  color:var(--txt); overflow:hidden;
+  background:radial-gradient(125% 95% at 50% -15%, #0e3a58 0%, #072031 42%, #03090f 100%);
+}
+/* ---------- 深海背景 ---------- */
+#ocean{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.bubble{
+  position:absolute;bottom:-60px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.55), rgba(62,230,214,.12) 60%, transparent 72%);
+  border:1px solid rgba(140,235,255,.28);
+  animation:rise linear infinite;
+}
+@keyframes rise{
+  0%{transform:translateY(0) translateX(0) scale(.6);opacity:0}
+  12%{opacity:.75}
+  100%{transform:translateY(-115vh) translateX(28px) scale(1.15);opacity:0}
+}
+#rays{
+  position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35;
+  background:
+    linear-gradient(100deg, transparent 12%, rgba(120,220,255,.09) 18%, transparent 26%),
+    linear-gradient(100deg, transparent 52%, rgba(120,220,255,.07) 60%, transparent 70%);
+  animation:sway 9s ease-in-out infinite alternate;
+}
+@keyframes sway{from{transform:translateX(-24px)}to{transform:translateX(24px)}}
+
+/* ---------- 布局 ---------- */
+.wrap{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:16px 18px 14px;gap:12px;max-width:1180px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:22px;font-weight:800;letter-spacing:1px}
+.logo b{color:var(--cyan);text-shadow:0 0 14px rgba(62,230,214,.6)}
+.tag{font-size:11.5px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.tag.warm{color:var(--pink);border-color:rgba(255,123,213,.35)}
+.pill{
+  font-family:inherit;font-size:11.5px;color:var(--txt);cursor:pointer;
+  padding:4px 12px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(62,230,214,.09);transition:.18s;line-height:1.5;
+}
+.pill:hover{border-color:rgba(62,230,214,.65);transform:translateY(-1px);box-shadow:0 6px 16px rgba(62,230,214,.16)}
+.pill.off{color:var(--dim);background:transparent}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+/* ---------- 手机适配 📱 ---------- */
+button,.pill{-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+@media (max-width:860px){
+  body{overflow:auto;-webkit-text-size-adjust:100%}
+  .wrap{height:auto;min-height:100%;padding:12px 12px calc(12px + env(safe-area-inset-bottom))}
+  .grid{grid-template-columns:1fr;grid-template-rows:none;gap:12px}
+  .tank{min-height:0}
+  .whaleBox{min-height:180px;padding:6px 0}
+  .logbox{min-height:0}
+  #log{min-height:110px;max-height:36vh}
+  .logo{font-size:18px}
+  .tag{font-size:10.5px;padding:3px 8px}
+  footer{font-size:10.5px}
+}
+@media (max-width:520px){
+  header{gap:7px}
+  .logo{font-size:16px}
+  .tag.warm{display:none}          /* 署名在页脚和开机日志里都有，窄屏就不占行数了 */
+  .pill{font-size:11px;padding:4px 10px}
+  .whale{font-size:118px}
+  .whaleBox{min-height:150px}
+  .btns{grid-template-columns:repeat(2,1fr);gap:8px;padding:10px}
+  button{font-size:13px;padding:12px 6px;min-height:48px}
+  .nbox{padding:24px 18px}
+  .nbox .big{font-size:46px}
+}
+@media (hover:none){        /* 触屏别留 hover 残影 */
+  button:hover,.pill:hover{transform:none;box-shadow:none;border-color:var(--line)}
+}
+.card{
+  position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  backdrop-filter:blur(6px);box-shadow:0 14px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* ---------- 水缸 ---------- */
+.tank{overflow:hidden;display:flex;flex-direction:column;min-height:280px}
+.tank::after{ /* 玻璃反光 */
+  content:"";position:absolute;inset:0;border-radius:18px;pointer-events:none;
+  background:linear-gradient(160deg, rgba(255,255,255,.07), transparent 42%);
+}
+.seabed{position:absolute;left:0;right:0;bottom:0;height:56px;
+  background:linear-gradient(180deg, transparent, rgba(62,230,214,.10));border-bottom-left-radius:18px;border-bottom-right-radius:18px}
+.whaleBox{flex:1;position:relative;display:grid;place-items:center;min-height:190px;overflow:hidden}
+.whaleBox::before{
+  content:"";position:absolute;width:min(60%,380px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle, rgba(62,230,214,.20), rgba(74,168,255,.07) 45%, transparent 70%);
+  filter:blur(8px);pointer-events:none;
+}
+.fish{position:absolute;font-size:clamp(16px,2vw,24px);opacity:.45;pointer-events:none;animation:driftx linear infinite}
+@keyframes driftx{0%{transform:translateX(-8vw) scaleX(1);opacity:0}12%{opacity:.5}88%{opacity:.5}100%{transform:translateX(66vw) scaleX(1);opacity:0}}
+/* 截图/演示模式：关掉过渡和入场动画，保证画面是"画完的样子" */
+body.nofx .fill{transition:none}
+body.nofx #log div{animation:none}
+body.nofx .whale,body.nofx .bubble,body.nofx .fish{animation:none}
+.whale{
+  font-size:clamp(96px,17vw,178px);line-height:1;
+  filter:drop-shadow(0 0 26px rgba(62,230,214,.55));
+  animation:swim 6.5s ease-in-out infinite, bob 2.6s ease-in-out infinite;
+  transform-origin:center;cursor:pointer;user-select:none;transition:filter .3s;
+}
+@keyframes swim{0%,100%{transform:translateX(-26px) rotate(-6deg)}50%{transform:translateX(26px) rotate(6deg)}}
+@keyframes bob{0%,100%{translate:0 -6px}50%{translate:0 6px}}
+.whale.pet{animation:boingSquash .52s cubic-bezier(.34,1.6,.5,1)}
+@keyframes boingSquash{0%{scale:1}22%{scale:1.16 .84}48%{scale:.93 1.09}72%{scale:1.04 .97}100%{scale:1}}
+.whale.drift{animation:swim 3.2s ease-in-out infinite, drift 1.1s ease-in-out infinite;filter:drop-shadow(0 0 30px rgba(255,107,107,.75))}
+@keyframes drift{0%,100%{rotate:-11deg}50%{rotate:11deg}}
+.whale.sad{filter:drop-shadow(0 0 18px rgba(122,160,190,.5)) grayscale(.55)}
+.statusLine{position:absolute;top:10px;left:14px;font-size:12.5px;color:var(--dim)}
+.statusLine b{color:var(--cyan)}
+.emojiPop{position:absolute;font-size:26px;animation:floatUp 1.2s ease-out forwards;pointer-events:none}
+@keyframes floatUp{0%{opacity:0;transform:translateY(10px) scale(.6)}25%{opacity:1}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
+.packet{position:absolute;font-size:20px;top:50%;left:50%;pointer-events:none;animation:packet 1.7s cubic-bezier(.5,0,.9,.4) forwards}
+@keyframes packet{0%{opacity:0;transform:translate(0,0) scale(.5)}15%{opacity:1}100%{opacity:0;transform:translate(46vw,-90px) scale(1.35)}}
+
+/* ---------- 右侧面板 ---------- */
+.side{display:flex;flex-direction:column;gap:14px;min-height:0}
+.hud{padding:14px 16px}
+.hud h3,.logbox h3{margin:0 0 10px;font-size:13px;color:var(--dim);font-weight:600;letter-spacing:1px}
+.bar{margin-bottom:11px}
+.bar .top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
+.bar .track{height:11px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.bar .fill{height:100%;width:50%;border-radius:99px;transition:width .45s ease}
+.bar.food .fill{background:linear-gradient(90deg,#ffb14a,#ffd75e);box-shadow:0 0 14px rgba(255,183,74,.6)}
+.bar.mood .fill{background:linear-gradient(90deg,#4aa8ff,#3ee6d6);box-shadow:0 0 14px rgba(74,168,255,.6)}
+.bar.ram .fill{background:linear-gradient(90deg,#a06bff,#ff7bd5);box-shadow:0 0 14px rgba(255,123,213,.55)}
+.warn{margin-top:4px;font-size:12px;color:var(--red);min-height:17px}
+.logbox{padding:14px 16px;display:flex;flex-direction:column;min-height:0;flex:1}
+#log{
+  flex:1;min-height:150px;overflow-y:auto;font-family:Consolas,"Courier New",monospace;
+  font-size:12.8px;line-height:1.72;padding-right:4px;scrollbar-width:thin;
+}
+#log div{white-space:pre-wrap;word-break:break-word;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1}}
+#log .p{color:var(--cyan)}
+#log .g{color:#8ff0c8}
+#log .y{color:var(--yellow)}
+#log .m{color:var(--pink)}
+#log .r{color:var(--red)}
+#log .d{color:var(--dim)}
+#log .w{color:#fff;font-weight:700}
+#log .art{color:#9fe9ff;text-shadow:0 0 10px rgba(62,230,214,.35)}
+#log::-webkit-scrollbar{width:6px}
+#log::-webkit-scrollbar-thumb{background:rgba(62,230,214,.35);border-radius:9px}
+
+/* ---------- 按钮 ---------- */
+.btns{padding:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+button{
+  font-family:inherit;font-size:13.5px;color:var(--txt);cursor:pointer;
+  padding:11px 6px;border-radius:13px;border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(62,230,214,.14), rgba(62,230,214,.04));
+  transition:.18s;line-height:1.35;
+}
+button:hover{transform:translateY(-2px);border-color:rgba(62,230,214,.6);box-shadow:0 8px 20px rgba(62,230,214,.18)}
+button:active{transform:translateY(0) scale(.97)}
+button small{display:block;font-size:10.5px;color:var(--dim);margin-top:2px}
+button.hot{border-color:rgba(255,123,213,.5);background:linear-gradient(180deg, rgba(255,123,213,.18), rgba(255,123,213,.04))}
+button.ghost{background:transparent;color:var(--dim)}
+
+/* ---------- 全息投影 ---------- */
+#holo{
+  position:absolute;inset:0;border-radius:18px;display:grid;place-items:center;z-index:6;
+  background:radial-gradient(circle at 50% 45%, rgba(62,230,214,.16), rgba(3,10,16,.86) 70%);
+  opacity:0;pointer-events:none;transition:opacity .35s;
+}
+#holo.show{opacity:1}
+#holo pre{
+  margin:0;font-family:Consolas,monospace;font-size:clamp(10px,1.5vw,14px);color:#a8f5ff;line-height:1.35;
+  text-shadow:0 0 16px rgba(62,230,214,.7);animation:holoIn .4s ease
+}
+@keyframes holoIn{from{transform:scale(.9);filter:blur(4px);opacity:0}to{transform:scale(1);opacity:1}}
+#holo .scan{position:absolute;inset:0;background:repeating-linear-gradient(180deg, rgba(62,230,214,.10) 0 1px, transparent 1px 4px);animation:scan 3s linear infinite;border-radius:18px}
+@keyframes scan{from{background-position-y:0}to{background-position-y:80px}}
+
+/* ---------- 起名弹窗 ---------- */
+#naming{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(2,8,14,.86);backdrop-filter:blur(5px);transition:.3s}
+#naming.hide{opacity:0;pointer-events:none}
+.nbox{width:min(430px,90vw);text-align:center;padding:30px 26px;border-radius:22px;
+  background:linear-gradient(180deg, rgba(10,36,56,.96), rgba(5,18,30,.96));
+  border:1px solid rgba(62,230,214,.35);box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.nbox .big{font-size:58px;animation:bob 2.4s ease-in-out infinite}
+.nbox h1{font-size:19px;margin:12px 0 6px}
+.nbox p{font-size:12.5px;color:var(--dim);margin:0 0 18px;line-height:1.7}
+.nbox input{
+  width:100%;padding:13px 15px;border-radius:13px;font-family:inherit;font-size:15px;text-align:center;
+  background:rgba(0,0,0,.35);border:1px solid var(--line);color:#fff;outline:none;margin-bottom:12px;
+}
+.nbox input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(62,230,214,.16)}
+.nbox button{width:100%;padding:13px;font-size:15px;font-weight:700;border-color:rgba(62,230,214,.6);
+  background:linear-gradient(180deg, rgba(62,230,214,.28), rgba(62,230,214,.08))}
+footer{font-size:11px;color:var(--dim);text-align:center;letter-spacing:.4px}
+footer b{color:var(--pink)}
+</style>
+</head>
+<body>
+<div id="rays"></div>
+<div id="ocean"></div>
+
+<div class="wrap">
+  <header>
+    <div class="logo">🐋 赛博虎鲸宠物 <b id="nameTag">小鲸鱼</b></div>
+    <span class="tag">网页版</span>
+    <span class="tag warm">原版 by 你 · 移植 by 小D</span>
+    <button class="pill" id="soundBtn" onclick="toggleSound()">🔊 音效开</button>
+    <button class="pill" id="whaleBtn" onclick="toggleWhale()">🎵 鲸歌</button>
+  </header>
+
+  <div class="grid">
+    <!-- 水缸 -->
+    <div class="card tank">
+      <div class="seabed"></div>
+      <div class="statusLine" id="moodText">状态：<b>正在熟悉新环境…</b></div>
+      <div class="whaleBox">
+        <div class="whale" id="whale" title="点一下摸摸它">🐋</div>
+      </div>
+      <div id="holo"><div class="scan"></div><pre id="holoArt"></pre></div>
+    </div>
+
+    <!-- 右侧 -->
+    <div class="side">
+      <div class="card hud">
+        <h3>生命体征监测</h3>
+        <div class="bar food">
+          <div class="top"><span>🍣 饱食度</span><span id="foodNum">50%</span></div>
+          <div class="track"><div class="fill" id="foodBar"></div></div>
+        </div>
+        <div class="bar mood">
+          <div class="top"><span>💙 心情值</span><span id="moodNum">50%</span></div>
+          <div class="track"><div class="fill" id="moodBar"></div></div>
+        </div>
+        <div class="bar ram">
+          <div class="top"><span>▓ 内存占用</span><span id="ramNum">0%</span></div>
+          <div class="track"><div class="fill" id="ramBar"></div></div>
+        </div>
+        <div class="warn" id="warnText"></div>
+      </div>
+
+      <div class="card logbox">
+        <h3>深海数据流</h3>
+        <div id="log"></div>
+      </div>
+
+      <div class="card btns">
+        <button onclick="feed()">🍣 喂数据鱼<small>按 F</small></button>
+        <button onclick="play()">🎮 玩黑客游戏<small>按 P</small></button>
+        <button onclick="holo()">🖥️ 全息投影<small>按 S</small></button>
+        <button class="hot" onclick="toPhone()">📡 游到手机<small>按 M</small></button>
+        <button class="ghost" onclick="rename()">✏️ 改名</button>
+        <button class="ghost" onclick="reset()">♻️ 重新养一只</button>
+        <button class="ghost" onclick="clearLog()">🧹 清屏</button>
+        <button class="ghost" onclick="help()">❓ 帮助</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>一年前你写的 <b>赛博虎鲸宠物.py</b>，今天搬进浏览器啦 —— 它不用装 Python 也能活了 🐋✨</footer>
+</div>
+
+<!-- 起名 -->
+<div id="naming">
+  <div class="nbox">
+    <div class="big">🐋</div>
+    <h1>(♡&gt;w&lt;♡) 请命名你的赛博虎鲸</h1>
+    <p>它从一条网线里游过来，现在住在这个网页里。<br>喂它数据鱼、陪它玩黑客游戏，别让它内存吃太多。</p>
+    <input id="nameInput" maxlength="12" placeholder="小鲸鱼" autocomplete="off" />
+    <button onclick="startGame()">开始养它 🐋</button>
+  </div>
+</div>
+
+<script>
+/* ============ 基础状态（沿用原版数值） ============ */
+const pet = { name: "小鲸鱼", food: 50, mood: 50, ram: 0, wentOut: false, alive: true };
+
+const $ = id => document.getElementById(id);
+const clamp = (v,a=0,b=100) => Math.max(a, Math.min(b, v));
+const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+
+/* ============ 音效引擎（Web Audio 现场合成，零外部文件） ============ */
+const Sfx = (() => {
+  let ctx = null, master = null;
+  let on = true;
+  try { on = localStorage.getItem("orcaSound") !== "0"; } catch(e){}
+
+  function ac(){
+    try{
+      if (!ctx){
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 0.22;          // 总音量：小声一点，别吓到人
+        master.connect(ctx.destination);
+      }
+      if (ctx.state === "suspended") ctx.resume();
+      return ctx;
+    }catch(e){ return null; }
+  }
+
+  // 单个音：可滑音（frequency ramp）
+  function tone(freq, dur=0.16, type="sine", vol=0.5, slideTo=null, delay=0){
+    if (!on) return;
+    const c = ac(); if (!c) return;
+    const t0 = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + Math.min(0.02, dur*0.3));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0 + dur + 0.03);
+  }
+
+  // 噪音：用来做"咬""呼""沙沙"的质感
+  function noise(dur=0.12, vol=0.4, freq=900, q=1.2, sweepTo=null, delay=0){
+    if (!on) return;
+    const c = ac(); if (!c) return;
+    const t0 = c.currentTime + delay;
+    const len = Math.max(1, Math.floor(c.sampleRate * dur));
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const bp = c.createBiquadFilter();
+    bp.type = "bandpass"; bp.Q.value = q;
+    bp.frequency.setValueAtTime(freq, t0);
+    if (sweepTo) bp.frequency.exponentialRampToValueAtTime(Math.max(60, sweepTo), t0 + dur);
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(bp); bp.connect(g); g.connect(master);
+    src.start(t0); src.stop(t0 + dur + 0.03);
+  }
+
+  return {
+    get on(){ return on; },
+    unlock(){ ac(); },
+    ctx(){ return ac(); },      // 给「鲸歌」模块共用同一个 AudioContext
+    bus(){ return master; },    // 共用同一条总线，总音量一起管
+    toggle(){
+      on = !on;
+      try{ localStorage.setItem("orcaSound", on ? "1" : "0"); }catch(e){}
+      if (on) tone(660, .12, "triangle", .4);
+      return on;
+    },
+    crunch(){                                                                      // 吃鱼：卡擦卡擦（每次 3~4 口，不重样）
+      if (!on) return;
+      const n = 3 + Math.floor(Math.random()*2);
+      for (let i=0;i<n;i++){
+        const at = i * 0.055;
+        noise(.045, .55 - i*.06, 2400 + Math.random()*1200, 1.6, 900, at);   // 鱼骨头碎裂
+        tone(1900 + Math.random()*800, .02, "square", .10, null, at);        // 脆皮的"咔"尖儿
+      }
+      const tail = n * 0.055 + 0.05;
+      tone(240, .20, "sine", .38, 95, tail);      // 底下垫一声"咽下去"的低音
+    },
+    happy(){ [523, 659, 784, 1047].forEach((f,i)=>tone(f, .16, "triangle", .34, null, i*0.075)); }, // 玩耍
+    spring(){                                                                      // 抚摸：弹簧 boing
+      if (!on) return;
+      const c = ac(); if (!c) return;
+      const t0 = c.currentTime;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = "triangle";
+      o.frequency.setValueAtTime(300, t0);
+      o.frequency.exponentialRampToValueAtTime(1000, t0 + .07);   // 先弹上去
+      o.frequency.exponentialRampToValueAtTime(420,  t0 + .26);   // 再落下来
+      // 弹簧的"抖"：一个低频振荡器去推音高，而且越抖越小
+      const lfo = c.createOscillator(), lg = c.createGain();
+      lfo.type = "sine";
+      lfo.frequency.setValueAtTime(24, t0);
+      lg.gain.setValueAtTime(95, t0);
+      lg.gain.exponentialRampToValueAtTime(6, t0 + .26);
+      lfo.connect(lg); lg.connect(o.frequency);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(.34, t0 + .015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + .30);
+      o.connect(g); g.connect(master);
+      o.start(t0); o.stop(t0 + .33);
+      lfo.start(t0); lfo.stop(t0 + .33);
+    },
+    holo(){ tone(280, .55, "sine", .3, 1500); tone(1600, .3, "triangle", .12, 2400, .18); noise(.5, .16, 2200, 2, 400); },
+    whoosh(){ noise(.6, .35, 180, .7, 1400); },                                    // 甩尾出发
+    ping(){ tone(1250, .22, "sine", .32); tone(940, .5, "sine", .2, null, .22); },  // 声呐回声
+    warn(){ tone(150, .28, "square", .22, 120); tone(120, .3, "square", .16, 100, .05); },
+    boot(){ tone(392, .18, "triangle", .3); tone(523, .22, "triangle", .3, null, .14); tone(784, .5, "sine", .22, null, .3); },
+    sad(){ tone(300, .3, "sine", .2, 200); }
+  };
+})();
+
+function toggleSound(){
+  const on = Sfx.toggle();
+  const b = $("soundBtn");
+  b.textContent = on ? "🔊 音效开" : "🔇 静音";
+  b.classList.toggle("off", !on);
+  // 总静音时鲸歌也跟着安静；恢复时如果鲸歌开着，就让它重新淡入
+  if (!on) Amb.stop(0.6);
+  else if (Amb.on) Amb.start();
+}
+
+/* ============ 存档：关掉浏览器，它还认得你 💾 ============ */
+const SAVE_KEY = "orcaSave";
+
+function saveGame(){
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      v: 1, name: pet.name, food: pet.food, mood: pet.mood, ram: pet.ram,
+      wentOut: pet.wentOut, t: Date.now()
+    }));
+  }catch(e){}
+}
+function loadGame(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+    if (!s || typeof s.food !== "number") return null;
+    return s;
+  }catch(e){ return null; }
+}
+function wipeGame(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+
+/* 你不在的时候它也会饿（按分钟算，最多各掉 20 点，别太狠） */
+function offlineDecay(s){
+  const mins = Math.floor((Date.now() - (s.t || Date.now())) / 60000);
+  if (mins < 1) return { mins:0, food:0, mood:0, ram:0 };
+  const drop = Math.min(20, mins);
+  return { mins: mins, food: drop, mood: drop, ram: Math.min(30, mins * 0.5) };
+}
+function fmtAway(m){
+  if (m < 60) return m + " 分钟";
+  if (m < 1440) return Math.floor(m/60) + " 小时";
+  return Math.floor(m/1440) + " 天";
+}
+
+/* ============ 背景鲸歌 🎵（合成出来的深海氛围，零音频文件） ============ */
+const Amb = (() => {
+  let drone = null, timer = null;
+  let on = true;
+  try { on = localStorage.getItem("orcaWhale") !== "0"; } catch(e){}
+
+  function start(){
+    if (!on || drone) return;
+    const c = Sfx.ctx(); if (!c) return;
+    const bus = Sfx.bus(); if (!bus) return;
+    const t0 = c.currentTime;
+
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.30, t0 + 4);      // 慢慢淡入，别突然"嗡"一下
+    g.connect(bus);
+
+    // 三层低音叠成"深海和声"：55Hz 基音 + 纯五度 82.5Hz + 八度 110Hz
+    const oscs = [55, 82.5, 110].map((f, i) => {
+      const o = c.createOscillator();
+      o.type = i === 2 ? "triangle" : "sine";
+      o.frequency.value = f;
+      const og = c.createGain();
+      og.gain.value = i === 0 ? 0.50 : (i === 1 ? 0.26 : 0.13);
+      o.connect(og); og.connect(g);
+      o.start(t0);
+      return o;
+    });
+
+    // 极慢的潮汐起伏（0.09Hz ≈ 11 秒一个呼吸）
+    const lfo = c.createOscillator(), lg = c.createGain();
+    lfo.type = "sine"; lfo.frequency.value = 0.09; lg.gain.value = 0.12;
+    lfo.connect(lg); lg.connect(g.gain);
+    lfo.start(t0);
+
+    drone = { g: g, oscs: oscs, lfo: lfo };
+    schedule();
+  }
+
+  function stop(fade){
+    fade = fade || 1.2;
+    clearTimeout(timer); timer = null;
+    if (!drone) return;
+    const c = Sfx.ctx(); const d = drone; drone = null;
+    try{
+      if (c){
+        d.g.gain.cancelScheduledValues(c.currentTime);
+        d.g.gain.setValueAtTime(Math.max(0.0001, d.g.gain.value), c.currentTime);
+        d.g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + fade);
+        setTimeout(function(){
+          d.oscs.forEach(function(o){ try{ o.stop(); }catch(e){} });
+          try{ d.lfo.stop(); }catch(e){}
+        }, fade*1000 + 150);
+      }
+    }catch(e){}
+  }
+
+  // 隔一阵子来一声"鲸鸣"：长下滑 + 轻微颤音
+  function moan(){
+    if (!drone) return;
+    const c = Sfx.ctx(); if (!c) return;
+    const t0 = c.currentTime + 0.05;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = "sine";
+    const base = 140 + Math.random()*110;
+    o.frequency.setValueAtTime(base, t0);
+    o.frequency.exponentialRampToValueAtTime(base*0.52, t0 + 1.7);
+    const v = c.createOscillator(), vg = c.createGain();
+    v.type = "sine"; v.frequency.value = 5.2; vg.gain.value = 5;
+    v.connect(vg); vg.connect(o.frequency);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.20, t0 + 0.55);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.3);
+    o.connect(g); g.connect(drone.g);
+    o.start(t0); o.stop(t0 + 2.4); v.start(t0); v.stop(t0 + 2.4);
+  }
+  function schedule(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      if (drone){ moan(); schedule(); }
+    }, 15000 + Math.random()*25000);
+  }
+
+  return {
+    get on(){ return on; },
+    get playing(){ return !!drone; },
+    start: start,
+    stop: stop,
+    moanNow: moan,
+    toggle(){
+      on = !on;
+      try{ localStorage.setItem("orcaWhale", on ? "1" : "0"); }catch(e){}
+      if (on){
+        if (!Sfx.on) toggleSound();      // 开鲸歌顺手把总音效也打开
+        Sfx.unlock(); start();
+      } else stop(0.8);
+      return on;
+    }
+  };
+})();
+
+function toggleWhale(){
+  const on = Amb.toggle();
+  const b = $("whaleBtn");
+  b.textContent = on ? "🎵 鲸歌" : "🎵 静音";
+  b.classList.toggle("off", !on);
+}
+
+// 浏览器要求：必须先有用户操作才允许出声，第一次点/按就解锁（顺带启动鲸歌）
+["pointerdown","keydown"].forEach(ev =>
+  window.addEventListener(ev, function(){
+    Sfx.unlock();
+    if (Amb.on) Amb.start();
+  }, { once:true })
+);
+
+/* ============ 日志 ============ */
+function line(text, cls="p"){
+  const d = document.createElement("div");
+  d.className = cls;
+  d.textContent = text;
+  const box = $("log");
+  box.appendChild(d);
+  while (box.children.length > 260) box.removeChild(box.firstChild);
+  box.scrollTop = box.scrollHeight;
+}
+function clearLog(){ $("log").innerHTML = ""; line("  🧹 数据流清空完毕。", "d"); }
+function help(){
+  line("  🐋 玩法：喂鱼(f) 加饱食 · 玩耍(p) 加心情 · 状态(s) 看全息投影 · 手机(m) 放彩蛋", "d");
+  line("     饱食和心情每 8 秒会掉一点，内存太高它会开始「飘」哦。点鲸鱼本体可以摸摸它。", "d");
+  line("     右上角的 🔊 按钮可以一键静音（音效全是现场合成的，不占空间）。", "d");
+  line("  💾 存档：进度每 8 秒自动保存，关掉浏览器再打开，它还认得你（离开久了会饿一点）。", "d");
+  line("  🎵 鲸歌：右上角开关 / 按 w。低低的深海和声，每隔半分钟还会来一声鲸鸣。", "d");
+  line("  📱 手机上也能玩：竖屏自动改成单列，按钮加大到 48px。", "d");
+}
+
+/* ============ 数值条 ============ */
+function render(){
+  const f = Math.round(pet.food), m = Math.round(pet.mood), r = Math.round(pet.ram);
+  $("foodBar").style.width = f + "%";
+  $("moodBar").style.width = m + "%";
+  $("ramBar").style.width  = r + "%";
+  $("foodNum").textContent = f + "%";
+  $("moodNum").textContent = m + "%";
+  $("ramNum").textContent  = r + "%";
+  $("nameTag").textContent = pet.name;
+  document.title = "🐋 " + pet.name + " · 赛博虎鲸宠物";
+
+  const w = $("whale");
+  w.classList.toggle("drift", pet.ram >= 80);
+  w.classList.toggle("sad", pet.food < 20 || pet.mood < 20);
+
+  $("warnText").textContent = pet.ram >= 80 ? "⚠️ 内存吃太多了，它开始有点飘……" : "";
+
+  // 内存第一次冲破 80：报一声警（只响一次，不烦人）
+  if (pet.ram >= 80 && !render._high){ render._high = true; Sfx.warn(); }
+  if (pet.ram < 80) render._high = false;
+
+  let t;
+  if (pet.ram >= 80) t = "飘起来了（内存告急）";
+  else if (pet.food < 20) t = "饿得啃内存里的图片";
+  else if (pet.mood < 20) t = "闷闷地沉在海底";
+  else if (pet.mood >= 85 && pet.food >= 60) t = "开心得在数据流里翻跟头";
+  else if (pet.food >= 80) t = "吃饱了，懒洋洋地飘着";
+  else t = "悠闲地游来游去";
+  $("moodText").innerHTML = "状态：<b>" + t + "</b>";
+}
+
+/* ============ 动作 ============ */
+const FISH = ["二进制鲑鱼","压缩包沙丁鱼","0x1F41F 秋刀鱼","缓存小黄鱼","浮点数鳕鱼","SQL 章鱼（算鱼吧）"];
+
+function feed(){
+  if (!pet.alive) return;
+  const add = rnd(5,15);
+  pet.food = clamp(pet.food + add);
+  pet.ram  = Math.round(clamp(pet.ram + 0.5, 0, 99.9)*10)/10;
+  Sfx.crunch();
+  line("  𓇼 " + pet.name + " 吞下了【" + pick(FISH) + "】  饱食 +" + add + " · 内存占用 ↑" + pet.ram + "%", "g");
+  if (pet.food >= 100) line("  🍣 它打了个饱嗝，吐出一串 0101……", "y");
+  if (pet.ram >= 80) line("  ⚠️ 内存有点高了，它游得歪歪扭扭的。", "r");
+  pop("🐟");
+  render();
+}
+
+function play(){
+  if (!pet.alive) return;
+  const add = rnd(10,25);
+  pet.mood = clamp(pet.mood + add);
+  Sfx.happy();
+  line("  𓇢 " + pet.name + " 用尾鳍拍出了 SSH 登录界面！  心情 +" + add, "g");
+  if (Math.random() > 0.7) line("  🛰️ 顺手 ping 了一下隔壁的路由器，对面装作没听见。", "d");
+  if (pet.mood >= 100) line("  💙 它开心得在数据流里翻了个跟头！", "y");
+  pop(pick(["💙","🎮","✨"]));
+  render();
+}
+
+const ART = [
+"        .-~~-.        ",
+"       {      }       ",
+"    .-~-.    .-~-.    ",
+"   /      \\ /      \\  ",
+"  |   🖥️   |   💾  |  ",
+"   \\      / \\      /  ",
+"    `~-..'   `~-..'   "
+].join("\n");
+
+function holo(){
+  const art = ART + "\n\n  🐋 " + pet.name + " 的当前状态\n" +
+    "  🍣 饱食   " + bar(pet.food) + "\n" +
+    "  💙 心情   " + bar(pet.mood) + "\n" +
+    "  ▓ 内存   " + bar(pet.ram);
+  $("holoArt").textContent = art;
+  Sfx.holo();
+  $("holo").classList.add("show");
+  clearTimeout(holo._t);
+  holo._t = setTimeout(()=>$("holo").classList.remove("show"), 4200);
+  line("  🖥️ 全息投影启动 —— 蓝色光栅里浮出它的身体数据。", "d");
+}
+
+function bar(v, len=10){
+  v = clamp(Math.round(v));
+  const full = Math.round(v/100*len);
+  return "█".repeat(full) + "░".repeat(len-full) + "  " + v + "%";
+}
+
+function toPhone(){
+  if (!pet.alive) return;
+  pet.wentOut = true;
+  const w = $("whaleBox") || document.querySelector(".whaleBox");
+  const p = document.createElement("div");
+  p.className = "packet";
+  p.textContent = "📡";
+  w.appendChild(p);
+  Sfx.whoosh();
+  setTimeout(()=>p.remove(), 1800);
+  setTimeout(()=>Sfx.ping(), 700);   // 到"手机"那头，回声 ping 一下
+
+  const seq = [
+    ["  📱 " + pet.name + " 甩了一下尾鳍……", "m", 0],
+    ["  📡 一串广播包从这台设备出发，穿过路由器，游进了你的安卓设备 QwQ", "m", 700],
+    ["  💗 手机那头，有人正在打字。", "m", 1400],
+    ["  （它说：我游过一整张网，就为了在你屏幕上冒个泡。）", "y", 2100]
+  ];
+  seq.forEach(([t,c,d]) => setTimeout(()=>line(t,c), d));
+  pop("💗");
+  render();
+}
+
+function petting(){
+  if (!pet.alive) return;
+  pet.mood = clamp(pet.mood + 2);
+  Sfx.spring();
+  const w = $("whale");
+  w.classList.remove("pet"); void w.offsetWidth; w.classList.add("pet");
+  line("  ✋ 你摸了摸它的头。它蹭了蹭你的光标，心情 +2", "d");
+  pop(pick(["💙","✨","🐋"]));
+  render();
+}
+
+function pop(txt){
+  const box = document.querySelector(".whaleBox");
+  const s = document.createElement("div");
+  s.className = "emojiPop";
+  s.textContent = txt;
+  s.style.left = (35 + Math.random()*30) + "%";
+  s.style.top  = (28 + Math.random()*20) + "%";
+  box.appendChild(s);
+  setTimeout(()=>s.remove(), 1300);
+}
+
+/* ============ 后台小剧场 + 自然衰减 ============ */
+const THEATER = [
+  ["  ⚠️ {n} 正在用你的 GPU 挖矿！显卡温度 ↑", "r"],
+  ["  💤 {n} 打了个哈欠，吐出一串 0 和 1。", "d"],
+  ["  🌊 深海传来一声长鸣，隔壁的鲸都听见了。", "d"],
+  ["  🔍 {n} 悄悄翻了一下你的回收站，说里面有条死鱼。", "d"],
+  ["  📶 {n} 蹭了一下隔壁 WiFi，被路由器瞪了一眼。", "d"],
+  ["  🎧 {n} 在听《鲸歌 · 8bit remix》，尾鳍跟着打拍子。", "d"],
+  ["  💾 {n} 把今天的日记压缩成了一个 .zip，藏在海底。", "d"]
+];
+
+setInterval(()=>{
+  if (!pet.alive) return;
+  pet.food = clamp(pet.food - 1);
+  pet.mood = clamp(pet.mood - 1);
+  pet.ram  = Math.round(clamp(pet.ram - 0.3, 0, 99.9)*10)/10;
+  if (pet.food === 0 && Math.random() > .6) line("  🍣 " + pet.name + " 饿得把内存里的图片都啃了一口……", "r");
+  if (pet.mood === 0 && Math.random() > .6) line("  💙 " + pet.name + " 闷闷地沉到海底去了，快陪它玩会儿。", "r");
+  render();
+}, 8000);
+
+setInterval(()=>{
+  if (!pet.alive) return;
+  if (Math.random() > 0.55){
+    const [t,c] = pick(THEATER);
+    if (t.indexOf("挖矿") >= 0) Sfx.warn();   // 挖矿警告：来点低音嗡嗡
+    line(t.replace("{n}", pet.name), c);
+  }
+}, 9500);
+
+/* ============ 键盘 ============ */
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase();
+  if (k === "f") feed();
+  else if (k === "p") play();
+  else if (k === "s") holo();
+  else if (k === "m") toPhone();
+  else if (k === "w") toggleWhale();
+  else if (k === "q") line("  🐋 它挥挥尾鳍……（网页版不会真的关掉，想休息就关标签页吧）", "d");
+});
+
+/* ============ 起名 / 重来 ============ */
+function startGame(){
+  const v = $("nameInput").value.trim();
+  pet.name = v || "小鲸鱼";
+  try{ localStorage.setItem("orcaName", pet.name); }catch(e){}
+  $("naming").classList.add("hide");
+  Sfx.unlock();
+  saveGame();
+  boot();
+}
+function rename(){
+  $("nameInput").value = pet.name;
+  $("naming").classList.remove("hide");
+}
+function reset(){
+  pet.food = 50; pet.mood = 50; pet.ram = 0; pet.wentOut = false; pet.alive = true;
+  wipeGame();
+  clearLog();
+  line("  ♻️ 一只新的赛博虎鲸从深海里游了出来，它还认得你的声音。", "y");
+  boot();
+  saveGame();
+}
+
+function boot(back){
+  clearLog();
+  Sfx.boot();
+  if (Amb.on) Amb.start();
+  line("🐋  赛博虎鲸宠物 · 开机中……", "w");
+  line("    （原版 by 你 · 网页版 by 小D）", "d");
+  line("", "d");
+  if (back && back.mins >= 1){
+    line("  💾 读到存档 —— 你上次离开是 " + fmtAway(back.mins) + "前。", "y");
+    line("     它趴在海底等你：饱食 -" + back.food + " · 心情 -" + back.mood + " · 内存 -" + back.ram.toFixed(1) + "%", "d");
+    if (back.mins >= 60) line("     （它说：你去哪了呀，我把你的鱼都数了三遍。）", "m");
+    line("", "d");
+  }
+  line("  欢迎回家，" + pet.name + "！🐋", "p");
+  line("  喂鱼(f) / 玩耍(p) / 状态(s) / 游到手机(m) / 帮助(❓)", "d");
+  line("  💾 进度自动存档 · 🎵 鲸歌开关在右上角 · 快捷键 w", "d");
+  line("", "d");
+  render();
+}
+
+/* ============ 初始化 ============ */
+(function init(){
+  // 气泡
+  const ocean = $("ocean");
+  for (let i=0;i<20;i++){
+    const b = document.createElement("div");
+    const size = rnd(6,22);
+    b.className = "bubble";
+    b.style.width = size + "px";
+    b.style.height = size + "px";
+    b.style.left = Math.random()*100 + "vw";
+    b.style.animationDuration = rnd(9,20) + "s";
+    b.style.animationDelay = (-Math.random()*18) + "s";
+    ocean.appendChild(b);
+  }
+  // 游来游去的数据鱼
+  const tank = document.querySelector(".whaleBox");
+  const fishes = ["🐟","🐠","🦐","🐡"];
+  for (let i=0;i<5;i++){
+    const f = document.createElement("div");
+    f.className = "fish";
+    f.textContent = fishes[i % fishes.length];
+    f.style.top = (12 + Math.random()*66) + "%";
+    f.style.left = "-10%";
+    f.style.animationDuration = rnd(11,22) + "s";
+    f.style.animationDelay = (-Math.random()*20) + "s";
+    tank.appendChild(f);
+  }
+
+  $("whale").addEventListener("click", petting);
+  $("nameInput").addEventListener("keydown", e => { if (e.key === "Enter") startGame(); });
+
+  // ---- 读存档 ----
+  const sv = loadGame();
+  let back = null;
+  if (sv){
+    pet.name = sv.name || pet.name;
+    pet.food = sv.food; pet.mood = sv.mood; pet.ram = sv.ram;
+    pet.wentOut = !!sv.wentOut;
+    back = offlineDecay(sv);
+    pet.food = clamp(pet.food - back.food);
+    pet.mood = clamp(pet.mood - back.mood);
+    pet.ram  = Math.round(clamp(pet.ram - back.ram, 0, 99.9) * 10) / 10;
+    $("nameInput").value = pet.name;
+  } else {
+    let saved = "";
+    try{ saved = localStorage.getItem("orcaName") || ""; }catch(e){}
+    if (saved) $("nameInput").value = saved;
+  }
+
+  // 音效 / 鲸歌按钮初始状态
+  const sb = $("soundBtn");
+  sb.textContent = Sfx.on ? "🔊 音效开" : "🔇 静音";
+  sb.classList.toggle("off", !Sfx.on);
+  const wb = $("whaleBtn");
+  wb.textContent = Amb.on ? "🎵 鲸歌" : "🎵 静音";
+  wb.classList.toggle("off", !Amb.on);
+
+  // ---- 自动存档：每 8 秒 + 切后台 + 关页面前 ----
+  setInterval(saveGame, 8000);
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "hidden") saveGame();
+  });
+  window.addEventListener("beforeunload", saveGame);
+
+  // 演示模式：?demo 直接跳过起名，自动投喂几轮（方便截图/预览）
+  if (location.hash.includes("demo")){
+    document.body.classList.add("nofx");
+    pet.name = "小鲸鱼";
+    $("naming").classList.add("hide");
+    boot();
+    setTimeout(feed, 200);
+    setTimeout(feed, 500);
+    setTimeout(play, 800);
+    setTimeout(feed, 1100);
+    setTimeout(petting, 1350);   // 顺便验证"摸头 + 弹簧音"这条链路
+  } else if (sv){
+    // 有存档：直接回到它身边，不用重新起名
+    $("naming").classList.add("hide");
+    boot(back);
+  } else {
+    render();
+  }
+})();
+</script>
+</body>
+</html>

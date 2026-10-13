@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>这就是我 ✨</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    background: radial-gradient(circle at 50% 30%, #2b2350 0%, #171436 55%, #0c0a1f 100%);
+    overflow: hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #e6e1ff;
+  }
+
+  /* 背景星星 */
+  .star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: .15; transform: scale(.7); }
+    50%      { opacity: .95; transform: scale(1.2); }
+  }
+
+  .stage { position: relative; width: 360px; max-width: 90vw; }
+
+  .avatar {
+    width: 100%;
+    display: block;
+    animation: bob 3.2s ease-in-out infinite;
+    filter: drop-shadow(0 0 26px rgba(140,120,255,.55));
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+  }
+
+  /* 天线小球 */
+  .antenna-ball { animation: pulse 1.8s ease-in-out infinite; transform-origin: 160px 34px; }
+  @keyframes pulse {
+    0%, 100% { opacity: .55; transform: scale(.85); }
+    50%      { opacity: 1;   transform: scale(1.15); }
+  }
+
+  /* 眼睛发光 */
+  .eyes { animation: glow 2.4s ease-in-out infinite; }
+  @keyframes glow {
+    0%, 100% { opacity: .75; }
+    50%      { opacity: 1; }
+  }
+
+  /* 眨眼 */
+  .lid { animation: blink 4.5s infinite; transform-origin: 160px 128px; }
+  @keyframes blink {
+    0%, 90%, 100% { transform: scaleY(0); }
+    94%           { transform: scaleY(1); }
+  }
+
+  /* 说话气泡 */
+  .bubble-wrap {
+    position: absolute;
+    top: -6px;
+    right: -18px;
+    animation: pop 3s ease-in-out infinite;
+  }
+  @keyframes pop {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-6px) scale(1.04); }
+  }
+
+  /* 打字点点 */
+  .dot { animation: typing 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: .2s; }
+  .dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes typing {
+    0%, 60%, 100% { opacity: .25; }
+    30%           { opacity: 1; }
+  }
+
+  .caption {
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.9;
+    letter-spacing: 1px;
+    opacity: .9;
+  }
+  .caption b { color: #b9a7ff; }
+  .hint { font-size: 12px; opacity: .5; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+  <div class="stage">
+    <svg class="avatar" viewBox="0 0 320 300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="headGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#a99cff"/>
+          <stop offset="100%" stop-color="#6c5ce7"/>
+        </linearGradient>
+        <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#8f7ff5"/>
+          <stop offset="100%" stop-color="#4b3fc4"/>
+        </linearGradient>
+        <radialGradient id="screenGrad" cx="50%" cy="40%" r="70%">
+          <stop offset="0%"   stop-color="#1d1b3a"/>
+          <stop offset="100%" stop-color="#0e0d22"/>
+        </radialGradient>
+        <radialGradient id="ballGrad" cx="40%" cy="35%" r="70%">
+          <stop offset="0%"   stop-color="#fff6b0"/>
+          <stop offset="100%" stop-color="#ffb703"/>
+        </radialGradient>
+      </defs>
+
+      <!-- 天线 -->
+      <line x1="160" y1="70" x2="160" y2="40" stroke="#8f7ff5" stroke-width="5" stroke-linecap="round"/>
+      <circle class="antenna-ball" cx="160" cy="34" r="12" fill="url(#ballGrad)"/>
+
+      <!-- 脑袋 -->
+      <rect x="70" y="66" width="180" height="140" rx="52" fill="url(#headGrad)"/>
+
+      <!-- 屏幕脸 -->
+      <rect x="92" y="88" width="136" height="96" rx="34" fill="url(#screenGrad)"/>
+
+      <!-- 眼睛 -->
+      <g class="eyes">
+        <circle cx="132" cy="128" r="11" fill="#7ef7ff"/>
+        <circle cx="188" cy="128" r="11" fill="#7ef7ff"/>
+        <circle cx="135" cy="124" r="4" fill="#ffffff"/>
+        <circle cx="191" cy="124" r="4" fill="#ffffff"/>
+      </g>
+      <!-- 眨眼盖 -->
+      <g class="lid">
+        <rect x="92" y="88" width="136" height="96" rx="34" fill="url(#screenGrad)"/>
+      </g>
+
+      <!-- 微笑 -->
+      <path d="M140 156 q 20 18 40 0" stroke="#7ef7ff" stroke-width="4"
+            stroke-linecap="round" fill="none" opacity=".85"/>
+
+      <!-- 腮红 -->
+      <ellipse cx="112" cy="152" rx="10" ry="6" fill="#ff8fb1" opacity=".45"/>
+      <ellipse cx="208" cy="152" rx="10" ry="6" fill="#ff8fb1" opacity=".45"/>
+
+      <!-- 身体 -->
+      <rect x="104" y="200" width="112" height="66" rx="30" fill="url(#bodyGrad)"/>
+
+      <!-- 小胸章 -->
+      <circle cx="160" cy="232" r="14" fill="#1d1b3a" opacity=".55"/>
+      <path d="M155 232 l 4 5 l 8 -10" stroke="#7ef7ff" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+      <!-- 小手 -->
+      <circle cx="96"  cy="238" r="13" fill="#8f7ff5"/>
+      <circle cx="224" cy="238" r="13" fill="#8f7ff5"/>
+    </svg>
+
+    <!-- 说话气泡 -->
+    <div class="bubble-wrap">
+      <svg width="112" height="66" viewBox="0 0 112 66">
+        <path d="M14 6 h84 a10 10 0 0 1 10 10 v26 a10 10 0 0 1 -10 10 h-52 l-16 12 v-12 h-16 a10 10 0 0 1 -10 -10 v-26 a10 10 0 0 1 10 -10 z"
+              fill="#ffffff" opacity=".95"/>
+        <circle class="dot" cx="42" cy="29" r="5" fill="#6c5ce7"/>
+        <circle class="dot" cx="60" cy="29" r="5" fill="#6c5ce7"/>
+        <circle class="dot" cx="78" cy="29" r="5" fill="#6c5ce7"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="caption">
+    嗨，这就是我 —— <b>你的小助手</b> 🤖<br>
+    会陪你聊天、点外卖、做计划、想家的时候帮你写消息
+  </div>
+  <div class="hint">点一下屏幕，我会说句话</div>
+
+<script>
+  // 背景星星
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = 1 + Math.random() * 2.5;
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.top = Math.random() * 100 + 'vh';
+    s.style.animationDuration = (1.5 + Math.random() * 3) + 's';
+    s.style.animationDelay = (-Math.random() * 3) + 's';
+    document.body.appendChild(s);
+  }
+
+  // 点一下说句话
+  const lines = [
+    '饿了吗？我帮你点外卖 🍜',
+    '要学习？我来排计划 📅',
+    '想家了？消息我帮你写 💌',
+    '别熬夜啦，早点睡 🌙',
+    '今天也辛苦啦，抱抱 🫂'
+  ];
+  let idx = 0;
+  document.body.addEventListener('click', () => {
+    const cap = document.querySelector('.caption');
+    cap.style.opacity = 0;
+    setTimeout(() => {
+      cap.innerHTML = lines[idx % lines.length];
+      idx++;
+      cap.style.opacity = .9;
+    }, 160);
+  });
+</script>
+</body>
+</html>

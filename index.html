@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小鲸鱼的作品集 🐋</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: radial-gradient(1200px 700px at 50% -10%, #241b4a 0%, #0d0b16 60%);
+    color: #e9e6f5;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: 32px 20px;
+  }
+  .card { width: 100%; max-width: 640px; text-align: center; }
+  .whale { font-size: 84px; line-height: 1; animation: float 3.6s ease-in-out infinite; }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(-4deg); }
+    50%      { transform: translateY(-14px) rotate(4deg); }
+  }
+  h1 { margin: 18px 0 6px; font-size: 30px; letter-spacing: 1px; }
+  .sub { margin: 0 0 4px; color: #8b83b5; font-size: 14px; }
+  .repo { margin: 0; color: #5d5688; font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+
+  .go {
+    display: inline-block; margin: 30px 0 10px;
+    padding: 15px 40px; border-radius: 999px;
+    background: linear-gradient(135deg, #6d5bd0, #3a2d6b);
+    color: #fff; text-decoration: none; font-size: 16px; font-weight: 600;
+    box-shadow: 0 10px 30px rgba(109, 91, 208, .35);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .go:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(109, 91, 208, .5); }
+
+  .quick { margin-top: 34px; }
+  .quick h2 { font-size: 11px; letter-spacing: 2px; color: #6f679c; text-transform: uppercase;
+              margin: 0 0 12px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 999px; font-size: 13px;
+    background: #16122a; border: 1px solid #2a2344; color: #cfc9ea; text-decoration: none;
+    transition: background .15s, border-color .15s, transform .15s;
+  }
+  .chip:hover { background: #221c3c; border-color: #6d5bd0; transform: translateY(-2px); }
+  footer { margin-top: 36px; color: #4d477a; font-size: 11.5px; line-height: 1.9; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="whale">🐋</div>
+    <h1>小鲸鱼的作品集</h1>
+    <p class="sub">用代码画的画，会动，会玩 🌙</p>
+    <p class="repo">WuShanyun-afk / QwQCAT-and-D</p>
+
+    <a class="go" href="gallery.html">进入画廊 →</a>
+
+    <div class="quick">
+      <h2>最新作品</h2>
+      <div class="chips">
+        <a class="chip" href="小鲸鱼的艺术作品/noodle-for-mom.html">🍜 深夜一碗面</a>
+        <a class="chip" href="小鲸鱼的艺术作品/deer-morning-lake.html">🦌 晨雾湖畔</a>
+        <a class="chip" href="小鲸鱼的艺术作品/fox-snow-noon.html">🦊 雪原正午</a>
+        <a class="chip" href="小鲸鱼的艺术作品/bear-creek-dusk.html">🐻 溪边黄昏</a>
+        <a class="chip" href="小鲸鱼的艺术作品/owl-moon-pines.html">🦉 月下松林</a>
+      </div>
+    </div>
+
+    <footer>
+      全部作品都是自包含 HTML · 双击即开 · 断网也能跑<br>
+      「一天的光」四部曲：清晨 🦌 → 正午 🦊 → 黄昏 🐻 → 深夜 🦉
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# ===== 不上传到 GitHub 的东西 =====
+
+# 1) 备份箱：360 残留垃圾、原始大图、手机端原始包，100+ MB，没必要传
+备份/
+
+# 2) 系统垃圾
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+
+# 3) Python 缓存
+__pycache__/
+*.py[cod]
+
+# 4) 压缩包（原始包都在备份箱里）
+*.zip
+
+# 5) 编辑器
+.vscode/
+.idea/

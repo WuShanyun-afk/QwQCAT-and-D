@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小动物轮廓 · 猫咪 · 9:16 竖屏背景</title>
+<style>
+  :root {
+    --c1: #cfbcb5;  /* 暖灰粉 */
+    --c2: #fcfaeb;  /* 奶油白 */
+    --c3: #ead9e1;  /* 淡藕粉 */
+    --c4: #ba9e93;  /* 深奶茶 */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    background: #f7f3ef;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    padding: 32px 16px;
+  }
+
+  /* ===== 9:16 竖屏画布 ===== */
+  .frame {
+    position: relative;
+    width: 360px;
+    height: 640px;          /* 360 : 640 = 9 : 16 */
+    border-radius: 28px;
+    background: linear-gradient(170deg, var(--c2) 0%, var(--c3) 55%, var(--c1) 100%);
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(186,158,147,.30);
+  }
+
+  /* 背景装饰圆 */
+  .frame::before {
+    content: "";
+    position: absolute;
+    width: 320px; height: 320px;
+    border-radius: 50%;
+    background: var(--c1);
+    opacity: .38;
+    top: -110px; left: -90px;
+  }
+  .frame::after {
+    content: "";
+    position: absolute;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: var(--c4);
+    opacity: .16;
+    bottom: -80px; right: -70px;
+  }
+
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* 轮廓线：只描边不填色 */
+  .outline {
+    fill: none;
+    stroke: var(--c4);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .outline-thin {
+    fill: none;
+    stroke: var(--c4);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .accent {
+    fill: none;
+    stroke: var(--c1);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .soft {
+    fill: none;
+    stroke: var(--c3);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .caption {
+    text-align: center;
+    color: var(--c4);
+    line-height: 1.8;
+  }
+  .caption h1 { font-size: 18px; letter-spacing: 1px; }
+  .caption p  { font-size: 12px; color: var(--c1); }
+
+  .palette { display: flex; gap: 8px; }
+  .swatch {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(186,158,147,.22);
+  }
+</style>
+</head>
+<body>
+
+  <div class="frame">
+    <svg viewBox="0 0 360 640" xmlns="http://www.w3.org/2000/svg">
+
+      <!-- ===== 背景小装饰：云朵 / 星星 ===== -->
+      <path class="soft" d="M56 120 C56 104 70 96 82 102 C88 88 110 88 116 102 C130 98 142 108 140 122 C138 134 124 140 110 138 L70 138 C58 138 56 130 56 120 Z" />
+      <path class="soft" d="M262 176 C262 164 273 158 282 163 C287 152 304 152 309 163 C320 160 329 168 327 179 C325 188 314 193 303 191 L274 191 C265 191 262 185 262 176 Z" />
+
+      <path class="soft" d="M300 300 L306 316 L322 322 L306 328 L300 344 L294 328 L278 322 L294 316 Z" />
+      <path class="soft" d="M62 380 L67 393 L80 398 L67 403 L62 416 L57 403 L44 398 L57 393 Z" />
+      <path class="soft" d="M318 470 L322 481 L333 485 L322 489 L318 500 L314 489 L303 485 L314 481 Z" />
+
+      <!-- 底部地面弧线 -->
+      <path class="soft" d="M0 560 C90 536 270 536 360 560" />
+
+      <!-- ===== 猫咪轮廓（整体居中偏下） ===== -->
+      <g transform="translate(0, 60)">
+
+        <!-- 尾巴 -->
+        <path class="outline" d="M232 400 C288 404 302 348 274 320 C256 302 226 316 232 342" />
+
+        <!-- 身体 -->
+        <path class="outline" d="M170 250 C114 250 90 300 94 344 C98 388 130 412 170 412 C210 412 242 388 246 344 C250 300 226 250 170 250 Z" />
+
+        <!-- 前爪 -->
+        <path class="accent" d="M134 396 C134 410 145 417 156 417" />
+        <path class="accent" d="M206 396 C206 410 195 417 184 417" />
+
+        <!-- 头 -->
+        <path class="outline" d="M170 150 C114 150 82 194 82 242 C82 292 118 324 170 324 C222 324 258 292 258 242 C258 194 226 150 170 150 Z" />
+
+        <!-- 左耳 -->
+        <path class="outline" d="M102 188 L94 130 L148 164" />
+        <!-- 右耳 -->
+        <path class="outline" d="M238 188 L246 130 L192 164" />
+
+        <!-- 眼睛（闭眼微笑弧） -->
+        <path class="outline-thin" d="M126 236 C137 247 152 247 163 236" />
+        <path class="outline-thin" d="M177 236 C188 247 203 247 214 236" />
+
+        <!-- 鼻子 -->
+        <path class="outline-thin" d="M164 266 L176 266 L170 274 Z" />
+
+        <!-- 嘴巴 -->
+        <path class="outline-thin" d="M170 274 L170 282" />
+        <path class="outline-thin" d="M170 282 C162 292 152 288 148 282" />
+        <path class="outline-thin" d="M170 282 C178 292 188 288 192 282" />
+
+        <!-- 胡须 -->
+        <path class="accent" d="M116 264 L78 258" />
+        <path class="accent" d="M116 274 L78 276" />
+        <path class="accent" d="M224 264 L262 258" />
+        <path class="accent" d="M224 274 L262 276" />
+
+        <!-- 头顶小花 -->
+        <circle class="accent" cx="170" cy="134" r="7" />
+      </g>
+
+    </svg>
+  </div>
+
+  <div class="caption">
+    <h1>猫咪 · 纯轮廓 · 9:16</h1>
+    <p>奶茶色系 · 360×640 竖屏背景</p>
+  </div>
+
+  <div class="palette">
+    <div class="swatch" style="background:#cfbcb5"></div>
+    <div class="swatch" style="background:#fcfaeb"></div>
+    <div class="swatch" style="background:#ead9e1"></div>
+    <div class="swatch" style="background:#ba9e93"></div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鲸鱼摇篮曲 · 深海夜色 🐋🌙</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(circle at 50% 115%, #123a52 0%, #0a2233 35%, #05121d 70%, #02080e 100%);
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: #cfe6f5;
+  }
+
+  /* ---------- 画布 ---------- */
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ---------- 标题 ---------- */
+  .caption {
+    position: fixed;
+    left: 0; right: 0; bottom: 30px;
+    text-align: center;
+    pointer-events: none;
+    line-height: 1.9;
+    animation: fadeUp 2.4s ease both;
+  }
+  .caption h1 {
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    color: #eaf6ff;
+    text-shadow: 0 0 18px rgba(120,200,255,.55);
+  }
+  .caption p {
+    font-size: 12.5px;
+    letter-spacing: 2px;
+    color: #7fa8c4;
+    margin-top: 6px;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- 提示 ---------- */
+  .hint {
+    position: fixed;
+    top: 22px; left: 0; right: 0;
+    text-align: center;
+    font-size: 11.5px;
+    letter-spacing: 1.5px;
+    color: #4d7a96;
+    opacity: .8;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<div class="hint">点一下水面 · 会冒泡泡 🫧</div>
+
+<div class="caption">
+  <h1>鲸 鱼 摇 篮 曲</h1>
+  <p>深海夜色 · 小鲸鱼慢慢游</p>
+</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  cv.width = W * DPR;
+  cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+/* ---------- 气泡 ---------- */
+const bubbles = [];
+function addBubble(x, y, r) {
+  bubbles.push({
+    x: x, y: y,
+    r: r || 2 + Math.random() * 4,
+    vy: .35 + Math.random() * .7,
+    sway: Math.random() * Math.PI * 2,
+    life: 1
+  });
+}
+// 背景常驻气泡
+for (let i = 0; i < 40; i++) {
+  addBubble(Math.random() * 2000, Math.random() * 2000, 1.5 + Math.random() * 3.5);
+}
+
+/* ---------- 星星（水面光斑） ---------- */
+const sparks = [];
+for (let i = 0; i < 60; i++) {
+  sparks.push({
+    x: Math.random(), y: Math.random() * .5,
+    r: .6 + Math.random() * 1.6,
+    a: Math.random() * Math.PI * 2,
+    sp: .4 + Math.random() * 1.2
+  });
+}
+
+/* ---------- 水草 ---------- */
+const weeds = [];
+for (let i = 0; i < 14; i++) {
+  weeds.push({
+    x: Math.random(),
+    h: .12 + Math.random() * .22,
+    ph: Math.random() * Math.PI * 2,
+    w: 1.5 + Math.random() * 2.5,
+    hue: 150 + Math.random() * 40
+  });
+}
+
+/* ---------- 鲸鱼 ---------- */
+const whale = {
+  t: 0,
+  x: 0, y: 0,
+  dir: 1,
+  size: 1
+};
+
+function drawWhale(cx, cy, s, t, alpha) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s, s);
+  ctx.globalAlpha = alpha;
+
+  const bob = Math.sin(t * 1.1) * 4;
+  const tail = Math.sin(t * 1.6) * 0.35;
+
+  // 光晕
+  const glow = ctx.createRadialGradient(0, bob, 10, 0, bob, 150);
+  glow.addColorStop(0, 'rgba(110,200,255,.20)');
+  glow.addColorStop(1, 'rgba(110,200,255,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, bob, 150, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.translate(0, bob);
+
+  // 尾巴
+  ctx.save();
+  ctx.translate(-78, 6);
+  ctx.rotate(tail);
+  ctx.fillStyle = '#2f6f96';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-26, -22, -40, -30);
+  ctx.quadraticCurveTo(-30, -8, -30, 0);
+  ctx.quadraticCurveTo(-30, 8, -40, 30);
+  ctx.quadraticCurveTo(-26, 22, 0, 0);
+  ctx.fill();
+  ctx.restore();
+
+  // 身体
+  const body = ctx.createLinearGradient(0, -55, 0, 60);
+  body.addColorStop(0, '#5fb4e0');
+  body.addColorStop(.55, '#2f7ba8');
+  body.addColorStop(1, '#1b4f70');
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(-78, 6);
+  ctx.quadraticCurveTo(-60, -46, 6, -52);
+  ctx.quadraticCurveTo(74, -56, 96, -6);
+  ctx.quadraticCurveTo(104, 26, 62, 40);
+  ctx.quadraticCurveTo(0, 58, -78, 6);
+  ctx.fill();
+
+  // 肚子高光
+  ctx.fillStyle = 'rgba(190,235,255,.30)';
+  ctx.beginPath();
+  ctx.ellipse(10, 24, 52, 16, .08, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 胸鳍
+  ctx.save();
+  ctx.translate(6, 22);
+  ctx.rotate(.35 + Math.sin(t * 1.6) * .18);
+  ctx.fillStyle = '#2a6a92';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(24, 14, 40, 30);
+  ctx.quadraticCurveTo(18, 30, 0, 16);
+  ctx.fill();
+  ctx.restore();
+
+  // 眼睛
+  ctx.fillStyle = '#0d2433';
+  ctx.beginPath();
+  ctx.arc(62, -14, 5.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  ctx.beginPath();
+  ctx.arc(63.6, -15.8, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 腮线
+  ctx.strokeStyle = 'rgba(13,36,51,.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(44, -6);
+  ctx.quadraticCurveTo(48, 6, 44, 18);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/* ---------- 主循环 ---------- */
+let time = 0;
+let last = performance.now();
+
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, .05);
+  last = now;
+  time += dt;
+
+  // 背景
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0a2a3f');
+  bg.addColorStop(.45, '#07202f');
+  bg.addColorStop(1, '#020a12');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // 水面光柱
+  ctx.save();
+  for (let i = 0; i < 5; i++) {
+    const x = W * (.12 + i * .19) + Math.sin(time * .3 + i) * 30;
+    const g = ctx.createLinearGradient(x, 0, x + 80, H * .8);
+    g.addColorStop(0, 'rgba(120,200,255,.10)');
+    g.addColorStop(1, 'rgba(120,200,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x - 40, 0);
+    ctx.lineTo(x + 40, 0);
+    ctx.lineTo(x + 130, H);
+    ctx.lineTo(x + 10, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 星星
+  sparks.forEach(s => {
+    s.a += dt * s.sp;
+    const a = .35 + Math.sin(s.a) * .35;
+    ctx.fillStyle = `rgba(190,235,255,${Math.max(a, 0)})`;
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // 水草
+  weeds.forEach(w => {
+    const bx = w.x * W;
+    const bh = w.h * H;
+    ctx.strokeStyle = `hsla(${w.hue},45%,42%,.45)`;
+    ctx.lineWidth = w.w;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(bx, H);
+    for (let i = 1; i <= 4; i++) {
+      const p = i / 4;
+      const sway = Math.sin(time * .9 + w.ph + p * 2.2) * 16 * p;
+      ctx.lineTo(bx + sway, H - bh * p);
+    }
+    ctx.stroke();
+  });
+
+  // 海底
+  const floor = ctx.createLinearGradient(0, H - 90, 0, H);
+  floor.addColorStop(0, 'rgba(4,20,30,0)');
+  floor.addColorStop(1, 'rgba(2,10,16,.95)');
+  ctx.fillStyle = floor;
+  ctx.fillRect(0, H - 90, W, 90);
+
+  // 鲸鱼：缓慢横游
+  whale.t += dt;
+  const period = 26;
+  const p = (whale.t % period) / period;
+  const margin = 160;
+  whale.x = -margin + p * (W + margin * 2);
+  whale.y = H * .48 + Math.sin(whale.t * .5) * H * .07;
+  const s = Math.min(W, H) / 900 * 1.15;
+  drawWhale(whale.x, whale.y, s, whale.t, 1);
+
+  // 气泡
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i];
+    b.y -= b.vy * 60 * dt;
+    b.sway += dt * 2;
+    const bx = b.x + Math.sin(b.sway) * 8;
+    if (b.y < -20) {
+      b.y = H + 20;
+      b.x = Math.random() * W;
+    }
+    ctx.strokeStyle = 'rgba(180,230,255,.45)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(bx, b.y, b.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(180,230,255,.10)';
+    ctx.fill();
+  }
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------- 点击冒泡 ---------- */
+window.addEventListener('pointerdown', e => {
+  for (let i = 0; i < 7; i++) {
+    addBubble(
+      e.clientX + (Math.random() - .5) * 40,
+      e.clientY + (Math.random() - .5) * 20,
+      2 + Math.random() * 5
+    );
+  }
+});
+</script>
+
+</body>
+</html>

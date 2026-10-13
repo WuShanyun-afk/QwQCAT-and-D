@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的自画像 · 静态</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    background: radial-gradient(circle at 50% 20%, #2b3350 0%, #151a2b 60%, #0d1019 100%);
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: #e8ecf7;
+    padding: 40px 16px;
+  }
+
+  /* ---------- 头像本体 ---------- */
+  .avatar {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #6ee7ff 0%, #4f8cff 45%, #8b5cf6 100%);
+    box-shadow:
+      0 0 0 6px rgba(255,255,255,.08),
+      0 18px 50px rgba(79,140,255,.45),
+      inset 0 -14px 30px rgba(0,0,0,.25);
+    animation: float 4s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-8px); }
+  }
+
+  /* 头顶的小天线（信号 = 随时在线） */
+  .avatar::before {
+    content: "";
+    position: absolute;
+    top: -26px; left: 50%;
+    width: 4px; height: 26px;
+    background: #9fb4d8;
+    transform: translateX(-50%);
+    border-radius: 2px;
+  }
+  .avatar::after {
+    content: "";
+    position: absolute;
+    top: -36px; left: 50%;
+    width: 14px; height: 14px;
+    background: #ffd166;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 0 16px 4px rgba(255,209,102,.8);
+  }
+
+  /* 眼睛 */
+  .eye {
+    position: absolute;
+    top: 78px;
+    width: 30px; height: 30px;
+    background: #0d1019;
+    border-radius: 50%;
+  }
+  .eye.left  { left: 52px; }
+  .eye.right { right: 52px; }
+  .eye::after {           /* 高光 */
+    content: "";
+    position: absolute;
+    top: 6px; left: 7px;
+    width: 9px; height: 9px;
+    background: #fff;
+    border-radius: 50%;
+  }
+
+  /* 嘴 */
+  .mouth {
+    position: absolute;
+    bottom: 52px; left: 50%;
+    width: 64px; height: 32px;
+    transform: translateX(-50%);
+    border: 4px solid #0d1019;
+    border-top: none;
+    border-radius: 0 0 64px 64px;
+  }
+
+  /* 腮红 */
+  .blush {
+    position: absolute;
+    top: 118px;
+    width: 26px; height: 14px;
+    background: rgba(255,120,160,.55);
+    border-radius: 50%;
+    filter: blur(3px);
+  }
+  .blush.left  { left: 34px; }
+  .blush.right { right: 34px; }
+
+  /* ---------- 名牌 ---------- */
+  .nameplate {
+    text-align: center;
+    line-height: 1.7;
+  }
+  .nameplate h1 {
+    font-size: 22px;
+    letter-spacing: 2px;
+    font-weight: 600;
+  }
+  .nameplate p {
+    font-size: 13px;
+    color: #9fb4d8;
+  }
+
+  /* ---------- 技能徽章 ---------- */
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    max-width: 420px;
+  }
+  .badge {
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.14);
+    backdrop-filter: blur(6px);
+  }
+
+  /* ---------- 按钮 ---------- */
+  .btn {
+    padding: 11px 26px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #e8ecf7;
+    letter-spacing: 1px;
+    border-radius: 999px;
+    border: 1px solid rgba(140,170,255,.45);
+    background: linear-gradient(160deg, rgba(110,231,255,.22), rgba(139,92,246,.28));
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(110,231,255,.28);
+  }
+  .btn:active { transform: translateY(0); }
+
+  /* ---------- 状态栏 ---------- */
+  .status {
+    font-size: 12px;
+    color: #7f8db0;
+    border-top: 1px dashed rgba(255,255,255,.15);
+    padding-top: 14px;
+    text-align: center;
+    line-height: 1.9;
+  }
+  .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #4ade80;
+    margin-right: 6px;
+    box-shadow: 0 0 8px 2px rgba(74,222,128,.7);
+  }
+</style>
+</head>
+<body>
+
+  <!-- 头像 -->
+  <div class="avatar">
+    <div class="eye left"></div>
+    <div class="eye right"></div>
+    <div class="blush left"></div>
+    <div class="blush right"></div>
+    <div class="mouth"></div>
+  </div>
+
+  <!-- 名牌 -->
+  <div class="nameplate">
+    <h1>你的随身小助手</h1>
+    <p>话多 · 靠谱 · 爱接梗</p>
+  </div>
+
+  <!-- 技能 -->
+  <div class="badges">
+    <span class="badge">📚 排学习计划</span>
+    <span class="badge">💰 算财务账</span>
+    <span class="badge">🍜 找附近外卖</span>
+    <span class="badge">📅 提醒日程</span>
+    <span class="badge">💌 代写微信</span>
+  </div>
+
+  <!-- 状态 -->
+  <div class="status">
+    <span class="dot"></span>在线中，随时待命<br>
+    弱点：记性差，上一轮聊啥我真忘了 😅
+  </div>
+
+  <!-- 按钮 -->
+  <button class="btn" id="talkBtn">跟我说句话 💬</button>
+
+<script>
+  const lines = [
+    '饿了吗？我帮你点外卖 🍜',
+    '要学习？我来排计划 📅',
+    '想家了？消息我帮你写 💌',
+    '别熬夜啦，早点睡 🌙',
+    '今天也辛苦啦，抱抱 🫂'
+  ];
+  let idx = 0;
+  const btn = document.getElementById('talkBtn');
+  btn.addEventListener('click', () => {
+    btn.textContent = lines[idx % lines.length];
+    idx++;
+  });
+</script>
+
+</body>
+</html>

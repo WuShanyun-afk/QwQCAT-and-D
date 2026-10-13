@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>小窝 · 水蓝日记本</title>
+<style>
+/* ================= 基础变量 & 重置 ================= */
+:root{
+  /* 水蓝 × 米白 调色板（变量名保留 pink-*，值已换成水蓝） */
+  --pink-50:#f2f9fd;
+  --pink-100:#e3f2fa;
+  --pink-200:#c9e5f4;
+  --pink-300:#a4d3ea;
+  --pink-400:#5faed6;
+  --pink-500:#3d8cb8;
+  --cream:#f5fbfe;
+  --cream-2:#ecf6fb;
+  --ink:#2f4a5a;
+  --ink-soft:#7a95a6;
+  --line:#dcebf4;
+  --shadow:0 6px 22px rgba(70,120,150,.14);
+  --shadow-sm:0 3px 10px rgba(70,120,150,.10);
+  --radius:18px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--ink);
+  /* 米白偏蓝底 + 水蓝波点 + 白色条纹 */
+  background-color:var(--cream);
+  background-image:
+    radial-gradient(circle, rgba(108,181,218,.34) 1.35px, rgba(108,181,218,0) 1.5px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.92) 0 13px, rgba(255,255,255,0) 13px 34px);
+  background-size:26px 26px, auto;
+  background-position:0 0, 0 0;
+  background-attachment:fixed;
+  min-height:100vh;
+  line-height:1.6;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,textarea{font:inherit;color:inherit}
+.hidden{display:none !important}
+::selection{background:var(--pink-200)}
+
+/* 滚动条 */
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-thumb{background:var(--pink-200);border-radius:99px}
+*::-webkit-scrollbar-track{background:transparent}
+
+/* 通用小组件 */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;justify-content:center;
+  padding:9px 16px;border-radius:99px;background:var(--pink-400);color:#fff;
+  font-size:14px;font-weight:600;box-shadow:var(--shadow-sm);
+  transition:transform .15s ease, filter .15s ease, background .15s ease;
+}
+.btn:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn.ghost{background:#fff;color:var(--pink-500);border:1.5px solid var(--pink-200);box-shadow:none}
+.btn.ghost:hover{background:var(--pink-50)}
+.btn.tiny{padding:6px 12px;font-size:12.5px}
+.btn.danger{background:#fff;color:#6d6d76;border:1.5px solid var(--pink-200);box-shadow:none}
+.btn svg{width:15px;height:15px;flex:none}
+
+.input,.textarea{
+  width:100%;padding:11px 14px;border-radius:14px;border:1.5px solid var(--line);
+  background:#fff;outline:none;font-size:14.5px;transition:border-color .2s, box-shadow .2s;
+}
+.input:focus,.textarea:focus{border-color:var(--pink-300);box-shadow:0 0 0 4px var(--pink-100)}
+.textarea{resize:vertical;min-height:96px;line-height:1.7}
+.muted{color:var(--ink-soft);font-size:12.5px}
+
+/* ================= 进场动画 ================= */
+@keyframes pop{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+
+/* ================= 顶栏 ================= */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  background:rgba(246,251,254,.88);backdrop-filter:blur(12px);
+  border-bottom:1.5px solid var(--line);
+}
+.topbar-inner{
+  max-width:1180px;margin:0 auto;padding:12px 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+.brand .dot{
+  width:34px;height:34px;border-radius:12px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(140deg,var(--pink-300),var(--pink-500));box-shadow:var(--shadow-sm);
+}
+.brand .dot svg{width:18px;height:18px}
+.brand small{display:block;font-weight:400;font-size:11px;color:var(--ink-soft);letter-spacing:0}
+.topbar .spacer{flex:1}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap;max-width:1180px;margin:0 auto;padding:0 20px 12px}
+.tab{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:99px;
+  font-size:14px;font-weight:600;color:var(--ink-soft);background:transparent;
+  border:1.5px solid transparent;transition:all .18s ease;
+}
+.tab svg{width:16px;height:16px}
+.tab:hover{background:var(--pink-50);color:var(--pink-500)}
+.tab.active{background:#fff;color:var(--pink-500);border-color:var(--pink-200);box-shadow:var(--shadow-sm)}
+
+/* ================= 布局 ================= */
+main{max-width:1180px;margin:0 auto;padding:24px 20px 90px}
+.panel{display:none;animation:fade .35s ease both}
+.panel.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.panel-head h2{margin:0;font-size:19px;letter-spacing:.4px;display:flex;align-items:center;gap:9px}
+.panel-head h2 svg{width:20px;height:20px;color:var(--pink-400)}
+.panel-head .desc{margin:2px 0 0;font-size:12.5px;color:var(--ink-soft)}
+
+.card{
+  background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);
+  padding:18px;box-shadow:var(--shadow-sm);
+}
+
+/* 空状态 */
+.empty{
+  text-align:center;padding:44px 20px;color:var(--ink-soft);font-size:13.5px;
+  border:1.5px dashed var(--pink-200);border-radius:var(--radius);background:rgba(255,255,255,.55);
+}
+.empty svg{width:34px;height:34px;color:var(--pink-300);display:block;margin:0 auto 10px}
+
+/* ================= 上传区 ================= */
+.dropzone{
+  border:2px dashed var(--pink-200);border-radius:var(--radius);
+  background:linear-gradient(180deg,#fff,rgba(242,249,253,.75));
+  padding:22px;text-align:center;margin-bottom:20px;transition:all .2s ease;
+}
+.dropzone.over{border-color:var(--pink-400);background:var(--pink-100);transform:scale(1.006)}
+.dropzone .dz-icon{width:42px;height:42px;color:var(--pink-400);margin:0 auto 8px}
+.dropzone h3{margin:0 0 2px;font-size:15px}
+.dropzone p{margin:0 0 14px;font-size:12.5px;color:var(--ink-soft)}
+.dropzone .dz-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+/* ================= 瀑布流 ================= */
+.masonry{column-count:3;column-gap:18px}
+@media (max-width:980px){.masonry{column-count:2}}
+@media (max-width:620px){.masonry{column-count:1}}
+.work{
+  break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;
+  background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);
+  overflow:hidden;margin:0 0 18px;box-shadow:var(--shadow-sm);
+  transition:transform .2s ease, box-shadow .2s ease;position:relative;
+}
+.work:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.work-media{position:relative;cursor:zoom-in;background:var(--cream-2);display:block;width:100%}
+.work-media img{display:block;width:100%;height:auto;min-height:80px;object-fit:cover}
+.work-media .overlay{
+  position:absolute;inset:0;background:rgba(30,70,95,.42);color:#fff;
+  display:grid;place-items:center;gap:6px;font-size:13px;font-weight:600;
+  opacity:0;transition:opacity .2s ease;
+}
+.work-media:hover .overlay{opacity:1}
+.work-media .overlay span{display:flex;align-items:center;gap:6px}
+.work-media .overlay svg{width:18px;height:18px}
+.work-body{padding:12px 14px 13px}
+.work-title{font-size:14px;font-weight:700;margin:0 0 8px;word-break:break-all;line-height:1.4}
+.work-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
+.work-time{font-size:11px;color:#9db6c6}
+
+/* HTML 封面 */
+.html-cover{
+  padding:26px 16px;display:grid;place-items:center;gap:8px;text-align:center;
+  background:
+    repeating-linear-gradient(45deg,#f7fcfe 0 12px,#eaf5fb 12px 24px);
+  min-height:130px;
+}
+.html-cover .code-icon{
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(140deg,var(--pink-300),var(--pink-500));box-shadow:var(--shadow-sm);
+}
+.html-cover .code-icon svg{width:24px;height:24px}
+.html-cover .fname{font-size:12px;color:var(--ink-soft);word-break:break-all;padding:0 8px}
+
+/* ================= 标签 chip ================= */
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;
+  background:var(--pink-50);border:1px solid var(--pink-200);color:var(--pink-500);
+  font-size:11.5px;font-weight:600;max-width:100%;
+}
+.chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}
+.chip-x{
+  display:grid;place-items:center;width:14px;height:14px;border-radius:50%;
+  color:var(--pink-400);opacity:.75;
+}
+.chip-x:hover{background:var(--pink-200);opacity:1}
+.chip-x svg{width:9px;height:9px}
+.chip-add{
+  background:#fff;border-style:dashed;color:var(--ink-soft);cursor:pointer;font-weight:500;
+}
+.chip-add:hover{border-color:var(--pink-300);color:var(--pink-500);background:var(--pink-50)}
+.chip-add svg{width:10px;height:10px}
+.chip-input{
+  width:96px;padding:3px 9px;border-radius:99px;border:1px dashed var(--pink-300);
+  font-size:11.5px;outline:none;background:#fff;
+}
+
+/* ================= 日记 ================= */
+.diary-compose{margin-bottom:22px}
+.diary-compose .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap}
+.diary-list{display:grid;gap:14px}
+.diary{
+  background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);
+  padding:15px 16px;box-shadow:var(--shadow-sm);position:relative;
+  border-left:4px solid var(--pink-200);
+}
+.diary:hover{border-left-color:var(--pink-400)}
+.diary p{margin:0 0 10px;white-space:pre-wrap;word-break:break-word;font-size:14.5px;line-height:1.75}
+.diary-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.icon-btn{
+  display:grid;place-items:center;width:28px;height:28px;border-radius:9px;color:#a6c0cf;
+  transition:all .15s ease;
+}
+.icon-btn:hover{background:var(--pink-50);color:var(--pink-500)}
+.icon-btn svg{width:15px;height:15px}
+
+/* ================= 简介 ================= */
+.profile-card{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.avatar-wrap{position:relative;flex:none}
+.avatar{
+  width:118px;height:118px;border-radius:34px;overflow:hidden;display:grid;place-items:center;
+  background:linear-gradient(140deg,var(--pink-100),var(--pink-200));
+  border:3px solid #fff;box-shadow:var(--shadow);color:#fff;
+}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar svg{width:46px;height:46px;color:#fff;opacity:.9}
+.avatar-edit{
+  position:absolute;right:-6px;bottom:-6px;width:34px;height:34px;border-radius:12px;
+  background:#fff;border:1.5px solid var(--pink-200);color:var(--pink-500);
+  display:grid;place-items:center;box-shadow:var(--shadow-sm);
+}
+.avatar-edit svg{width:16px;height:16px}
+.avatar-edit:hover{background:var(--pink-50)}
+.profile-info{flex:1;min-width:220px}
+.profile-info h3{margin:0 0 4px;font-size:22px;letter-spacing:.5px}
+.profile-info .bio{
+  margin:10px 0 16px;font-size:14.5px;line-height:1.85;white-space:pre-wrap;
+  background:var(--pink-50);border:1px dashed var(--pink-200);border-radius:14px;padding:14px 16px;color:#3c5866;
+}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.stat{
+  background:var(--cream-2);border:1px solid var(--line);border-radius:14px;
+  padding:10px 16px;text-align:center;min-width:88px;
+}
+.stat b{display:block;font-size:20px;color:var(--pink-500);line-height:1.2}
+.stat span{font-size:11.5px;color:var(--ink-soft)}
+
+/* ================= Todo ================= */
+.todo-add{display:flex;gap:10px;margin-bottom:16px}
+.todo-list{display:grid;gap:9px;list-style:none;padding:0;margin:0}
+.todo{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;
+  border:1.5px solid var(--line);border-radius:15px;box-shadow:var(--shadow-sm);
+  transition:all .18s ease;
+}
+.todo:hover{border-color:var(--pink-200)}
+.todo .box{
+  width:22px;height:22px;border-radius:8px;border:2px solid var(--pink-300);flex:none;
+  display:grid;place-items:center;color:#fff;background:#fff;transition:all .18s ease;
+}
+.todo .box svg{width:13px;height:13px;opacity:0;transform:scale(.6);transition:all .18s ease}
+.todo.done .box{background:var(--pink-400);border-color:var(--pink-400)}
+.todo.done .box svg{opacity:1;transform:none}
+.todo .txt{flex:1;font-size:14.5px;word-break:break-word}
+.todo.done .txt{text-decoration:line-through;color:#a9c1cf}
+.todo .del{opacity:0;transition:opacity .15s ease}
+.todo:hover .del{opacity:1}
+.todo-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap}
+.progress{height:8px;border-radius:99px;background:var(--pink-100);overflow:hidden;flex:1;min-width:120px}
+.progress i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--pink-300),var(--pink-500));transition:width .35s ease}
+
+/* ================= 弹窗 ================= */
+.modal{
+  position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px;
+  background:rgba(35,65,85,.44);backdrop-filter:blur(4px);animation:fade .25s ease both;
+}
+.modal-box{
+  width:min(520px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:24px;
+  padding:24px;box-shadow:0 18px 50px rgba(35,65,85,.26);border:1.5px solid #fff;
+  animation:pop .35s cubic-bezier(.2,1.2,.3,1) both;
+}
+.modal-box.wide{width:min(920px,100%)}
+.modal-box h3{margin:0 0 4px;font-size:18px;display:flex;align-items:center;gap:8px}
+.modal-box h3 svg{width:18px;height:18px;color:var(--pink-400)}
+.modal-box .modal-sub{margin:0 0 18px;font-size:12.5px;color:var(--ink-soft)}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#3f5d6e}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.modal-head h3{margin:0}
+.viewer-img{width:100%;max-height:70vh;object-fit:contain;border-radius:14px;background:var(--cream-2);display:block}
+.runner-frame{width:100%;height:62vh;border:1.5px solid var(--line);border-radius:14px;background:#fff}
+.setup-avatar{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.setup-avatar .avatar{width:74px;height:74px;border-radius:24px}
+.setup-avatar .avatar svg{width:30px;height:30px}
+
+/* Toast */
+.toast-wrap{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:200;display:grid;gap:8px;justify-items:center;pointer-events:none}
+.toast{
+  background:rgba(35,62,80,.94);color:#fff;font-size:13.5px;padding:10px 18px;border-radius:99px;
+  box-shadow:0 8px 24px rgba(35,62,80,.28);animation:toastIn .3s cubic-bezier(.2,1.2,.3,1) both;max-width:80vw;
+}
+.toast.pink{background:rgba(61,140,184,.96)}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+footer{text-align:center;font-size:11.5px;color:#a3bdcc;padding:0 20px 34px}
+@media (max-width:620px){
+  .topbar-inner{padding:10px 14px;gap:10px}
+  .tabs{padding:0 14px 10px}
+  main{padding:18px 14px 80px}
+  .modal-box{padding:20px}
+  .brand small{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 注册 / 编辑人设 ==================== -->
+<div class="modal hidden" id="setupModal">
+  <div class="modal-box">
+    <h3 id="setupTitle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.6 6 .7-4.4 4.1 1.2 5.9L12 16.4 6.7 19.3l1.2-5.9L3.5 9.3l6-.7z"></path></svg><span id="setupTitleText">先给自己起个名字吧</span></h3>
+    <p class="modal-sub" id="setupSub">第一次来，先留下你的网名和一句简介~</p>
+    <div class="setup-avatar">
+      <div class="avatar" id="setupAvatarBox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"></circle><path d="M4.5 20.5c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"></path></svg>
+      </div>
+      <div>
+        <button class="btn ghost tiny" id="setupAvatarBtn">上传头像（可选）</button>
+        <p class="muted" style="margin:6px 0 0">不传也行，会用默认的小人偶</p>
+      </div>
+    </div>
+    <div class="field">
+      <label>网名</label>
+      <input class="input" id="setupName" maxlength="20" placeholder="比如：深海小鲸鱼">
+    </div>
+    <div class="field">
+      <label>简介</label>
+      <textarea class="textarea" id="setupBio" maxlength="300" placeholder="一句话介绍自己，喜欢什么、在做什么…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost hidden" id="setupCancel">取消</button>
+      <button class="btn" id="setupSave">就这样，进去啦</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 主应用 ==================== -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="dot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.2-4.4-9-8.6C1.4 8.4 3.4 5 6.8 5c2 0 3.6 1.1 4.4 2.4h1.6C13.6 6.1 15.2 5 17.2 5c3.4 0 5.4 3.4 3.8 6.9-1.8 4.2-9 8.6-9 8.6z"></path></svg>
+        </span>
+        <span>我的水蓝小窝<small id="brandSub">日记 &amp; 作品</small></span>
+      </div>
+      <div class="spacer"></div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="works">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M4 17.5l4.6-4.2 3.2 3 2.6-2.3 5.6 5"></path></svg>
+        我的作品
+      </button>
+      <button class="tab" data-tab="diary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v13H7a2 2 0 0 1-2-2z"></path><path d="M5 17.5h12"></path><path d="M19 6.5v13.5"></path><path d="M8 8.5h5M8 11.5h4"></path></svg>
+        碎碎念念
+      </button>
+      <button class="tab" data-tab="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"></circle><path d="M4.5 20.5c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"></path></svg>
+        我的简介
+      </button>
+      <button class="tab" data-tab="todo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h2M4 12h2M4 17h2"></path><path d="M9.5 7H20M9.5 12H20M9.5 17H20"></path></svg>
+        Todolist
+      </button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ---------- 我的作品 ---------- -->
+    <section class="panel active" id="panel-works">
+      <div class="panel-head">
+        <div>
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M4 17.5l4.6-4.2 3.2 3 2.6-2.3 5.6 5"></path></svg>
+            我的作品
+          </h2>
+          <p class="desc">图片会自动压缩后存在本地，HTML 可以直接在这里跑起来</p>
+        </div>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16.5V4.8"></path><path d="M7.5 9.3L12 4.8l4.5 4.5"></path><path d="M4.5 15v3a2.5 2.5 0 0 0 2.5 2.5h10a2.5 2.5 0 0 0 2.5-2.5v-3"></path></svg>
+        <h3>把作品拖到这里</h3>
+        <p>支持图片（jpg/png/gif/webp）和 HTML 文件 · 单文件不超过 20MB</p>
+        <div class="dz-actions">
+          <button class="btn" id="pickImg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M4 17.5l4.6-4.2 3.2 3 2.6-2.3 5.6 5"></path></svg>
+            上传图片
+          </button>
+          <button class="btn ghost" id="pickHtml">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7.5L4.5 12 9 16.5"></path><path d="M15 7.5L19.5 12 15 16.5"></path></svg>
+            上传 HTML
+          </button>
+        </div>
+      </div>
+
+      <input type="file" id="fileImg" accept="image/*" multiple class="hidden">
+      <input type="file" id="fileHtml" accept=".html,.htm,text/html" multiple class="hidden">
+
+      <div class="masonry" id="worksGrid"></div>
+    </section>
+
+    <!-- ---------- 碎碎念念日记 ---------- -->
+    <section class="panel" id="panel-diary">
+      <div class="panel-head">
+        <div>
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v13H7a2 2 0 0 1-2-2z"></path><path d="M5 17.5h12"></path><path d="M8 8.5h5M8 11.5h4"></path></svg>
+            碎碎念念
+          </h2>
+          <p class="desc">想到什么就写下来，每条最多贴 4 个小标签</p>
+        </div>
+      </div>
+
+      <div class="card diary-compose">
+        <textarea class="textarea" id="diaryInput" placeholder="今天发生了什么？开心的小事、突然的灵感、想吐槽的人…都可以写在这里"></textarea>
+        <div class="row">
+          <div class="tags" id="diaryTags"></div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span class="muted" id="diaryCount">0 字</span>
+            <button class="btn" id="diaryPublish">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12l15-7.5-5.2 15-3.2-6z"></path><path d="M11.1 13.5L19.5 4.5"></path></svg>
+              发布碎碎念
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="diary-list" id="diaryList"></div>
+    </section>
+
+    <!-- ---------- 我的简介 ---------- -->
+    <section class="panel" id="panel-profile">
+      <div class="panel-head">
+        <div>
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"></circle><path d="M4.5 20.5c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"></path></svg>
+            我的简介
+          </h2>
+          <p class="desc">这里放你的小名片</p>
+        </div>
+        <button class="btn ghost tiny" id="editProfile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"></path><path d="M13.5 6.5l4 4"></path></svg>
+          编辑
+        </button>
+      </div>
+
+      <div class="card profile-card">
+        <div class="avatar-wrap">
+          <div class="avatar" id="avatarBox">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"></circle><path d="M4.5 20.5c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"></path></svg>
+          </div>
+          <button class="avatar-edit" id="avatarEditBtn" title="换头像">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+          </button>
+        </div>
+        <div class="profile-info">
+          <h3 id="pName">还没有网名</h3>
+          <div class="bio" id="pBio">还没有写简介～</div>
+          <div class="stats">
+            <div class="stat"><b id="statWorks">0</b><span>件作品</span></div>
+            <div class="stat"><b id="statDiary">0</b><span>条碎碎念</span></div>
+            <div class="stat"><b id="statTodo">0</b><span>件待办完成</span></div>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="fileAvatar" accept="image/*" class="hidden">
+    </section>
+
+    <!-- ---------- Todolist ---------- -->
+    <section class="panel" id="panel-todo">
+      <div class="panel-head">
+        <div>
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h2M4 12h2M4 17h2"></path><path d="M9.5 7H20M9.5 12H20M9.5 17H20"></path></svg>
+            Todolist
+          </h2>
+          <p class="desc">勾掉一件，就少惦记一件</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="todo-add">
+          <input class="input" id="todoInput" placeholder="要做什么？按回车也能加" maxlength="120">
+          <button class="btn" id="todoAdd">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5.5v13M5.5 12h13"></path></svg>
+            添加
+          </button>
+        </div>
+        <ul class="todo-list" id="todoList"></ul>
+        <div class="todo-foot">
+          <div class="progress"><i id="todoProgress"></i></div>
+          <span class="muted" id="todoStat">0 / 0 已完成</span>
+          <button class="btn ghost tiny" id="todoClear">清除已完成</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>小窝里的每一份数据都只存在你的浏览器里 · 记得偶尔清理浏览器数据前先备份哦</footer>
+</div>
+
+<!-- ==================== 通用弹窗：查看 / 运行 / 标签 ==================== -->
+<div class="modal hidden" id="viewerModal">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <h3 id="viewerTitle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M4 17.5l4.6-4.2 3.2 3 2.6-2.3 5.6 5"></path></svg><span id="viewerTitleText">作品</span></h3>
+      <button class="icon-btn" id="viewerClose" title="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div id="viewerBody"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* =========================================================================
+   水蓝日记本 —— 全部逻辑（无依赖、纯前端、无需密码）
+   ========================================================================= */
+(function () {
+  'use strict';
+
+  /* ---------------- 常量 ---------------- */
+  const MAX_UPLOAD  = 20 * 1024 * 1024;  // 选文件硬上限 20MB
+  const SOFT_LIMIT  = 5 * 1024 * 1024;   // 单个文件存进 IndexedDB 的上限 5MB
+  const MAX_TAGS    = 4;                 // 每张卡片最多 4 个标签
+  /* 独立命名空间：和另一份粉色/灰色站点的数据互不干扰 */
+  const K = {
+    profile: 'bluediary.profile',
+    works:   'bluediary.works',
+    diaries: 'bluediary.diaries',
+    todos:   'bluediary.todos'
+  };
+
+  /* ---------------- 小工具 ---------------- */
+  const $  = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+  function load(k, def) {
+    try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }
+    catch (e) { return def; }
+  }
+  function save(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+    catch (e) { toast('存储失败了，浏览器空间可能满了'); return false; }
+  }
+  function toast(msg, pink) {
+    const wrap = $('#toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast' + (pink ? ' pink' : '');
+    el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity .3s, transform .3s';
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(10px)';
+      setTimeout(() => el.remove(), 320);
+    }, 2400);
+  }
+  function fmtTime(ts) {
+    const d = new Date(ts), now = new Date();
+    const p = n => String(n).padStart(2, '0');
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return '今天 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    const y = new Date(now.getTime() - 86400000);
+    if (d.toDateString() === y.toDateString()) return '昨天 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    return d.getFullYear() + '.' + p(d.getMonth() + 1) + '.' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  /* ---------------- 手绘 SVG 图标 ---------------- */
+  const ICON = {
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5.5v13M5.5 12h13"></path></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15"></path><path d="M9.5 7V5.2h5V7"></path><path d="M6.5 7l.9 12.3h9.2L17.5 7"></path><path d="M10.5 10.5v6M13.5 10.5v6"></path></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.6 4.5L19 7.5"></path></svg>',
+    zoom: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.2"></circle><path d="M15.8 15.8L20.5 20.5"></path><path d="M11 8.6v4.8M8.6 11h4.8"></path></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 5.5l11 6.5-11 6.5z"></path></svg>',
+    code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7.5L4.5 12 9 16.5"></path><path d="M15 7.5L19.5 12 15 16.5"></path></svg>',
+    image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="M4 17.5l4.6-4.2 3.2 3 2.6-2.3 5.6 5"></path></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v13H7a2 2 0 0 1-2-2z"></path><path d="M5 17.5h12"></path><path d="M19 6.5v13.5"></path></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.2-4.4-9-8.6C1.4 8.4 3.4 5 6.8 5c2 0 3.6 1.1 4.4 2.4h1.6C13.6 6.1 15.2 5 17.2 5c3.4 0 5.4 3.4 3.8 6.9-1.8 4.2-9 8.6-9 8.6z"></path></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"></circle><path d="M4.5 20.5c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"></path></svg>',
+    camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4z"></path><circle cx="12" cy="13" r="3"></circle></svg>'
+  };
+
+  /* ================= IndexedDB：存文件 ================= */
+  const DB_NAME = 'bluediary-db', DB_VER = 1, STORE = 'files';
+  let dbPromise = null;
+
+  function openDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      if (!window.indexedDB) { reject(new Error('浏览器不支持 IndexedDB')); return; }
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return dbPromise;
+  }
+  async function idbPut(rec) {
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(rec);
+      tx.oncomplete = () => res(true);
+      tx.onerror = () => rej(tx.error);
+    });
+  }
+  async function idbGet(id) {
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const r = tx.objectStore(STORE).get(id);
+      r.onsuccess = () => res(r.result || null);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function idbDel(id) {
+    const db = await openDB();
+    return new Promise((res) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = () => res(true);
+      tx.onerror = () => res(false);
+    });
+  }
+
+  /* 内存里的 blob URL 缓存，避免重复读库 */
+  const urlCache = new Map();
+  async function blobUrl(id) {
+    if (!id) return '';
+    if (urlCache.has(id)) return urlCache.get(id);
+    const rec = await idbGet(id);
+    if (!rec || !rec.blob) return '';
+    const u = URL.createObjectURL(rec.blob);
+    urlCache.set(id, u);
+    return u;
+  }
+  function dropUrl(id) {
+    if (urlCache.has(id)) { URL.revokeObjectURL(urlCache.get(id)); urlCache.delete(id); }
+  }
+
+  /* ================= 图片压缩（Canvas → 0.8 质量 WebP/JPEG） ================= */
+  const CAN_WEBP = (function () {
+    try {
+      const c = document.createElement('canvas');
+      c.width = c.height = 1;
+      return c.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+    } catch (e) { return false; }
+  })();
+  const OUT_TYPE = CAN_WEBP ? 'image/webp' : 'image/jpeg';
+
+  function loadBitmap(file) {
+    if (window.createImageBitmap) {
+      return createImageBitmap(file).catch(() => fallbackLoad(file));
+    }
+    return fallbackLoad(file);
+  }
+  function fallbackLoad(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => { resolve(img); img.__url = url; };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读不出来')); };
+      img.src = url;
+    });
+  }
+  /* 把图片按最长边缩放后转成 blob */
+  async function drawToBlob(bmp, maxEdge, quality, type) {
+    const w = bmp.width || bmp.naturalWidth;
+    const h = bmp.height || bmp.naturalHeight;
+    const scale = Math.min(1, maxEdge / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
+    const cv = document.createElement('canvas');
+    cv.width = cw; cv.height = ch;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    if (type === 'image/jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cw, ch); }
+    ctx.drawImage(bmp, 0, 0, cw, ch);
+    return new Promise(resolve => {
+      cv.toBlob(b => resolve(b), type, quality);
+    });
+  }
+  /* 主图压到 0.8 质量；万一还超 5MB 就继续降尺寸/质量 */
+  async function compressImage(file) {
+    const bmp = await loadBitmap(file);
+    let maxEdge = 1800, q = 0.8, blob = null;
+    for (let i = 0; i < 6; i++) {
+      blob = await drawToBlob(bmp, maxEdge, q, OUT_TYPE);
+      if (!blob) break;
+      if (blob.size <= SOFT_LIMIT) break;
+      maxEdge = Math.round(maxEdge * 0.75);
+      q = Math.max(0.45, q - 0.07);
+    }
+    const thumb = await drawToBlob(bmp, 720, 0.72, OUT_TYPE);
+    const w = bmp.width || bmp.naturalWidth, h = bmp.height || bmp.naturalHeight;
+    if (bmp.__url) URL.revokeObjectURL(bmp.__url);
+    if (bmp.close) bmp.close();
+    return { blob: blob, thumb: thumb, w: w, h: h };
+  }
+
+  /* ================= 应用状态 ================= */
+  const state = {
+    profile: load(K.profile, null),
+    works:   load(K.works, []),
+    diaries: load(K.diaries, []),
+    todos:   load(K.todos, []),
+    draftTags: [],        // 日记草稿标签
+    setupAvatar: null     // 注册弹窗里暂存的头像 blob id
+  };
+
+  /* ================= 通用：标签条 ================= */
+  function mountTags(el, tags, opts) {
+    el.innerHTML = '';
+    tags.forEach((t, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = '<span>' + esc(t) + '</span>' +
+        (opts.onRemove ? '<button class="chip-x" title="删除标签">' + ICON.x + '</button>' : '');
+      if (opts.onRemove) {
+        chip.querySelector('.chip-x').addEventListener('click', ev => {
+          ev.stopPropagation(); ev.preventDefault();
+          opts.onRemove(i);
+        });
+      }
+      el.appendChild(chip);
+    });
+    if (tags.length < MAX_TAGS && opts.onAdd) {
+      const b = document.createElement('button');
+      b.className = 'chip chip-add';
+      b.innerHTML = ICON.plus + '<span>标签</span>';
+      b.addEventListener('click', ev => {
+        ev.stopPropagation(); ev.preventDefault();
+        startTagInput(el, tags, opts);
+      });
+      el.appendChild(b);
+    }
+  }
+  function startTagInput(el, tags, opts) {
+    const input = document.createElement('input');
+    input.className = 'chip-input';
+    input.placeholder = '标签名';
+    input.maxLength = 12;
+    const addBtn = el.querySelector('.chip-add');
+    if (!addBtn) return;
+    el.replaceChild(input, addBtn);
+    input.focus();
+    let done = false;
+    const commit = () => {
+      if (done) return; done = true;
+      const v = input.value.trim().slice(0, 12);
+      if (v && tags.indexOf(v) === -1) opts.onAdd(v);
+      else mountTags(el, tags, opts);
+    };
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      else if (e.key === 'Escape') { done = true; mountTags(el, tags, opts); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  /* ================= 启动主界面（无需密码） ================= */
+  function enterApp() {
+    $('#app').classList.remove('hidden');
+    if (!state.profile) openSetup(true);
+    renderAll();
+  }
+
+  /* ================= 注册 / 编辑人设 ================= */
+  let setupFirstTime = false;
+
+  function openSetup(isFirst) {
+    setupFirstTime = !!isFirst;
+    $('#setupTitleText').textContent = isFirst ? '先给自己起个名字吧' : '改改我的小名片';
+    $('#setupSub').textContent = isFirst
+      ? '第一次来，先留下你的网名和一句简介~'
+      : '随时可以改，改完记得保存';
+    $('#setupCancel').classList.toggle('hidden', isFirst);
+    const p = state.profile || {};
+    $('#setupName').value = p.name || '';
+    $('#setupBio').value = p.bio || '';
+    state.setupAvatar = p.avatarId || null;
+    paintAvatar($('#setupAvatarBox'), state.setupAvatar);
+    $('#setupModal').classList.remove('hidden');
+    setTimeout(() => $('#setupName').focus(), 60);
+  }
+  function closeSetup() { $('#setupModal').classList.add('hidden'); }
+
+  $('#setupCancel').addEventListener('click', () => {
+    if (!state.profile) return;   // 第一次必须先填
+    closeSetup();
+  });
+  $('#setupAvatarBtn').addEventListener('click', () => {
+    $('#fileAvatar').dataset.target = 'setup';
+    $('#fileAvatar').click();
+  });
+  $('#setupSave').addEventListener('click', async () => {
+    const name = $('#setupName').value.trim();
+    const bio  = $('#setupBio').value.trim();
+    if (!name) { toast('网名还没写呢~'); $('#setupName').focus(); return; }
+    state.profile = {
+      name: name,
+      bio: bio,
+      avatarId: state.setupAvatar || null,
+      createdAt: (state.profile && state.profile.createdAt) || Date.now()
+    };
+    if (!save(K.profile, state.profile)) return;
+    closeSetup();
+    renderProfile();
+    $('#brandSub').textContent = name;
+    toast(setupFirstTime ? '欢迎来到你的小窝 ♡' : '名片更新好啦', true);
+  });
+
+  async function paintAvatar(box, avatarId) {
+    box.innerHTML = ICON.user;
+    if (!avatarId) return;
+    const u = await blobUrl(avatarId);
+    if (!u) return;
+    box.innerHTML = '<img alt="头像">';
+    box.querySelector('img').src = u;
+  }
+
+  /* 头像上传（两个入口共用） */
+  $('#fileAvatar').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (!/^image\//.test(f.type)) { toast('头像得是图片哦'); return; }
+    if (f.size > MAX_UPLOAD) { toast('图片太大了，请不超过 20MB'); return; }
+    try {
+      const r = await compressImage(f);
+      const id = 'av_' + uid();
+      await idbPut({ id: id, blob: r.thumb || r.blob, name: f.name, type: (r.thumb || r.blob).type, size: (r.thumb || r.blob).size, createdAt: Date.now() });
+      const target = $('#fileAvatar').dataset.target;
+      if (target === 'setup') {
+        state.setupAvatar = id;
+        paintAvatar($('#setupAvatarBox'), id);
+        toast('头像准备好啦');
+      } else {
+        if (!state.profile) return;
+        const old = state.profile.avatarId;
+        state.profile.avatarId = id;
+        save(K.profile, state.profile);
+        if (old) { idbDel(old); dropUrl(old); }
+        paintAvatar($('#avatarBox'), id);
+        toast('换好新头像了', true);
+      }
+      delete $('#fileAvatar').dataset.target;
+    } catch (err) {
+      console.error(err);
+      toast('图片处理失败了：' + (err && err.message ? err.message : '未知错误'));
+    }
+  });
+  $('#avatarEditBtn').addEventListener('click', () => {
+    $('#fileAvatar').dataset.target = 'profile';
+    $('#fileAvatar').click();
+  });
+  $('#editProfile').addEventListener('click', () => openSetup(false));
+
+  /* ================= Tab 切换 ================= */
+  $$('#tabs .tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const key = tab.dataset.tab;
+      $$('#tabs .tab').forEach(t => t.classList.toggle('active', t === tab));
+      $$('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + key));
+      if (key === 'works') renderWorks();
+      if (key === 'diary') renderDiaries();
+      if (key === 'profile') renderProfile();
+      if (key === 'todo') renderTodos();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  /* ================= 我的作品 ================= */
+  const fileImg = $('#fileImg'), fileHtml = $('#fileHtml');
+  $('#pickImg').addEventListener('click', () => fileImg.click());
+  $('#pickHtml').addEventListener('click', () => fileHtml.click());
+  fileImg.addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
+  fileHtml.addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
+
+  /* 拖拽上传 */
+  const dz = $('#dropzone');
+  ['dragenter', 'dragover'].forEach(ev => {
+    dz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dz.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(ev => {
+    dz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('over'); });
+  });
+  dz.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+  });
+  /* 整页兜底：防止拖到别处被浏览器直接打开 */
+  ['dragover', 'drop'].forEach(ev => {
+    window.addEventListener(ev, e => { e.preventDefault(); }, false);
+  });
+
+  async function handleFiles(fileList) {
+    const files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+    let ok = 0;
+    for (const f of files) {
+      const done = await addOneWork(f);
+      if (done) ok++;
+    }
+    if (ok) { renderWorks(); toast('收好啦，新增 ' + ok + ' 件作品', true); }
+  }
+
+  async function addOneWork(file) {
+    if (file.size > MAX_UPLOAD) {
+      toast('「' + file.name + '」超过 20MB 啦，换个小点的吧');
+      return false;
+    }
+    const isImg  = /^image\//.test(file.type);
+    const isHtml = /\.html?$/i.test(file.name) || file.type === 'text/html';
+    if (!isImg && !isHtml) {
+      toast('只支持图片和 HTML 文件哦');
+      return false;
+    }
+    const baseName = file.name.replace(/\.[^.]+$/, '').slice(0, 60) || '未命名';
+
+    try {
+      if (isImg) {
+        const r = await compressImage(file);
+        if (!r.blob) throw new Error('压缩失败');
+        const fileId = 'f_' + uid(), thumbId = 't_' + uid();
+        await idbPut({ id: fileId, blob: r.blob, name: file.name, type: r.blob.type, size: r.blob.size, createdAt: Date.now() });
+        await idbPut({ id: thumbId, blob: r.thumb || r.blob, name: file.name, type: (r.thumb || r.blob).type, size: (r.thumb || r.blob).size, createdAt: Date.now() });
+        state.works.unshift({
+          id: uid(), kind: 'image', name: file.name, title: baseName, tags: [],
+          fileId: fileId, thumbId: thumbId, size: r.blob.size, w: r.w, h: r.h, createdAt: Date.now()
+        });
+        save(K.works, state.works);
+        return true;
+      } else {
+        const text = await file.text();
+        const blob = new Blob([text], { type: 'text/html;charset=utf-8' });
+        if (blob.size > SOFT_LIMIT) {
+          const go = confirm('「' + file.name + '」有 ' + fmtSize(blob.size) +
+            '，超过单文件 5MB 的存储上限，可能会占满浏览器空间。还是要存进去吗？');
+          if (!go) return false;
+        }
+        const fileId = 'h_' + uid();
+        await idbPut({ id: fileId, blob: blob, name: file.name, type: blob.type, size: blob.size, createdAt: Date.now() });
+        state.works.unshift({
+          id: uid(), kind: 'html', name: file.name, title: baseName, tags: [],
+          fileId: fileId, size: blob.size, createdAt: Date.now()
+        });
+        save(K.works, state.works);
+        return true;
+      }
+    } catch (err) {
+      console.error(err);
+      toast('「' + file.name + '」存不进去：' + (err && err.message ? err.message : '未知错误'));
+      return false;
+    }
+  }
+
+  function emptyHTML(icon, text) {
+    return '<div class="empty">' + icon + '<div>' + esc(text) + '</div></div>';
+  }
+
+  async function renderWorks() {
+    const grid = $('#worksGrid');
+    grid.innerHTML = '';
+    if (!state.works.length) {
+      grid.innerHTML = emptyHTML(ICON.image, '还没有作品，上面拖一个进来试试～');
+      return;
+    }
+    for (const w of state.works) {
+      const card = await buildWorkCard(w);
+      if (card) grid.appendChild(card);
+    }
+  }
+
+  async function buildWorkCard(w) {
+    const el = document.createElement('article');
+    el.className = 'work';
+
+    /* --- 媒体区 --- */
+    const media = document.createElement('div');
+    media.className = 'work-media';
+    if (w.kind === 'image') {
+      const u = await blobUrl(w.thumbId || w.fileId);
+      if (u) {
+        const img = document.createElement('img');
+        img.src = u; img.alt = w.title; img.loading = 'lazy';
+        media.appendChild(img);
+      } else {
+        media.innerHTML = '<div class="html-cover">' + ICON.image + '<div class="fname">图片找不到了</div></div>';
+      }
+      const ov = document.createElement('div');
+      ov.className = 'overlay';
+      ov.innerHTML = '<span>' + ICON.zoom + '点我看大图</span>';
+      media.appendChild(ov);
+      media.addEventListener('click', () => openImageViewer(w));
+    } else {
+      media.innerHTML = '<div class="html-cover"><span class="code-icon">' + ICON.code + '</span>' +
+        '<div class="fname">' + esc(w.name) + '</div></div>';
+      const ov = document.createElement('div');
+      ov.className = 'overlay';
+      ov.innerHTML = '<span>' + ICON.play + '点我运行</span>';
+      media.appendChild(ov);
+      media.addEventListener('click', () => openHtmlRunner(w));
+    }
+
+    /* --- 文字区 --- */
+    const body = document.createElement('div');
+    body.className = 'work-body';
+    const title = document.createElement('p');
+    title.className = 'work-title';
+    title.textContent = w.title || '未命名';
+    body.appendChild(title);
+
+    const tagsBox = document.createElement('div');
+    tagsBox.className = 'tags';
+    const tagOpts = {
+      onAdd(v) { w.tags.push(v); save(K.works, state.works); mountTags(tagsBox, w.tags, tagOpts); toast('标签贴好了'); },
+      onRemove(i) { w.tags.splice(i, 1); save(K.works, state.works); mountTags(tagsBox, w.tags, tagOpts); }
+    };
+    mountTags(tagsBox, w.tags, tagOpts);
+    body.appendChild(tagsBox);
+
+    const meta = document.createElement('div');
+    meta.className = 'work-meta';
+    meta.innerHTML = '<span class="work-time">' + fmtTime(w.createdAt) + ' · ' + fmtSize(w.size || 0) + '</span>';
+    const del = document.createElement('button');
+    del.className = 'icon-btn';
+    del.title = '删除这件作品';
+    del.innerHTML = ICON.trash;
+    del.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('确定删掉「' + (w.title || '未命名') + '」吗？删了就找不回来了。')) return;
+      await removeWork(w);
+    });
+    meta.appendChild(del);
+    body.appendChild(meta);
+
+    el.appendChild(media);
+    el.appendChild(body);
+    return el;
+  }
+
+  async function removeWork(w) {
+    if (w.fileId) { await idbDel(w.fileId); dropUrl(w.fileId); }
+    if (w.thumbId) { await idbDel(w.thumbId); dropUrl(w.thumbId); }
+    state.works = state.works.filter(x => x.id !== w.id);
+    save(K.works, state.works);
+    renderWorks();
+    renderProfile();
+    toast('已经删掉了');
+  }
+
+  /* --- 大图预览 --- */
+  async function openImageViewer(w) {
+    const body = $('#viewerBody');
+    $('#viewerTitleText').textContent = w.title || '作品';
+    body.innerHTML = '<div class="muted" style="padding:30px;text-align:center">图片加载中…</div>';
+    $('#viewerModal').classList.remove('hidden');
+    const u = await blobUrl(w.fileId);
+    if (!u) { body.innerHTML = '<div class="empty">' + ICON.image + '<div>图片读不出来了</div></div>'; return; }
+    body.innerHTML = '';
+    const img = document.createElement('img');
+    img.className = 'viewer-img';
+    img.src = u;
+    img.alt = w.title || '';
+    body.appendChild(img);
+    if (w.tags && w.tags.length) {
+      const t = document.createElement('div');
+      t.className = 'tags';
+      t.style.marginTop = '12px';
+      w.tags.forEach(x => {
+        const c = document.createElement('span');
+        c.className = 'chip';
+        c.innerHTML = '<span>' + esc(x) + '</span>';
+        t.appendChild(c);
+      });
+      body.appendChild(t);
+    }
+  }
+
+  /* --- 运行 HTML --- */
+  async function openHtmlRunner(w) {
+    const body = $('#viewerBody');
+    $('#viewerTitleText').textContent = w.title || 'HTML 作品';
+    body.innerHTML = '<div class="muted" style="padding:30px;text-align:center">正在打开…</div>';
+    $('#viewerModal').classList.remove('hidden');
+    try {
+      const rec = await idbGet(w.fileId);
+      if (!rec) { body.innerHTML = '<div class="empty">' + ICON.code + '<div>文件找不到了</div></div>'; return; }
+      const html = await rec.blob.text();
+      body.innerHTML = '';
+      const iframe = document.createElement('iframe');
+      iframe.className = 'runner-frame';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock');
+      iframe.srcdoc = html;
+      body.appendChild(iframe);
+      const bar = document.createElement('div');
+      bar.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap';
+      const openNew = document.createElement('button');
+      openNew.className = 'btn ghost tiny';
+      openNew.textContent = '在新标签页打开';
+      openNew.addEventListener('click', () => {
+        const u = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+        window.open(u, '_blank');
+        setTimeout(() => URL.revokeObjectURL(u), 60000);
+      });
+      bar.appendChild(openNew);
+      body.appendChild(bar);
+    } catch (err) {
+      console.error(err);
+      body.innerHTML = '<div class="empty">' + ICON.code + '<div>打不开了</div></div>';
+    }
+  }
+
+  $('#viewerClose').addEventListener('click', () => {
+    $('#viewerModal').classList.add('hidden');
+    $('#viewerBody').innerHTML = '';   // 顺手把 iframe 里的脚本停掉
+  });
+  $('#viewerModal').addEventListener('click', e => {
+    if (e.target === $('#viewerModal')) $('#viewerClose').click();
+  });
+
+  /* ================= 碎碎念念日记 ================= */
+  const diaryInput = $('#diaryInput');
+  const diaryTagsEl = $('#diaryTags');
+
+  const diaryTagOpts = {
+    onAdd(v) { state.draftTags.push(v); mountTags(diaryTagsEl, state.draftTags, diaryTagOpts); },
+    onRemove(i) { state.draftTags.splice(i, 1); mountTags(diaryTagsEl, state.draftTags, diaryTagOpts); }
+  };
+  mountTags(diaryTagsEl, state.draftTags, diaryTagOpts);
+
+  diaryInput.addEventListener('input', () => {
+    $('#diaryCount').textContent = diaryInput.value.length + ' 字';
+  });
+  diaryInput.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') publishDiary();
+  });
+  $('#diaryPublish').addEventListener('click', publishDiary);
+
+  function publishDiary() {
+    const text = diaryInput.value.trim();
+    if (!text) { toast('先写点什么吧~'); diaryInput.focus(); return; }
+    state.diaries.unshift({
+      id: uid(), text: text, tags: state.draftTags.slice(), createdAt: Date.now()
+    });
+    if (!save(K.diaries, state.diaries)) return;
+    diaryInput.value = '';
+    $('#diaryCount').textContent = '0 字';
+    state.draftTags = [];
+    mountTags(diaryTagsEl, state.draftTags, diaryTagOpts);
+    renderDiaries();
+    renderProfile();
+    toast('碎碎念收进本子里了 ♡', true);
+  }
+
+  function renderDiaries() {
+    const list = $('#diaryList');
+    list.innerHTML = '';
+    if (!state.diaries.length) {
+      list.innerHTML = emptyHTML(ICON.book, '本子还是空的，写第一条碎碎念吧～');
+      return;
+    }
+    state.diaries.forEach(d => {
+      const el = document.createElement('article');
+      el.className = 'diary';
+
+      const p = document.createElement('p');
+      p.textContent = d.text;
+      el.appendChild(p);
+
+      const foot = document.createElement('div');
+      foot.className = 'diary-foot';
+
+      const tagsBox = document.createElement('div');
+      tagsBox.className = 'tags';
+      const opts = {
+        onAdd(v) { d.tags.push(v); save(K.diaries, state.diaries); mountTags(tagsBox, d.tags, opts); },
+        onRemove(i) { d.tags.splice(i, 1); save(K.diaries, state.diaries); mountTags(tagsBox, d.tags, opts); }
+      };
+      mountTags(tagsBox, d.tags || (d.tags = []), opts);
+      foot.appendChild(tagsBox);
+
+      const right = document.createElement('div');
+      right.style.cssText = 'display:flex;align-items:center;gap:8px';
+      const time = document.createElement('span');
+      time.className = 'work-time';
+      time.textContent = fmtTime(d.createdAt);
+      const del = document.createElement('button');
+      del.className = 'icon-btn';
+      del.title = '删除这条碎碎念';
+      del.innerHTML = ICON.trash;
+      del.addEventListener('click', () => {
+        if (!confirm('删掉这条碎碎念吗？')) return;
+        state.diaries = state.diaries.filter(x => x.id !== d.id);
+        save(K.diaries, state.diaries);
+        renderDiaries(); renderProfile();
+        toast('删掉啦');
+      });
+      right.appendChild(time);
+      right.appendChild(del);
+      foot.appendChild(right);
+
+      el.appendChild(foot);
+      list.appendChild(el);
+    });
+  }
+
+  /* ================= 我的简介 ================= */
+  function renderProfile() {
+    const p = state.profile || {};
+    $('#pName').textContent = p.name || '还没有网名';
+    $('#pBio').textContent = p.bio || '还没有写简介～';
+    $('#brandSub').textContent = p.name || '艺术 & 日记';
+    paintAvatar($('#avatarBox'), p.avatarId);
+    $('#statWorks').textContent = state.works.length;
+    $('#statDiary').textContent = state.diaries.length;
+    $('#statTodo').textContent = state.todos.filter(t => t.done).length;
+  }
+
+  /* ================= Todolist ================= */
+  const todoInput = $('#todoInput');
+  $('#todoAdd').addEventListener('click', addTodo);
+  todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
+  $('#todoClear').addEventListener('click', () => {
+    const n = state.todos.filter(t => t.done).length;
+    if (!n) { toast('还没有完成的待办哦'); return; }
+    if (!confirm('清除 ' + n + ' 条已完成的待办？')) return;
+    state.todos = state.todos.filter(t => !t.done);
+    save(K.todos, state.todos);
+    renderTodos(); renderProfile();
+    toast('清理干净啦');
+  });
+
+  function addTodo() {
+    const v = todoInput.value.trim();
+    if (!v) { todoInput.focus(); return; }
+    state.todos.unshift({ id: uid(), text: v.slice(0, 120), done: false, createdAt: Date.now() });
+    save(K.todos, state.todos);
+    todoInput.value = '';
+    renderTodos(); renderProfile();
+  }
+
+  function renderTodos() {
+    const list = $('#todoList');
+    list.innerHTML = '';
+    if (!state.todos.length) {
+      list.innerHTML = '<div class="empty">' + ICON.check + '<div>暂时没有待办，先躺一会儿～</div></div>';
+    }
+    state.todos.forEach(t => {
+      const li = document.createElement('li');
+      li.className = 'todo' + (t.done ? ' done' : '');
+
+      const box = document.createElement('button');
+      box.className = 'box';
+      box.innerHTML = ICON.check;
+      box.title = t.done ? '标记为未完成' : '标记为完成';
+      box.addEventListener('click', () => {
+        t.done = !t.done;
+        save(K.todos, state.todos);
+        renderTodos(); renderProfile();
+      });
+
+      const txt = document.createElement('span');
+      txt.className = 'txt';
+      txt.textContent = t.text;
+
+      const del = document.createElement('button');
+      del.className = 'icon-btn del';
+      del.title = '删除';
+      del.innerHTML = ICON.trash;
+      del.addEventListener('click', () => {
+        state.todos = state.todos.filter(x => x.id !== t.id);
+        save(K.todos, state.todos);
+        renderTodos(); renderProfile();
+      });
+
+      li.appendChild(box);
+      li.appendChild(txt);
+      li.appendChild(del);
+      list.appendChild(li);
+    });
+
+    const total = state.todos.length;
+    const done = state.todos.filter(t => t.done).length;
+    $('#todoStat').textContent = done + ' / ' + total + ' 已完成';
+    $('#todoProgress').style.width = total ? (done / total * 100) + '%' : '0%';
+  }
+
+  /* ================= 统一渲染 ================= */
+  function renderAll() {
+    renderWorks();
+    renderDiaries();
+    renderProfile();
+    renderTodos();
+  }
+
+  /* ================= 启动 ================= */
+  (function boot() {
+    enterApp();
+    /* 顺手把 IndexedDB 打开，省得第一次上传时等 */
+    openDB().catch(err => {
+      console.warn('IndexedDB 不可用：', err);
+      toast('这个浏览器好像不让存文件，图片可能存不住');
+    });
+  })();
+})();
+</script>
+</body>
+</html>

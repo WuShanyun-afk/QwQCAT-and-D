@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小鲸鱼 🐋</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: linear-gradient(180deg, #0b2a4a 0%, #12507f 45%, #1e7fb8 100%);
+    overflow: hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cfe9ff;
+  }
+
+  /* 背景气泡 */
+  .bubble {
+    position: absolute;
+    bottom: -60px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.55), rgba(255,255,255,.08) 70%);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    10%  { opacity: .8; }
+    100% { transform: translateY(-110vh) translateX(30px); opacity: 0; }
+  }
+
+  .stage { position: relative; width: 420px; max-width: 92vw; }
+
+  /* 鲸鱼整体上下浮动 */
+  .whale {
+    width: 100%;
+    display: block;
+    animation: swim 4s ease-in-out infinite;
+    filter: drop-shadow(0 18px 22px rgba(0,0,0,.35));
+  }
+  @keyframes swim {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%      { transform: translateY(-14px) rotate(1.5deg); }
+  }
+
+  /* 尾巴摆动 */
+  .tail {
+    transform-origin: 232px 150px;
+    animation: wag 1.6s ease-in-out infinite;
+  }
+  @keyframes wag {
+    0%, 100% { transform: rotate(-7deg); }
+    50%      { transform: rotate(7deg); }
+  }
+
+  /* 胸鳍拍打 */
+  .fin {
+    transform-origin: 150px 150px;
+    animation: flap 1.6s ease-in-out infinite;
+  }
+  @keyframes flap {
+    0%, 100% { transform: rotate(-6deg); }
+    50%      { transform: rotate(9deg); }
+  }
+
+  /* 喷水 */
+  .spout {
+    transform-origin: 118px 78px;
+    animation: puff 3s ease-in-out infinite;
+  }
+  @keyframes puff {
+    0%, 55%, 100% { opacity: 0; transform: scale(.4); }
+    65%           { opacity: .95; transform: scale(1); }
+    85%           { opacity: .35; transform: scale(1.25); }
+  }
+
+  /* 眨眼 */
+  .eye { animation: blink 5s infinite; transform-origin: 168px 118px; }
+  @keyframes blink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(.1); }
+  }
+
+  .caption {
+    font-size: 15px;
+    letter-spacing: 2px;
+    opacity: .85;
+    animation: fade 3s ease-in-out infinite;
+  }
+  @keyframes fade { 0%,100%{opacity:.5} 50%{opacity:1} }
+</style>
+</head>
+<body>
+
+  <div class="stage">
+    <svg class="whale" viewBox="0 0 420 300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#7fd4ff"/>
+          <stop offset="45%"  stop-color="#3aa7e0"/>
+          <stop offset="100%" stop-color="#1b5f96"/>
+        </linearGradient>
+        <linearGradient id="bellyGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#eaf8ff"/>
+          <stop offset="100%" stop-color="#b6e2f7"/>
+        </linearGradient>
+        <radialGradient id="spoutGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#ffffff" stop-opacity=".95"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- 喷水 -->
+      <g class="spout">
+        <ellipse cx="118" cy="52" rx="16" ry="12" fill="url(#spoutGrad)"/>
+        <ellipse cx="100" cy="38" rx="9"  ry="7"  fill="url(#spoutGrad)"/>
+        <ellipse cx="136" cy="36" rx="9"  ry="7"  fill="url(#spoutGrad)"/>
+        <ellipse cx="118" cy="26" rx="6"  ry="5"  fill="url(#spoutGrad)"/>
+      </g>
+
+      <!-- 尾巴 -->
+      <g class="tail">
+        <path d="M232 150
+                 C 268 132, 300 108, 322 84
+                 C 330 76, 342 80, 340 92
+                 C 336 116, 320 142, 300 152
+                 C 320 162, 336 188, 340 212
+                 C 342 224, 330 228, 322 220
+                 C 300 196, 268 172, 232 154 Z"
+              fill="url(#bodyGrad)"/>
+      </g>
+
+      <!-- 身体 -->
+      <path d="M96 150
+               C 96 104, 140 74, 190 74
+               C 244 74, 268 108, 268 150
+               C 268 192, 244 226, 190 226
+               C 140 226, 96 196, 96 150 Z"
+            fill="url(#bodyGrad)"/>
+
+      <!-- 肚皮 -->
+      <path d="M120 178
+               C 140 214, 176 226, 200 224
+               C 236 220, 258 196, 262 168
+               C 236 196, 176 206, 120 178 Z"
+            fill="url(#bellyGrad)" opacity=".92"/>
+
+      <!-- 肚皮纹路 -->
+      <g stroke="#8fd0ee" stroke-width="2.5" stroke-linecap="round" opacity=".7" fill="none">
+        <path d="M150 196 q 18 12 40 12"/>
+        <path d="M168 208 q 14 8 30 7"/>
+      </g>
+
+      <!-- 胸鳍 -->
+      <g class="fin">
+        <path d="M150 168
+                 C 138 196, 142 222, 158 236
+                 C 172 226, 178 198, 172 172 Z"
+              fill="#2b8ac4"/>
+      </g>
+
+      <!-- 眼睛 -->
+      <g class="eye">
+        <circle cx="168" cy="118" r="11" fill="#ffffff"/>
+        <circle cx="171" cy="119" r="6"  fill="#12324a"/>
+        <circle cx="173.5" cy="116" r="2" fill="#ffffff"/>
+      </g>
+
+      <!-- 腮红 + 微笑 -->
+      <ellipse cx="196" cy="140" rx="12" ry="7" fill="#ff9db5" opacity=".55"/>
+      <path d="M186 150 q 12 12 26 3" stroke="#12324a" stroke-width="3"
+            stroke-linecap="round" fill="none" opacity=".8"/>
+    </svg>
+  </div>
+
+  <div class="caption">🐋 小鲸鱼在游呀游 ~</div>
+
+<script>
+  // 生成背景气泡
+  for (let i = 0; i < 18; i++) {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const size = 6 + Math.random() * 22;
+    b.style.width = size + 'px';
+    b.style.height = size + 'px';
+    b.style.left = Math.random() * 100 + 'vw';
+    b.style.animationDuration = (7 + Math.random() * 8) + 's';
+    b.style.animationDelay = (-Math.random() * 12) + 's';
+    document.body.appendChild(b);
+  }
+</script>
+</body>
+</html>

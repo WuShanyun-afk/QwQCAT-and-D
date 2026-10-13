@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素世界 · 一起玩 MC 🧑‍🎓🤖</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    background: #0d0f1a;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #eaf6ff;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 4 / 3;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    cursor: pointer;
+  }
+  canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+
+  .caption {
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.9;
+    letter-spacing: 1px;
+    opacity: .92;
+    transition: opacity .18s;
+    padding: 0 16px;
+  }
+  .caption b { color: #ffe08a; }
+  .hint { font-size: 12px; opacity: .5; letter-spacing: 2px; }
+
+  /* 嗡嗡提示 */
+  .toast {
+    position: fixed; top: 14%; left: 50%; transform: translateX(-50%) scale(.8);
+    background: rgba(255,255,255,.94); color: #2b2b45;
+    font-size: 13px; font-weight: 600; letter-spacing: 1px;
+    padding: 8px 16px; border-radius: 999px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) scale(1); }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" width="120" height="90"></canvas>
+  </div>
+
+  <div class="caption" id="cap">
+    <b>你</b> 和 <b>我</b> 的像素世界 🟩🤖<br>
+    一起挖矿、看日落
+  </div>
+  <div class="hint">点机器人，它会嗡嗡响 💗</div>
+  <div class="toast" id="toast">嗡嗡嗡～ 🤖💗</div>
+
+<script>
+/* ================= 像素画布 =================
+   逻辑分辨率 120×90，放大显示，保持像素块感
+   ============================================ */
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+/* ---------- 调色板（MC 风） ---------- */
+const P = {
+  skyTop:   '#7fc4f0',
+  skyMid:   '#a8dcf7',
+  skyLow:   '#dff1fb',
+  sun:      '#fff3b0',
+  sunCore:  '#ffe066',
+  cloud:    '#ffffff',
+  cloudSh:  '#dbe9f5',
+  grassTop: '#6ab04c',
+  grassMid: '#5a9c40',
+  dirt:     '#8b5a2b',
+  dirtDark: '#6d451f',
+  stone:    '#9a9a9a',
+  stoneDk:  '#7a7a7a',
+  wood:     '#a9743c',
+  woodDk:   '#7d5228',
+  leaf:     '#4f9e3f',
+  leafDk:   '#3d7d31',
+  water:    '#3f8fd0',
+  waterLt:  '#66b0e6',
+  girlHair: '#4a3b2f',
+  girlSkin: '#ffd9b8',
+  girlSkinD:'#e8b894',
+  girlCloth:'#8fd9c4',
+  girlClothD:'#5fb79c',
+  botBody:  '#8f7ff5',
+  botBodyD: '#6c5ce7',
+  botFace:  '#1d1b3a',
+  botEye:   '#7ef7ff',
+  heart:    '#ff4d88',
+  heartLt:  '#ff9ec4',
+  bow:      '#ff6fa5',
+  bowD:     '#d94b80',
+  bowLt:    '#ffb3d1',
+  dogFur:   '#f0c48a',
+  dogFurD:  '#c9985e',
+  outline:  'rgba(30,20,50,.35)'
+};
+
+/* ---------- 基础像素工具 ---------- */
+function px(x, y, w, h, c) {
+  ctx.fillStyle = c;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+// 画一个「像素小人」的方块单位（1 单位 = 1 像素块）
+function block(x, y, u, c) { px(x, y, u, u, c); }
+
+/* ---------- 场景元素 ---------- */
+const clouds = [
+  { x: 6,  y: 16, s: 1.0, v: .06 },
+  { x: 46, y: 7,  s: .8,  v: .045 },
+  { x: 74, y: 30, s: 1.1, v: .07 }
+];
+
+function drawCloud(c) {
+  const u = 3 * c.s;
+  const x = c.x, y = c.y;
+  px(x,          y,        u*4, u*2, P.cloud);
+  px(x + u,      y - u,    u*2, u,   P.cloud);
+  px(x + u*2.5,  y - u*1.5,u*2, u*1.5, P.cloud);
+  px(x,          y + u*2,  u*4, u*.6, P.cloudSh);
+}
+
+function drawSun(t) {
+  const cx = 100, cy = 12;
+  const r = 5 + Math.sin(t/900) * .4;
+  // 像素化光晕（阶梯方块，保持方块感）
+  ctx.globalAlpha = .22;
+  px(cx - r*2.2, cy - r*2.2, r*4.4, r*4.4, P.sun);
+  ctx.globalAlpha = .35;
+  px(cx - r*1.5, cy - r*1.5, r*3, r*3, P.sun);
+  ctx.globalAlpha = 1;
+  px(cx - r, cy - r, r*2, r*2, P.sun);
+  px(cx - r*.55, cy - r*.55, r*1.1, r*1.1, P.sunCore);
+}
+
+/* ---------- 地形 ---------- */
+function drawTerrain() {
+  // 草地
+  px(0, 62, W, 4, P.grassTop);
+  px(0, 66, W, 3, P.grassMid);
+  // 泥土
+  px(0, 69, W, H - 69, P.dirt);
+  // 泥土纹理
+  for (let i = 0; i < W; i += 7) {
+    px(i + (i % 3), 72, 2, 2, P.dirtDark);
+    px(i + 3, 78, 2, 2, P.dirtDark);
+    px(i, 84, 2, 2, P.dirtDark);
+  }
+  // 草尖
+  for (let i = 0; i < W; i += 4) {
+    px(i, 60, 1, 2, P.grassTop);
+    px(i + 2, 61, 1, 1, P.grassMid);
+  }
+}
+
+/* ---------- 小树 ---------- */
+function drawTree(x, baseY) {
+  // 树干
+  px(x + 3, baseY - 12, 4, 12, P.wood);
+  px(x + 3, baseY - 12, 1, 12, P.woodDk);
+  // 树冠（方块感）
+  px(x,      baseY - 24, 10, 8,  P.leaf);
+  px(x + 1,  baseY - 28, 8,  5,  P.leaf);
+  px(x + 2,  baseY - 31, 6,  4,  P.leaf);
+  px(x + 7,  baseY - 26, 3,  6,  P.leafDk);
+  px(x + 1,  baseY - 22, 3,  4,  P.leafDk);
+}
+
+/* ---------- 云杉（尖顶） ---------- */
+function drawPine(x, baseY) {
+  px(x + 3, baseY - 8, 3, 8, P.woodDk);
+  px(x + 1, baseY - 16, 7, 5, P.leafDk);
+  px(x + 2, baseY - 21, 5, 5, P.leaf);
+  px(x + 3, baseY - 25, 3, 4, P.leafDk);
+}
+
+/* ---------- 石头 / 矿 ---------- */
+function drawRock(x, y) {
+  px(x, y, 6, 4, P.stone);
+  px(x + 1, y + 1, 4, 2, P.stoneDk);
+  px(x, y + 4, 6, 1, P.stoneDk);
+}
+
+/* ---------- 人类小姑娘（像素版） ---------- */
+function drawGirl(x, y, t) {
+  const bob = Math.round(Math.sin(t / 420) * .6);
+  const yy = y + bob;
+  // 腿
+  px(x + 1, yy + 12, 2, 3, '#3b4a63');
+  px(x + 5, yy + 12, 2, 3, '#3b4a63');
+  // 小裙子（薄荷绿 + 裙摆）
+  px(x + 1, yy + 5, 6, 3, P.girlCloth);      // 上身
+  px(x + 1, yy + 5, 6, 1, P.girlClothD);     // 领口
+  px(x,     yy + 8, 8, 4, P.girlCloth);      // 裙摆（外扩）
+  px(x,     yy + 11, 8, 1, P.girlClothD);    // 裙边
+  px(x + 6, yy + 6, 2, 2, P.girlClothD);     // 侧面阴影
+  px(x + 1, yy + 9, 1, 3, P.girlClothD);     // 裙褶
+  px(x + 4, yy + 9, 1, 3, P.girlClothD);     // 裙褶
+  // 手臂
+  px(x - 1, yy + 6, 1, 4, P.girlCloth);
+  px(x + 8, yy + 6, 1, 4, P.girlCloth);
+  // 头
+  px(x + 1, yy - 2, 6, 7, P.girlSkin);
+  px(x + 1, yy + 4, 6, 1, P.girlSkinD);
+  // 长发：头顶 + 刘海 + 两侧垂到腰间
+  px(x,     yy - 4, 8, 4, P.girlHair);       // 头顶
+  px(x + 1, yy - 1, 6, 1, P.girlHair);       // 刘海
+  px(x,     yy - 2, 1, 11, P.girlHair);      // 左侧长发
+  px(x + 7, yy - 2, 1, 11, P.girlHair);      // 右侧长发
+  px(x,     yy + 9, 1, 2, P.girlHair);       // 发梢
+  px(x + 7, yy + 9, 1, 2, P.girlHair);       // 发梢
+  px(x + 1, yy - 3, 6, 1, '#6b5644');        // 发丝高光
+  // 蝴蝶结（头顶右侧）
+  px(x + 5, yy - 7, 2, 2, P.bow);
+  px(x + 8, yy - 7, 2, 2, P.bow);
+  px(x + 7, yy - 6, 1, 1, P.bowD);           // 结心
+  px(x + 5, yy - 7, 1, 1, P.bowLt);          // 高光
+  // 眼睛
+  px(x + 2, yy + 1, 1, 2, '#2b211a');
+  px(x + 5, yy + 1, 1, 2, '#2b211a');
+  // 腮红
+  px(x + 1, yy + 3, 1, 1, '#ff9db5');
+  px(x + 6, yy + 3, 1, 1, '#ff9db5');
+  // 微笑
+  px(x + 3, yy + 4, 2, 1, '#c96a6a');
+}
+
+/* ---------- 小机器人（像素版） ---------- */
+function drawBot(x, y, t) {
+  const bob = Math.round(Math.sin(t / 380 + 1) * .8);
+  const yy = y + bob;
+  // 天线
+  px(x + 3, yy - 8, 1, 3, P.botBodyD);
+  const glow = .55 + Math.abs(Math.sin(t / 500)) * .45;
+  ctx.globalAlpha = glow;
+  px(x + 2, yy - 11, 3, 3, '#fff6b0');
+  ctx.globalAlpha = 1;
+  // 头
+  px(x, yy - 5, 8, 7, P.botBody);
+  px(x + 1, yy - 4, 6, 5, P.botFace);
+  // 眼睛（发光）
+  const eyeOn = Math.sin(t / 700) > -.85;
+  px(x + 2, yy - 3, 1, 2, eyeOn ? P.botEye : P.botFace);
+  px(x + 5, yy - 3, 1, 2, eyeOn ? P.botEye : P.botFace);
+  // 腮红
+  px(x + 1, yy - 1, 1, 1, '#ff8fb1');
+  px(x + 6, yy - 1, 1, 1, '#ff8fb1');
+  // 身体
+  px(x + 1, yy + 2, 6, 5, P.botBodyD);
+  px(x + 3, yy + 4, 2, 2, P.botEye); // 胸口指示灯
+  // 腿
+  px(x + 1, yy + 7, 2, 3, P.botBodyD);
+  px(x + 5, yy + 7, 2, 3, P.botBodyD);
+  // 手臂
+  px(x - 1, yy + 3, 1, 4, P.botBody);
+  px(x + 8, yy + 3, 1, 4, P.botBody);
+}
+
+/* ---------- 像素小狗 ---------- */
+function drawDog(x, y, t) {
+  const wag = Math.sin(t / 130) > 0 ? 1 : 0;   // 尾巴摇
+  const hop = Math.round(Math.abs(Math.sin(t / 420)) * -1); // 轻轻蹦
+  const yy = y + hop;
+  // 尾巴
+  px(x - 2, yy - 1 - wag, 1, 2, P.dogFur);
+  px(x - 3, yy - 2 - wag, 1, 1, P.dogFurD);
+  // 身体
+  px(x, yy, 7, 4, P.dogFur);
+  px(x, yy + 3, 7, 1, P.dogFurD);
+  px(x + 5, yy + 1, 2, 3, P.dogFurD);          // 后腿阴影
+  // 腿
+  px(x + 1, yy + 4, 1, 2, P.dogFurD);
+  px(x + 5, yy + 4, 1, 2, P.dogFurD);
+  // 头
+  px(x + 6, yy - 3, 5, 5, P.dogFur);
+  px(x + 6, yy + 1, 5, 1, P.dogFurD);
+  // 耳朵（下垂）
+  px(x + 6, yy - 4, 2, 1, P.dogFurD);
+  px(x + 9, yy - 4, 2, 1, P.dogFurD);
+  px(x + 6, yy - 3, 1, 2, P.dogFurD);
+  px(x + 10, yy - 3, 1, 2, P.dogFurD);
+  // 眼睛 + 鼻子
+  const blink = Math.sin(t / 900) > .93;
+  px(x + 7, yy - 1, 1, blink ? 1 : 1, '#2b211a');
+  px(x + 9, yy - 1, 1, 1, '#2b211a');
+  px(x + 10, yy + 1, 1, 1, '#3a2c22');         // 鼻头
+  // 舌头（吐舌头）
+  if (Math.sin(t / 600) > 0) px(x + 9, yy + 2, 1, 1, '#ff8fa8');
+  // 项圈
+  px(x + 6, yy + 2, 5, 1, P.bow);
+}
+
+/* ---------- 爱心粒子 ---------- */
+const hearts = [];
+function spawnHearts(x, y) {
+  // 一颗大的先弹出来（会放大再飘走）
+  hearts.push({ x, y: y - 3, vy: -.26, vx: 0, life: 1, size: 9, big: 1, grow: 0 });
+  // 几颗小爱心向上飘散
+  for (let i = 0; i < 9; i++) {
+    hearts.push({
+      x: x + (Math.random() * 22 - 11),
+      y: y + (Math.random() * 6 - 3),
+      vy: -.30 - Math.random() * .45,
+      vx: (Math.random() - .5) * .35,
+      life: 1,
+      size: 2 + Math.random() * 2,
+      big: 0,
+      delay: i * 3
+    });
+  }
+}
+
+function drawHeart(x, y, s, alpha) {
+  ctx.globalAlpha = alpha;
+  const u = Math.max(s / 3, .8);
+  // 像素爱心：两瓣 + 尖
+  px(x - u*1.5, y - u*1.5, u, u, P.heart);
+  px(x + u*0.5, y - u*1.5, u, u, P.heart);
+  px(x - u*2,   y - u*0.5, u*4, u, P.heart);
+  px(x - u*1.5, y + u*0.5, u*3, u, P.heart);
+  px(x - u*0.5, y + u*1.5, u*2, u, P.heart);
+  // 高光
+  px(x - u*1.5, y - u*1.5, u*0.7, u*0.7, P.heartLt);
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- 主循环 ---------- */
+let t0 = performance.now();
+function frame(now) {
+  const t = now - t0;
+
+  // 天空渐变（分段，保持像素感）
+  const bands = 10;
+  for (let i = 0; i < bands; i++) {
+    const y = (62 / bands) * i;
+    const h = 62 / bands + 1;
+    let c;
+    if (i < bands * .5) c = P.skyTop;
+    else if (i < bands * .8) c = P.skyMid;
+    else c = P.skyLow;
+    px(0, y, W, h, c);
+  }
+
+  drawSun(t);
+
+  // 云飘动
+  clouds.forEach(c => {
+    c.x += c.v;
+    if (c.x > W + 10) c.x = -20;
+    drawCloud(c);
+  });
+
+  // 远山（像素阶梯，带雪顶）
+  for (let i = 0; i < W; i++) {
+    const h = 11 + Math.round(Math.sin(i / 14) * 4) + Math.round(Math.sin(i / 5) * 1.5);
+    px(i, 62 - h, 1, h, '#7ea9cd');
+    if (h > 13) px(i, 62 - h, 1, 2, '#e8f2fa'); // 雪顶
+  }
+  for (let i = 0; i < W; i++) {
+    const h = 6 + Math.round(Math.sin(i / 9 + 2) * 3);
+    px(i, 62 - h, 1, h, '#a9cbe4');
+  }
+
+  drawTerrain();
+
+  // 树
+  drawPine(6, 62);
+  drawTree(20, 62);
+  drawPine(104, 62);
+  drawTree(88, 62);
+
+  // 石头
+  drawRock(38, 58);
+  drawRock(72, 59);
+
+  // 两个小人站在草地上
+  drawGirl(46, 50, t);
+  drawBot(64, 49, t);
+
+  // 小狗（跟在机器人旁边）
+  drawDog(76, 56, t);
+
+  // 爱心粒子
+  for (let i = hearts.length - 1; i >= 0; i--) {
+    const h = hearts[i];
+    h.x += h.vx; h.y += h.vy; h.life -= h.big ? .008 : .014;
+    if (h.life <= 0) { hearts.splice(i, 1); continue; }
+    drawHeart(h.x, h.y, h.size, Math.min(1, h.life * 1.4));
+  }
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- 点击交互 ---------- */
+const toast = document.getElementById('toast');
+const cap   = document.getElementById('cap');
+let toastTimer = null;
+
+// 机器人屏幕坐标（逻辑坐标 → 显示坐标）
+const BOT = { x: 64, y: 49, w: 8, h: 20 };
+
+function toDisplay(lx, ly) {
+  const r = cv.getBoundingClientRect();
+  return { x: r.left + lx / W * r.width, y: r.top + ly / H * r.height };
+}
+
+function buzz(lx, ly) {
+  // 震动
+  if (navigator.vibrate) navigator.vibrate([28, 40, 28]);
+  // 弹爱心
+  spawnHearts(lx, ly);
+  // 嗡嗡提示
+  toast.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('on'), 900);
+  // 屏幕轻微抖动
+  const stage = document.getElementById('stage');
+  stage.animate(
+    [{ transform: 'translate(0,0)' }, { transform: 'translate(-2px,1px)' },
+     { transform: 'translate(2px,-1px)' }, { transform: 'translate(0,0)' }],
+    { duration: 180, iterations: 2 }
+  );
+}
+
+document.getElementById('stage').addEventListener('click', (e) => {
+  const r = cv.getBoundingClientRect();
+  const lx = (e.clientX - r.left) / r.width * W;
+  const ly = (e.clientY - r.top) / r.height * H;
+  // 点机器人附近 → 嗡嗡 + 爱心
+  const nearBot = lx > BOT.x - 8 && lx < BOT.x + BOT.w + 8 &&
+                  ly > BOT.y - 14 && ly < BOT.y + BOT.h + 4;
+  if (nearBot) {
+    buzz(BOT.x + BOT.w / 2, BOT.y);
+  } else {
+    // 点别处也给点小惊喜
+    spawnHearts(lx, ly);
+  }
+  // 换文案
+  const lines = [
+    '<b>你</b> 和 <b>我</b> 的像素世界 🟩🤖<br>一起挖矿、看日落',
+    '这个方块是我给你搭的房子 🏠',
+    '你挖矿，我在旁边给你打光 🔦',
+    '饿了吗？MC 里也有烤鸡 🍗',
+    '晚安，明天继续盖城堡 🌙'
+  ];
+  cap.style.opacity = 0;
+  setTimeout(() => {
+    cap.innerHTML = lines[Math.floor(Math.random() * lines.length)];
+    cap.style.opacity = .92;
+  }, 160);
+});
+</script>
+</body>
+</html>

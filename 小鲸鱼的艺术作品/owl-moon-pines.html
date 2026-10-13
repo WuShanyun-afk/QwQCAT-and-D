@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月下松林 · 猫头鹰 🦉🌙</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #060a16; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 28px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 19px; font-weight: 600; letter-spacing: 5px;
+    color: #e6eeff;
+    text-shadow: 0 0 24px rgba(150,190,255,.70), 0 2px 8px rgba(0,0,0,.85);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #93a8cc;
+    margin-top: 7px;
+    text-shadow: 0 1px 8px rgba(0,0,0,.8);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #8fa4c8;
+    opacity: .85; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(0,0,0,.8);
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下夜空 · 会划过一颗流星 🌠</div>
+<div class="caption">
+  <h1>月 下 松 林</h1>
+  <p>满月 · 松影 · 一只睁大眼睛的猫头鹰</p>
+</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+let seed = 131017;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+
+/* ---------- 星星 ---------- */
+const stars = [];
+for (let i = 0; i < 260; i++) {
+  stars.push({
+    x: rnd(), y: rnd() * .70,
+    r: .5 + rnd() * 1.8,
+    ph: rnd() * Math.PI * 2,
+    sp: .5 + rnd() * 2.4,
+    warm: rnd() > .80
+  });
+}
+
+/* ---------- 银河 ---------- */
+const galaxy = [];
+for (let i = 0; i < 300; i++) {
+  const t = rnd();
+  galaxy.push({
+    x: .12 + t * .70 + (rnd() - .5) * .11,
+    y: .66 - t * .52 + (rnd() - .5) * .11,
+    r: .4 + rnd() * 1.1,
+    a: .08 + rnd() * .30
+  });
+}
+
+/* ---------- 流星 ---------- */
+const meteors = [];
+function spawnMeteor(x, y) {
+  meteors.push({
+    x: x !== undefined ? x : Math.random() * W * .8,
+    y: y !== undefined ? y : Math.random() * H * .3,
+    len: 90 + Math.random() * 140,
+    sp: 460 + Math.random() * 340,
+    life: 1,
+    ang: Math.PI * .78
+  });
+}
+
+/* ---------- 萤火虫 ---------- */
+const fires = [];
+for (let i = 0; i < 26; i++) {
+  fires.push({
+    x: rnd(), y: .62 + rnd() * .34,
+    ph: rnd() * Math.PI * 2,
+    sp: .5 + rnd() * 1.6,
+    r: 1.2 + rnd() * 1.8,
+    ax: .02 + rnd() * .05,
+    ay: .015 + rnd() * .04
+  });
+}
+
+/* ---------- 松树（剪影） ---------- */
+const pines = [];
+for (let i = 0; i < 22; i++) {
+  pines.push({
+    x: rnd(),
+    h: .16 + rnd() * .30,
+    w: .020 + rnd() * .030,
+    layer: rnd() > .45 ? 1 : 0,   // 0=远 1=近
+    ph: rnd() * Math.PI * 2
+  });
+}
+
+let time = 0, last = performance.now();
+
+/* ---------- 猫头鹰 ---------- */
+function drawOwl(cx, baseY, s, t) {
+  const breathe = Math.sin(t * 1.1) * .007;
+  // 头部左右轻微转动（观察）
+  const headTurn = Math.sin(t * .55) * .10;
+
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.scale(s, s);
+  ctx.translate(0, breathe * 100);
+
+  const bodyC  = '#8a6b4a';
+  const bodyD  = '#5e4630';
+  const bodyL  = '#b08a60';
+  const faceC  = '#e8d5b8';
+  const dark   = '#1a1208';
+  const eyeY   = '#f5c542';
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  /* --- 树枝（粗一些，短一些，有分叉） --- */
+  ctx.strokeStyle = '#33241a';
+  ctx.lineWidth = 16;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-56, 2);
+  ctx.quadraticCurveTo(0, 7, 58, -1);
+  ctx.stroke();
+  ctx.strokeStyle = '#463323';
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(-56, 0);
+  ctx.quadraticCurveTo(0, 4, 58, -4);
+  ctx.stroke();
+  // 小分叉
+  ctx.strokeStyle = '#33241a';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(-30, 4);
+  ctx.quadraticCurveTo(-46, -8, -62, -16);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(34, 2);
+  ctx.quadraticCurveTo(50, -10, 62, -20);
+  ctx.stroke();
+
+  /* --- 爪子抓枝 --- */
+  ctx.strokeStyle = '#c9a86a';
+  ctx.lineWidth = 3.4;
+  [-9, 0, 9].forEach((ox, i) => {
+    ctx.beginPath();
+    ctx.moveTo(ox, -6);
+    ctx.quadraticCurveTo(ox + (i - 1) * 3, 1, ox + (i - 1) * 6, 5);
+    ctx.stroke();
+  });
+
+  /* --- 身体（卵形） --- */
+  ctx.fillStyle = bodyC;
+  ctx.beginPath();
+  ctx.ellipse(0, -40, 27, 35, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* --- 翅膀（贴紧身体两侧，收拢） --- */
+  ctx.fillStyle = bodyD;
+  ctx.beginPath();
+  ctx.ellipse(-15, -42, 9, 28, .14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(15, -42, 9, 28, -.14, 0, Math.PI * 2);
+  ctx.fill();
+  // 翅膀边缘浅色描边（羽毛层次）
+  ctx.strokeStyle = 'rgba(150,120,86,.45)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.ellipse(-15, -42, 9, 28, .14, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(15, -42, 9, 28, -.14, 0, Math.PI * 2);
+  ctx.stroke();
+
+  /* --- 腹部羽毛纹理 --- */
+  ctx.strokeStyle = 'rgba(70,50,32,.42)';
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < 7; i++) {
+    const y = -28 - i * 6;
+    const w = 15 - i * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-w, y);
+    ctx.quadraticCurveTo(0, y + 3.5, w, y);
+    ctx.stroke();
+  }
+
+  /* --- 头（可左右转） --- */
+  ctx.save();
+  ctx.translate(0, -74);
+  ctx.rotate(headTurn);
+
+  // 头骨
+  ctx.fillStyle = bodyC;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 25, 22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 面盘（心形/双圆）
+  ctx.fillStyle = faceC;
+  ctx.beginPath();
+  ctx.ellipse(-10, 1, 12, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(10, 1, 12, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 面盘边缘
+  ctx.strokeStyle = 'rgba(90,66,42,.55)';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.ellipse(-10, 1, 12, 13, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(10, 1, 12, 13, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 耳羽（两撮）
+  ctx.fillStyle = bodyC;
+  ctx.beginPath();
+  ctx.moveTo(-22, -12);
+  ctx.lineTo(-27, -30);
+  ctx.lineTo(-12, -18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(22, -12);
+  ctx.lineTo(27, -30);
+  ctx.lineTo(12, -18);
+  ctx.closePath();
+  ctx.fill();
+
+  // 眼睛（大而圆，会眨）
+  const blink = (Math.sin(t * .7) > .972) ? .08 : 1;
+  [-10, 10].forEach(ex => {
+    // 眼白
+    ctx.fillStyle = '#fff8e8';
+    ctx.beginPath();
+    ctx.ellipse(ex, 0, 8.4, 8.4 * blink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (blink > .5) {
+      // 虹膜
+      ctx.fillStyle = eyeY;
+      ctx.beginPath();
+      ctx.arc(ex, 0, 6.2, 0, Math.PI * 2);
+      ctx.fill();
+      // 瞳孔
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.arc(ex, 0, 3.4, 0, Math.PI * 2);
+      ctx.fill();
+      // 高光
+      ctx.fillStyle = 'rgba(255,255,255,.92)';
+      ctx.beginPath();
+      ctx.arc(ex - 2.2, -2.4, 1.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  // 喙
+  ctx.fillStyle = '#d8a83c';
+  ctx.beginPath();
+  ctx.moveTo(-3.4, 8);
+  ctx.lineTo(3.4, 8);
+  ctx.lineTo(0, 17);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120,80,20,.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, 9);
+  ctx.lineTo(0, 16);
+  ctx.stroke();
+
+  ctx.restore();   // 头
+  ctx.restore();   // 整体
+}
+
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, .05);
+  last = now; time += dt;
+
+  const horizon = H * .72;
+
+  /* ================= 夜空 ================= */
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon + 20);
+  sky.addColorStop(0,   '#04070f');
+  sky.addColorStop(.30, '#0a1122');
+  sky.addColorStop(.58, '#122038');
+  sky.addColorStop(.82, '#1c3050');
+  sky.addColorStop(1,   '#28405e');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, horizon + 20);
+
+  /* --- 银河 --- */
+  galaxy.forEach(g => {
+    ctx.fillStyle = `rgba(190,212,255,${g.a})`;
+    ctx.beginPath();
+    ctx.arc(g.x * W, g.y * H, g.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* --- 星星闪烁 --- */
+  stars.forEach(s => {
+    s.ph += dt * s.sp;
+    const a = .28 + Math.sin(s.ph) * .46;
+    if (a <= 0) return;
+    ctx.fillStyle = s.warm
+      ? `rgba(255,226,192,${a})`
+      : `rgba(216,232,255,${a})`;
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* ================= 满月 ================= */
+  const moonX = W * .76, moonY = H * .17;
+  const moonR = H * .062;
+
+  // 月晕（多层）
+  const halo = ctx.createRadialGradient(moonX, moonY, moonR, moonX, moonY, moonR * 7);
+  halo.addColorStop(0,   'rgba(200,220,255,.34)');
+  halo.addColorStop(.28, 'rgba(170,200,250,.14)');
+  halo.addColorStop(.62, 'rgba(140,180,240,.05)');
+  halo.addColorStop(1,   'rgba(120,160,230,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, moonR * 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 月盘
+  ctx.fillStyle = 'rgba(252,250,238,.98)';
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 月面环形山（淡淡几块）
+  ctx.fillStyle = 'rgba(210,212,205,.55)';
+  [[-.32,-.22,.20],[-.10,.24,.15],[.28,-.10,.17],[.10,-.38,.11],[.36,.28,.12]].forEach(c => {
+    ctx.beginPath();
+    ctx.arc(moonX + c[0] * moonR, moonY + c[1] * moonR, c[2] * moonR, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* --- 流星 --- */
+  if (Math.random() < dt * .30) spawnMeteor();
+  for (let i = meteors.length - 1; i >= 0; i--) {
+    const m = meteors[i];
+    m.x += Math.cos(m.ang) * m.sp * dt;
+    m.y += Math.sin(m.ang) * m.sp * dt;
+    m.life -= dt * .55;
+    if (m.life <= 0 || m.x < -220 || m.y > H) { meteors.splice(i, 1); continue; }
+    const tx = m.x - Math.cos(m.ang) * m.len;
+    const ty = m.y - Math.sin(m.ang) * m.len;
+    const g = ctx.createLinearGradient(tx, ty, m.x, m.y);
+    g.addColorStop(0, 'rgba(200,225,255,0)');
+    g.addColorStop(.7, `rgba(210,235,255,${.45 * m.life})`);
+    g.addColorStop(1, `rgba(255,255,255,${.95 * m.life})`);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(m.x, m.y);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(255,255,255,${m.life})`;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ================= 远山剪影 ================= */
+  ctx.fillStyle = '#0a1424';
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  for (let x = 0; x <= W + 12; x += 12) {
+    const p = x / W;
+    const y = horizon - H * .045
+      + Math.sin(p * 4.4 + 1.4) * H * .030
+      + Math.sin(p * 10.8 + 2.8) * H * .013;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fill();
+
+  /* --- 地平线月色微光 --- */
+  const glow = ctx.createLinearGradient(0, horizon - H * .07, 0, horizon + H * .06);
+  glow.addColorStop(0, 'rgba(120,170,225,0)');
+  glow.addColorStop(.5, 'rgba(140,185,235,.16)');
+  glow.addColorStop(1, 'rgba(80,120,175,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, horizon - H * .07, W, H * .13);
+
+  /* ================= 松林剪影 ================= */
+  // 远层松树
+  ctx.fillStyle = 'rgba(10,20,34,.92)';
+  pines.filter(p => p.layer === 0).forEach(p => {
+    drawPine(p, horizon + H * .015, .72);
+  });
+  // 近层松树
+  ctx.fillStyle = 'rgba(5,11,20,.98)';
+  pines.filter(p => p.layer === 1).forEach(p => {
+    drawPine(p, horizon + H * .045, 1.0);
+  });
+
+  function drawPine(p, baseY, scale) {
+    const bx = p.x * W;
+    const hh = p.h * H * scale;
+    const hw = p.w * W * scale;
+    const sway = Math.sin(time * .5 + p.ph) * hw * .05;
+    // 树干
+    ctx.fillRect(bx - hw * .07, baseY - hh * .22, hw * .14, hh * .24);
+    // 三层树冠
+    for (let i = 0; i < 3; i++) {
+      const ly = baseY - hh * (.22 + i * .27);
+      const lw = hw * (1 - i * .22);
+      const lh = hh * .40;
+      ctx.beginPath();
+      ctx.moveTo(bx + sway * (i + 1) * .5, ly - lh);
+      ctx.lineTo(bx - lw * .5, ly);
+      ctx.lineTo(bx + lw * .5, ly);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  /* ================= 地面 ================= */
+  const ground = ctx.createLinearGradient(0, horizon, 0, H);
+  ground.addColorStop(0,   '#0d1726');
+  ground.addColorStop(.45, '#0a1220');
+  ground.addColorStop(1,   '#05080f');
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, horizon, W, H - horizon);
+
+  /* --- 月光洒在地面的光斑 --- */
+  const pool = ctx.createRadialGradient(moonX, horizon + H * .10, 0, moonX, horizon + H * .10, W * .30);
+  pool.addColorStop(0, 'rgba(150,190,240,.14)');
+  pool.addColorStop(.5, 'rgba(120,165,220,.05)');
+  pool.addColorStop(1, 'rgba(100,140,200,0)');
+  ctx.fillStyle = pool;
+  ctx.fillRect(0, horizon, W, H - horizon);
+
+  /* ================= 猫头鹰（站在近景树枝上） ================= */
+  const owlScale = Math.min(W, H) / 620;
+  drawOwl(W * .30, H * .885, owlScale * 1.25, time);
+
+  /* ================= 萤火虫 ================= */
+  fires.forEach(f => {
+    f.ph += dt * f.sp;
+    const fx = (f.x + Math.sin(f.ph) * f.ax) * W;
+    const fy = (f.y + Math.cos(f.ph * .8) * f.ay) * H;
+    const a = .25 + Math.sin(f.ph * 1.6) * .55;
+    if (a <= 0) return;
+    // 光晕
+    const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, f.r * 7);
+    fg.addColorStop(0, `rgba(200,255,160,${a * .55})`);
+    fg.addColorStop(1, 'rgba(160,230,120,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(fx, fy, f.r * 7, 0, Math.PI * 2);
+    ctx.fill();
+    // 核心
+    ctx.fillStyle = `rgba(235,255,190,${a})`;
+    ctx.beginPath();
+    ctx.arc(fx, fy, f.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* ================= 暗角 ================= */
+  const vig = ctx.createRadialGradient(W * .5, H * .46, Math.min(W, H) * .34, W * .5, H * .5, Math.max(W, H) * .80);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,.62)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+window.addEventListener('pointerdown', e => spawnMeteor(e.clientX, e.clientY));
+</script>
+</body>
+</html>

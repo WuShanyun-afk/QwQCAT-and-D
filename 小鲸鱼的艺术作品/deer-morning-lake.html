@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>晨雾湖畔 · 小鹿饮水 🦌🌫️</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #dfe8e6; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 28px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 19px; font-weight: 600; letter-spacing: 5px;
+    color: #2f4a45;
+    text-shadow: 0 1px 14px rgba(255,255,255,.85), 0 1px 3px rgba(255,255,255,.9);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #6b857e;
+    margin-top: 7px;
+    text-shadow: 0 1px 8px rgba(255,255,255,.9);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #5d7a73;
+    opacity: .9; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(255,255,255,.9);
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下湖面 · 会荡开一圈涟漪 💧</div>
+<div class="caption">
+  <h1>晨 雾 湖 畔</h1>
+  <p>薄雾 · 微光 · 一只低头饮水的小鹿</p>
+</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+/* ---------- 确定性随机 ---------- */
+let seed = 20261013;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+
+/* ---------- 远山（三层，越远越淡） ---------- */
+function makeRidge(baseY, amp, freq, phase, step) {
+  const pts = [];
+  for (let x = 0; x <= 1.0001; x += step) {
+    const y = baseY
+      + Math.sin(x * freq + phase) * amp
+      + Math.sin(x * freq * 2.7 + phase * 1.7) * amp * .42
+      + Math.sin(x * freq * 6.1 + phase * .6) * amp * .16;
+    pts.push({ x, y });
+  }
+  return pts;
+}
+const ridgeFar  = makeRidge(.505, .030, 3.1,  .8, .02);
+const ridgeMid  = makeRidge(.545, .042, 2.2, 2.4, .02);
+const ridgeNear = makeRidge(.585, .030, 4.6, 4.1, .02);
+
+/* ---------- 雾团 ---------- */
+const mists = [];
+for (let i = 0; i < 26; i++) {
+  mists.push({
+    x: rnd(), y: .40 + rnd() * .22,
+    r: .10 + rnd() * .22,
+    a: .05 + rnd() * .10,
+    sp: .008 + rnd() * .022,
+    ph: rnd() * Math.PI * 2
+  });
+}
+
+/* ---------- 芦苇 ---------- */
+const reeds = [];
+for (let i = 0; i < 46; i++) {
+  const side = rnd() > .5 ? 1 : -1;
+  reeds.push({
+    x: side > 0 ? .60 + rnd() * .40 : rnd() * .22,
+    h: .06 + rnd() * .10,
+    ph: rnd() * Math.PI * 2,
+    w: .8 + rnd() * 1.4,
+    lean: (rnd() - .5) * .5
+  });
+}
+
+/* ---------- 涟漪 ---------- */
+const ripples = [];
+function spawnRipple(x, y) {
+  ripples.push({ x, y, r: 2, life: 1 });
+}
+
+/* ---------- 水面微光点 ---------- */
+const sparks = [];
+for (let i = 0; i < 90; i++) {
+  sparks.push({
+    x: rnd(), y: .62 + rnd() * .34,
+    ph: rnd() * Math.PI * 2,
+    sp: .6 + rnd() * 2.4,
+    r: .5 + rnd() * 1.2
+  });
+}
+
+let time = 0, last = performance.now();
+
+/* ---------- 小鹿 ---------- */
+function drawDeer(cx, baseY, s, t) {
+  // s = 整体缩放（以 H 为基准）
+  const breathe = Math.sin(t * 1.1) * .008;
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.scale(s, s);
+
+  // 呼吸：整体极轻微起伏
+  ctx.translate(0, breathe * 100);
+
+  // 影子
+  ctx.fillStyle = 'rgba(40,60,55,.20)';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 46, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const body = '#8a6247';
+  const bodyDark = '#6d4a34';
+  const belly = '#c9a888';
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  /* --- 四条腿 --- */
+  ctx.strokeStyle = bodyDark;
+  ctx.lineWidth = 5.5;
+  // 后腿
+  ctx.beginPath(); ctx.moveTo(-30, -34); ctx.lineTo(-33, -6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-20, -34); ctx.lineTo(-16, -6); ctx.stroke();
+  // 前腿（低头时前腿略前伸）
+  ctx.beginPath(); ctx.moveTo(24, -36); ctx.lineTo(30, -6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(33, -35); ctx.lineTo(41, -6); ctx.stroke();
+
+  /* --- 身体 --- */
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.ellipse(0, -48, 38, 20, -.05, 0, Math.PI * 2);
+  ctx.fill();
+  // 肚子浅色
+  ctx.fillStyle = belly;
+  ctx.beginPath();
+  ctx.ellipse(2, -40, 30, 10, -.05, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* --- 尾巴 --- */
+  ctx.fillStyle = '#f3ece2';
+  ctx.beginPath();
+  ctx.ellipse(-38, -55, 6, 8, .5, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* --- 脖子（低头，向前下方伸出） --- */
+  ctx.strokeStyle = body;
+  ctx.lineWidth = 15;
+  ctx.beginPath();
+  ctx.moveTo(26, -60);          // 从肩部出发
+  ctx.quadraticCurveTo(46, -62, 58, -44);   // 先向前，再往下
+  ctx.stroke();
+
+  /* --- 头（在脖子末端，低头） --- */
+  const headX = 60, headY = -42;
+  ctx.save();
+  ctx.translate(headX, headY);
+  ctx.rotate(.78);   // 低头角度
+
+  // 头骨
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 口鼻
+  ctx.fillStyle = bodyDark;
+  ctx.beginPath();
+  ctx.ellipse(12, 4, 9, 5.5, .22, 0, Math.PI * 2);
+  ctx.fill();
+  // 鼻尖
+  ctx.fillStyle = '#3a2a20';
+  ctx.beginPath();
+  ctx.arc(19, 6, 2.3, 0, Math.PI * 2);
+  ctx.fill();
+  // 耳朵（在头后上方）
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.ellipse(-7, -8, 5.5, 10, -.55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#d8b79a';
+  ctx.beginPath();
+  ctx.ellipse(-7, -8, 2.8, 6.5, -.55, 0, Math.PI * 2);
+  ctx.fill();
+  // 眼睛（眨眼）
+  const blink = (Math.sin(t * .9) > .985) ? .12 : 1;
+  ctx.fillStyle = '#241a14';
+  ctx.beginPath();
+  ctx.ellipse(2, -3, 2.1, 2.1 * blink, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (blink > .5) {
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.beginPath();
+    ctx.arc(2.7, -3.8, .75, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  /* --- 鹿角（从头顶长出，向后上方分叉，简洁） --- */
+  ctx.strokeStyle = '#a98a63';
+  ctx.lineWidth = 3.2;
+  ctx.lineCap = 'round';
+  // 主干
+  ctx.beginPath();
+  ctx.moveTo(56, -50);
+  ctx.quadraticCurveTo(50, -66, 54, -80);
+  ctx.stroke();
+  // 前叉（一根）
+  ctx.beginPath(); ctx.moveTo(54, -64); ctx.lineTo(44, -70); ctx.stroke();
+  // 顶端分叉（两根）
+  ctx.beginPath(); ctx.moveTo(54, -74); ctx.lineTo(62, -82); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(54, -77); ctx.lineTo(48, -88); ctx.stroke();
+  // 第二根（稍短）
+  ctx.beginPath();
+  ctx.moveTo(49, -48);
+  ctx.quadraticCurveTo(40, -62, 42, -74);
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(43, -60); ctx.lineTo(34, -64); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(42, -70); ctx.lineTo(50, -78); ctx.stroke();
+
+  ctx.restore();
+}
+
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, .05);
+  last = now; time += dt;
+
+  const horizon = H * .60;
+
+  /* ================= 天空 ================= */
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon + 20);
+  sky.addColorStop(0,   '#cfe0e6');
+  sky.addColorStop(.34, '#e2ebe6');
+  sky.addColorStop(.62, '#f3ead9');
+  sky.addColorStop(.85, '#fbe9d2');
+  sky.addColorStop(1,   '#fdf2e2');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, horizon + 20);
+
+  /* --- 朝阳（柔和光晕） --- */
+  const sunX = W * .74, sunY = horizon - H * .07;
+  const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, H * .34);
+  sunGlow.addColorStop(0,  'rgba(255,246,222,.95)');
+  sunGlow.addColorStop(.18,'rgba(255,235,196,.55)');
+  sunGlow.addColorStop(.45,'rgba(255,225,180,.20)');
+  sunGlow.addColorStop(1,  'rgba(255,220,170,0)');
+  ctx.fillStyle = sunGlow;
+  ctx.fillRect(0, 0, W, horizon + 20);
+
+  ctx.fillStyle = 'rgba(255,252,240,.92)';
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, H * .038, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* ================= 远山（三层） ================= */
+  function drawRidge(pts, color, yBase) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    pts.forEach(p => ctx.lineTo(p.x * W, p.y * H + yBase));
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+  drawRidge(ridgeFar,  'rgba(158,182,184,.42)', 0);
+  drawRidge(ridgeMid,  'rgba(120,150,155,.60)', 0);
+  drawRidge(ridgeNear, 'rgba(80,112,117,.82)',  0);
+
+  /* --- 山脚雾带（把远山"托"起来，制造纵深） --- */
+  const haze = ctx.createLinearGradient(0, H * .50, 0, H * .62);
+  haze.addColorStop(0,   'rgba(255,252,246,0)');
+  haze.addColorStop(.42, 'rgba(255,252,246,.42)');
+  haze.addColorStop(.72, 'rgba(250,248,242,.30)');
+  haze.addColorStop(1,   'rgba(245,245,240,0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, H * .50, W, H * .12);
+
+  /* ================= 晨雾（在山腰飘） ================= */
+  mists.forEach(m => {
+    const mx = ((m.x + time * m.sp) % 1.3 - .15) * W;
+    const my = m.y * H + Math.sin(time * .35 + m.ph) * H * .012;
+    const mr = m.r * H;
+    const g = ctx.createRadialGradient(mx, my, 0, mx, my, mr);
+    const a = m.a * (.7 + .3 * Math.sin(time * .5 + m.ph));
+    g.addColorStop(0, `rgba(255,255,255,${a})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* ================= 湖面 ================= */
+  const water = ctx.createLinearGradient(0, horizon, 0, H);
+  water.addColorStop(0,   '#a8c2c2');
+  water.addColorStop(.22, '#8fb0b2');
+  water.addColorStop(.55, '#6f9498');
+  water.addColorStop(1,   '#4d6f76');
+  ctx.fillStyle = water;
+  ctx.fillRect(0, horizon, W, H - horizon);
+
+  /* --- 太阳在水中的倒影（碎光带，不是硬梯形） --- */
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, horizon, W, H - horizon);
+  ctx.clip();
+  for (let i = 0; i < 34; i++) {
+    const p = i / 34;
+    const y = horizon + Math.pow(p, 1.5) * (H - horizon) * .95;
+    const spread = W * (.028 + p * .13);
+    const a = (.30 - p * .26) * (.75 + .25 * Math.sin(time * 1.3 + i * .9));
+    if (a <= 0) continue;
+    const off = Math.sin(time * .9 + i * 1.7) * W * .012 * (1 + p * 3);
+    ctx.fillStyle = `rgba(255,243,214,${a})`;
+    ctx.beginPath();
+    ctx.ellipse(sunX + off, y, spread, Math.max(1.2, 2.2 + p * 3.4), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  /* --- 水面波纹（横向细线） --- */
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, horizon, W, H - horizon);
+  ctx.clip();
+  for (let i = 0; i < 46; i++) {
+    const p = i / 46;
+    const y = horizon + Math.pow(p, 1.7) * (H - horizon);
+    const a = .05 + p * .13;
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = .6 + p * 1.6;
+    ctx.beginPath();
+    const wave = Math.sin(time * .8 + i * .7) * W * .012;
+    ctx.moveTo(-20 + wave, y);
+    ctx.bezierCurveTo(W * .3, y + 2, W * .7, y - 2, W + 20 + wave, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  /* --- 水面闪烁光点 --- */
+  sparks.forEach(s => {
+    s.ph += dt * s.sp;
+    const a = .18 + Math.sin(s.ph) * .30;
+    if (a <= 0) return;
+    ctx.fillStyle = `rgba(255,250,235,${a})`;
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* --- 涟漪 --- */
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i];
+    r.r += dt * 90;
+    r.life -= dt * .55;
+    if (r.life <= 0) { ripples.splice(i, 1); continue; }
+    ctx.strokeStyle = `rgba(255,255,255,${.45 * r.life})`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(r.x, r.y, r.r, r.r * .32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${.22 * r.life})`;
+    ctx.beginPath();
+    ctx.ellipse(r.x, r.y, r.r * .62, r.r * .20, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  /* ================= 岸边 & 小鹿 ================= */
+  // 近岸草地
+  const bank = ctx.createLinearGradient(0, H * .80, 0, H);
+  bank.addColorStop(0, 'rgba(74,102,86,.0)');
+  bank.addColorStop(.35, 'rgba(62,92,76,.85)');
+  bank.addColorStop(1, '#2e4a3c');
+  ctx.fillStyle = bank;
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  ctx.lineTo(0, H * .855);
+  for (let x = 0; x <= W + 10; x += 10) {
+    const p = x / W;
+    const y = H * .86 + Math.sin(p * 5.2 + .6) * H * .012 + Math.sin(p * 13 + 2) * H * .005;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // 小鹿站在左岸，低头饮水（靠近水边）
+  const deerScale = Math.min(W, H) / 620;
+  drawDeer(W * .26, H * .845, deerScale * 1.15, time);
+
+  /* --- 鹿腿入水处的水花与倒影（让腿"插进"水里） --- */
+  const ds = deerScale * 1.15;
+  const legFeet = [
+    W * .26 + (-33) * ds, W * .26 + (-16) * ds,
+    W * .26 + (30) * ds,  W * .26 + (41) * ds
+  ];
+  legFeet.forEach((lx, i) => {
+    const ly = H * .845 - 6 * ds;
+    // 水花
+    ctx.fillStyle = 'rgba(255,255,255,.30)';
+    ctx.beginPath();
+    ctx.ellipse(lx, ly, 7 * ds, 2.6 * ds, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.16)';
+    ctx.beginPath();
+    ctx.ellipse(lx, ly + 2, 12 * ds, 3.4 * ds, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 水中倒影（竖直虚影）
+    const rg = ctx.createLinearGradient(lx, ly, lx, ly + 34 * ds);
+    rg.addColorStop(0, 'rgba(110,74,52,.30)');
+    rg.addColorStop(1, 'rgba(110,74,52,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(lx - 3.2 * ds, ly, 6.4 * ds, 34 * ds);
+  });
+
+  /* --- 鹿鼻尖的水面涟漪（自动） --- */
+  if (Math.floor(time * 1.6) !== Math.floor((time - dt) * 1.6)) {
+    spawnRipple(W * .26 + 74 * ds, H * .845 - 30 * ds);
+  }
+
+  /* --- 芦苇（前景，随风摇） --- */
+  reeds.forEach(r => {
+    const bx = r.x * W;
+    const baseY = H * .90 + (r.x % .3) * H * .06;
+    const hh = r.h * H;
+    const sway = Math.sin(time * 1.25 + r.ph) * .16 + r.lean * .12;
+    const tipX = bx + sway * hh;
+    const tipY = baseY - hh;
+
+    ctx.strokeStyle = 'rgba(58,84,66,.75)';
+    ctx.lineWidth = r.w;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(bx, baseY);
+    ctx.quadraticCurveTo(bx + sway * hh * .35, baseY - hh * .6, tipX, tipY);
+    ctx.stroke();
+
+    // 穗
+    ctx.fillStyle = 'rgba(120,110,80,.55)';
+    ctx.beginPath();
+    ctx.ellipse(tipX, tipY, r.w * .9, hh * .08, sway * .8, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  /* ================= 前景雾 & 暗角 ================= */
+  const fg = ctx.createLinearGradient(0, H * .55, 0, H * .78);
+  fg.addColorStop(0, 'rgba(255,255,255,0)');
+  fg.addColorStop(.5, 'rgba(255,255,255,.16)');
+  fg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = fg;
+  ctx.fillRect(0, H * .55, W, H * .23);
+
+  const vig = ctx.createRadialGradient(W * .5, H * .48, Math.min(W, H) * .38, W * .5, H * .5, Math.max(W, H) * .80);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(30,50,45,.34)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+window.addEventListener('pointerdown', e => {
+  // 只在湖面区域生成涟漪
+  if (e.clientY > H * .60) spawnRipple(e.clientX, e.clientY);
+  else spawnRipple(e.clientX, H * (.62 + Math.random() * .3));
+});
+</script>
+</body>
+</html>

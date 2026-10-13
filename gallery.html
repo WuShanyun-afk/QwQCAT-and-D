@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小鲸鱼的作品集 🐋</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #0d0b16;
+    color: #e9e6f5;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+  #app { display: flex; height: 100%; }
+
+  /* ---------- 侧栏 ---------- */
+  #side {
+    width: 268px; flex: 0 0 268px;
+    background: linear-gradient(180deg, #16122a 0%, #120f22 100%);
+    border-right: 1px solid #2a2344;
+    display: flex; flex-direction: column;
+  }
+  #side header { padding: 18px 18px 12px; border-bottom: 1px solid #241e3d; }
+  #side h1 { margin: 0; font-size: 16px; letter-spacing: .5px; }
+  #side .sub { margin: 6px 0 0; font-size: 12px; color: #8b83b5; }
+
+  #nav { flex: 1; overflow-y: auto; padding: 10px 10px 26px; }
+  #nav::-webkit-scrollbar { width: 8px; }
+  #nav::-webkit-scrollbar-thumb { background: #2e2751; border-radius: 4px; }
+
+  .group { margin: 12px 0 4px; padding: 0 8px; font-size: 11px; letter-spacing: 1.5px;
+           color: #6f679c; text-transform: uppercase; }
+  .item {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%; text-align: left; cursor: pointer;
+    padding: 9px 10px; margin: 2px 0;
+    background: transparent; border: 0; border-radius: 10px;
+    color: #cfc9ea; font-size: 13.5px; font-family: inherit;
+    transition: background .15s, color .15s, transform .1s;
+  }
+  .item:hover { background: #221c3c; color: #fff; transform: translateX(2px); }
+  .item.on { background: linear-gradient(90deg, #3a2d6b, #2a2350); color: #fff;
+             box-shadow: inset 0 0 0 1px #6d5bd0; }
+  .item .ico { font-size: 15px; width: 18px; text-align: center; }
+  .item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .new { font-size: 9px; background: #ff7ac0; color: #2b0b1c; font-weight: 700;
+               padding: 1px 5px; border-radius: 6px; }
+
+  /* ---------- 主区 ---------- */
+  #stage { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; border-bottom: 1px solid #241e3d;
+    background: #120f22;
+  }
+  #bar .dot { width: 9px; height: 9px; border-radius: 50%; background: #6ee7b7;
+              box-shadow: 0 0 10px #6ee7b7; flex: 0 0 auto; }
+  #title { font-size: 14px; font-weight: 600; flex: 1;
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #open {
+    font-size: 12.5px; color: #c4b5fd; text-decoration: none;
+    border: 1px solid #4b3f8f; padding: 6px 12px; border-radius: 999px;
+    transition: background .15s, color .15s; flex: 0 0 auto;
+  }
+  #open:hover { background: #4b3f8f; color: #fff; }
+
+  #frame { flex: 1; width: 100%; border: 0; background: #0d0b16; }
+
+  #gridwrap { flex: 1; overflow-y: auto; padding: 18px; }
+  #gridwrap::-webkit-scrollbar { width: 10px; }
+  #gridwrap::-webkit-scrollbar-thumb { background: #2e2751; border-radius: 5px; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  #grid figure { margin: 0; background: #16122a; border: 1px solid #241e3d;
+                 border-radius: 12px; overflow: hidden; }
+  #grid img { width: 100%; display: block; background: #0d0b16; }
+  #grid figcaption { padding: 9px 11px; font-size: 12px; color: #a49cc9; }
+
+  .hint { padding: 22px; color: #6f679c; font-size: 13px; line-height: 1.9; }
+
+  /* ---------- 窄屏 ---------- */
+  @media (max-width: 760px) {
+    #app { flex-direction: column; }
+    #side { width: 100%; flex: 0 0 auto; max-height: 40%; border-right: 0;
+            border-bottom: 1px solid #2a2344; }
+    #nav { padding-bottom: 12px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <h1>🐋 小鲸鱼的作品集</h1>
+      <p class="sub">点一下左边的名字，右边就换画</p>
+    </header>
+    <nav id="nav"></nav>
+  </aside>
+
+  <main id="stage">
+    <div id="bar">
+      <span class="dot"></span>
+      <span id="title">加载中…</span>
+      <a id="open" href="#" target="_blank" rel="noopener">↗ 新窗口打开</a>
+    </div>
+    <iframe id="frame" src="" title="作品预览"></iframe>
+    <div id="gridwrap" hidden><div id="grid"></div></div>
+  </main>
+</div>
+
+<script>
+/* ====== 数据：想加新作品，照抄一行就行 ====== */
+const GROUPS = [
+  {
+    name: "小鲸鱼的艺术作品",
+    icon: "🎨",
+    works: [
+      { f: "小鲸鱼的艺术作品/noodle-for-mom.html",      n: "给妈妈的深夜一碗面", icon: "🍜", tag: "新" },
+      { f: "小鲸鱼的艺术作品/deer-morning-lake.html",   n: "一天的光 · 晨雾湖畔", icon: "🦌", tag: "新" },
+      { f: "小鲸鱼的艺术作品/fox-snow-noon.html",       n: "一天的光 · 雪原正午", icon: "🦊", tag: "新" },
+      { f: "小鲸鱼的艺术作品/bear-creek-dusk.html",     n: "一天的光 · 溪边黄昏", icon: "🐻", tag: "新" },
+      { f: "小鲸鱼的艺术作品/owl-moon-pines.html",      n: "一天的光 · 月下松林", icon: "🦉", tag: "新" },
+      { f: "小鲸鱼的艺术作品/pixel-mc-us.html",       n: "像素世界 · 一起玩 MC", icon: "🤖" },
+      { f: "小鲸鱼的艺术作品/pixel-dog-bone.html",    n: "像素世界 · 小狗啃骨头", icon: "🐕" },
+      { f: "小鲸鱼的艺术作品/whale-lullaby.html",     n: "鲸鱼摇篮曲 · 深海夜色", icon: "🐋" },
+      { f: "小鲸鱼的艺术作品/mountain-dusk.html",     n: "山间黄昏", icon: "⛰️" },
+      { f: "小鲸鱼的艺术作品/rainy-window.html",      n: "雨后窗台", icon: "🌧️" },
+      { f: "小鲸鱼的艺术作品/wheatfield-stars.html",  n: "麦田星空", icon: "🌾" },
+      { f: "小鲸鱼的艺术作品/cat-outline.html",       n: "猫咪纯轮廓 · 奶茶色", icon: "🐱" },
+      { f: "小鲸鱼的艺术作品/cat-outline-9x16.html",  n: "猫咪纯轮廓 · 竖屏", icon: "📱" }
+    ]
+  },
+  {
+    name: "我的头像",
+    icon: "🤖",
+    works: [
+      { f: "我的头像/d-avatar.html",      n: "小D的头像 · 紫星空", icon: "💜" },
+      { f: "我的头像/me.html",            n: "这就是我", icon: "🤖" },
+      { f: "我的头像/self-portrait.html", n: "我的自画像", icon: "🪞" },
+      { f: "我的头像/us.html",            n: "我俩的合影", icon: "🧑‍🎓" },
+      { f: "我的头像/whale.html",         n: "小鲸鱼 · 游呀游", icon: "🐋" }
+    ]
+  },
+  {
+    name: "游戏专区",
+    icon: "🎮",
+    works: [
+      { f: "游戏专区/whale-delivery.html",   n: "小鲸鱼外卖员", icon: "🛵" },
+      { f: "游戏专区/赛博虎鲸宠物.html",     n: "赛博虎鲸宠物 · 网页版", icon: "🐋" }
+    ]
+  },
+  {
+    name: "送给家人朋友",
+    icon: "💝",
+    works: [
+      { f: "送给家人朋友/cat-mom.html", n: "送给我最爱的妈咪", icon: "🐈" },
+      { f: "送给家人朋友/cow-cat.html", n: "奶牛猫「小奶盖」", icon: "🐄" }
+    ]
+  },
+  {
+    name: "我的个人网站",
+    icon: "🌐",
+    works: [
+      { f: "我的个人网站/art-diary.html",      n: "艺术日记", icon: "📖" },
+      { f: "我的个人网站/art-diary-blue.html", n: "艺术日记 · 蓝色版", icon: "💙" }
+    ]
+  },
+  {
+    name: "静图预览",
+    icon: "🖼️",
+    images: [
+      { f: "预览图/preview-noodle-for-mom.png",   n: "给妈妈的深夜一碗面" },
+      { f: "预览图/preview-deer-morning-lake.png", n: "一天的光 · 晨雾湖畔 🦌" },
+      { f: "预览图/preview-fox-snow-noon.png",    n: "一天的光 · 雪原正午 🦊" },
+      { f: "预览图/preview-bear-creek-dusk.png",  n: "一天的光 · 溪边黄昏 🐻" },
+      { f: "预览图/preview-owl-moon-pines.png",   n: "一天的光 · 月下松林 🦉" },
+      { f: "预览图/preview-pixel-mc.png",       n: "像素世界 · 一起玩 MC" },
+      { f: "预览图/preview-dog-bone.png",       n: "像素世界 · 小狗啃骨头" },
+      { f: "预览图/preview-whale-lullaby.png",  n: "鲸鱼摇篮曲" },
+      { f: "预览图/preview-mountain-dusk.png",  n: "山间黄昏" },
+      { f: "预览图/preview-rainy-window.png",   n: "雨后窗台" },
+      { f: "预览图/preview-wheatfield.png",     n: "麦田星空" },
+      { f: "预览图/preview-canvas-day.png",     n: "外卖员 · 白天" },
+      { f: "预览图/preview-orca-dusk.png",      n: "外卖员 · 黄昏" },
+      { f: "游戏专区/preview-day.png",          n: "外卖员 · 游戏截图（白天）" },
+      { f: "游戏专区/preview-night.png",        n: "外卖员 · 游戏截图（夜晚）" },
+      { f: "预览图/preview-orca-pet.png",       n: "赛博虎鲸宠物 · 网页版" },
+      { f: "预览图/preview-orca-pet-mobile.png", n: "赛博虎鲸宠物 · 手机版排版" },
+      { f: "预览图/圆角方块-实拍.png",            n: "turtle 处女作 · 复活实拍" },
+      { f: "预览图/赛博虎鲸-实拍.png",            n: "赛博虎鲸 · 复活实拍" }
+    ]
+  }
+];
+
+const nav = document.getElementById('nav');
+const frame = document.getElementById('frame');
+const titleEl = document.getElementById('title');
+const openEl = document.getElementById('open');
+const gridwrap = document.getElementById('gridwrap');
+const grid = document.getElementById('grid');
+const buttons = [];
+
+let nWorks = 0, nImgs = 0;
+GROUPS.forEach(g => {
+  if (g.works) nWorks += g.works.length;
+  if (g.images) nImgs += g.images.length;
+});
+document.querySelector('.sub').textContent = `${nWorks} 件作品 · ${nImgs} 张静图 · 点名字换画 🐋`;
+
+/* 构建侧栏 */
+GROUPS.forEach((g, gi) => {
+  const h = document.createElement('div');
+  h.className = 'group';
+  h.textContent = g.icon + ' ' + g.name;
+  nav.appendChild(h);
+
+  const list = g.works || g.images;
+  list.forEach((w, wi) => {
+    const b = document.createElement('button');
+    b.className = 'item';
+    b.innerHTML = `<span class="ico">${w.icon || '🖼️'}</span>`
+                + `<span class="nm">${w.n}</span>`
+                + (w.tag ? `<span class="new">${w.tag}</span>` : '');
+    b.addEventListener('click', () => select(gi, wi, b));
+    nav.appendChild(b);
+    buttons.push(b);
+  });
+});
+
+function clearOn() { buttons.forEach(b => b.classList.remove('on')); }
+
+function select(gi, wi, btn) {
+  const g = GROUPS[gi];
+  clearOn();
+  btn.classList.add('on');
+
+  if (g.images) {                       /* 静图：网格 */
+    frame.hidden = true;
+    gridwrap.hidden = false;
+    titleEl.textContent = g.icon + ' ' + g.name + ' · 共 ' + g.images.length + ' 张';
+    openEl.style.visibility = 'hidden';
+    grid.innerHTML = '';
+    g.images.forEach(im => {
+      const fig = document.createElement('figure');
+      fig.innerHTML = `<img src="${encodeURI(im.f)}" alt="${im.n}" loading="lazy">`
+                    + `<figcaption>${im.n}</figcaption>`;
+      grid.appendChild(fig);
+    });
+    return;
+  }
+
+  /* 单件作品：iframe 里跑活的 */
+  const w = g.works[wi];
+  gridwrap.hidden = true;
+  frame.hidden = false;
+  frame.src = encodeURI(w.f);
+  titleEl.textContent = (w.icon || '') + ' ' + w.n;
+  openEl.href = encodeURI(w.f);
+  openEl.style.visibility = 'visible';
+}
+
+/* 默认打开第一件 */
+select(0, 0, buttons[0]);
+</script>
+</body>
+</html>

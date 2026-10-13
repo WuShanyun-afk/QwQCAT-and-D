@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素小狗吃骨头 🐕🦴</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    background: #0d0f1a;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #eaf6ff;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stage {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 4 / 3;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    cursor: pointer;
+  }
+  canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+
+  .caption {
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.9;
+    letter-spacing: 1px;
+    opacity: .92;
+    padding: 0 16px;
+  }
+  .caption b { color: #ffe08a; }
+  .hint { font-size: 12px; opacity: .5; letter-spacing: 2px; }
+
+  .toast {
+    position: fixed; top: 14%; left: 50%; transform: translateX(-50%) scale(.8);
+    background: rgba(255,255,255,.94); color: #2b2b45;
+    font-size: 13px; font-weight: 600; letter-spacing: 1px;
+    padding: 8px 16px; border-radius: 999px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) scale(1); }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" width="120" height="90"></canvas>
+  </div>
+
+  <div class="caption" id="cap">
+    <b>小狗</b> 在啃它的 <b>骨头</b> 🦴<br>
+    咔嚓咔嚓，好香呀～
+  </div>
+  <div class="hint">点一下，它会开心地摇尾巴 💗</div>
+  <div class="toast" id="toast">汪汪！🦴💗</div>
+
+<script>
+/* ================= 像素画布 =================
+   逻辑分辨率 120×90，放大显示，保持像素块感
+   ============================================ */
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+/* ---------- 调色板 ---------- */
+const P = {
+  skyTop:   '#8fd0f5',
+  skyMid:   '#b8e3fa',
+  skyLow:   '#e6f5fd',
+  sun:      '#fff3b0',
+  sunCore:  '#ffe066',
+  cloud:    '#ffffff',
+  cloudSh:  '#dbe9f5',
+  grassTop: '#7cc45c',
+  grassMid: '#63a844',
+  grassDk:  '#4d8a35',
+  dirt:     '#a9743c',
+  dirtDark: '#8a5c2c',
+  wood:     '#c98b4b',
+  woodDk:   '#9c6a35',
+  leaf:     '#5aab48',
+  leafDk:   '#3f8a34',
+  flower:   '#ffd166',
+  dogFur:   '#f5cb92',
+  dogFurD:  '#d9a463',
+  dogFurLt: '#ffe4bb',
+  dogEar:   '#c98f52',
+  nose:     '#3a2c22',
+  tongue:   '#ff8fa8',
+  collar:   '#ff6fa5',
+  collarD:  '#d94b80',
+  bone:     '#fffaf0',
+  boneSh:   '#e0d6c4',
+  bowl:     '#7ec8e3',
+  bowlD:    '#4fa3c4',
+  bowlIn:   '#5c4a3a',
+  heart:    '#ff4d88',
+  heartLt:  '#ff9ec4',
+  spark:    '#fff6c2'
+};
+
+/* ---------- 基础像素工具 ---------- */
+function px(x, y, w, h, c) {
+  ctx.fillStyle = c;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+/* ---------- 场景元素 ---------- */
+const clouds = [
+  { x: 4,  y: 14, s: 1.0, v: .05 },
+  { x: 48, y: 6,  s: .8,  v: .038 },
+  { x: 76, y: 26, s: 1.1, v: .06 }
+];
+
+function drawCloud(c) {
+  const u = 3 * c.s;
+  const x = c.x, y = c.y;
+  px(x,          y,        u*4, u*2, P.cloud);
+  px(x + u,      y - u,    u*2, u,   P.cloud);
+  px(x + u*2.5,  y - u*1.5,u*2, u*1.5, P.cloud);
+  px(x,          y + u*2,  u*4, u*.6, P.cloudSh);
+}
+
+function drawSun(t) {
+  const cx = 101, cy = 12;
+  const r = 5 + Math.sin(t/900) * .4;
+  ctx.globalAlpha = .22;
+  px(cx - r*2.2, cy - r*2.2, r*4.4, r*4.4, P.sun);
+  ctx.globalAlpha = .35;
+  px(cx - r*1.5, cy - r*1.5, r*3, r*3, P.sun);
+  ctx.globalAlpha = 1;
+  px(cx - r, cy - r, r*2, r*2, P.sun);
+  px(cx - r*.55, cy - r*.55, r*1.1, r*1.1, P.sunCore);
+}
+
+/* ---------- 地形 ---------- */
+function drawTerrain() {
+  px(0, 62, W, 4, P.grassTop);
+  px(0, 66, W, 3, P.grassMid);
+  px(0, 69, W, H - 69, P.dirt);
+  for (let i = 0; i < W; i += 7) {
+    px(i + (i % 3), 72, 2, 2, P.dirtDark);
+    px(i + 3, 78, 2, 2, P.dirtDark);
+    px(i, 84, 2, 2, P.dirtDark);
+  }
+  // 草尖
+  for (let i = 0; i < W; i += 4) {
+    px(i, 60, 1, 2, P.grassTop);
+    px(i + 2, 61, 1, 1, P.grassMid);
+  }
+}
+
+/* ---------- 小树 ---------- */
+function drawTree(x, baseY) {
+  px(x + 3, baseY - 12, 4, 12, P.wood);
+  px(x + 3, baseY - 12, 1, 12, P.woodDk);
+  px(x,      baseY - 24, 10, 8,  P.leaf);
+  px(x + 1,  baseY - 28, 8,  5,  P.leaf);
+  px(x - 1,  baseY - 20, 3,  5,  P.leaf);
+  px(x + 8,  baseY - 21, 3,  6,  P.leaf);
+  px(x + 2,  baseY - 27, 5,  2,  P.leafDk);
+  px(x + 1,  baseY - 22, 2,  2,  P.leafDk);
+}
+
+function drawPine(x, baseY) {
+  px(x + 3, baseY - 10, 2, 10, P.woodDk);
+  px(x,      baseY - 14, 8, 4, P.leafDk);
+  px(x + 1,  baseY - 19, 6, 5, P.leaf);
+  px(x + 2,  baseY - 24, 4, 5, P.leaf);
+  px(x + 3,  baseY - 28, 2, 4, P.leafDk);
+}
+
+/* ---------- 小花 ---------- */
+function drawFlower(x, y, c) {
+  px(x,     y,     1, 1, c);
+  px(x - 1, y + 1, 1, 1, c);
+  px(x + 1, y + 1, 1, 1, c);
+  px(x,     y + 2, 1, 1, c);
+  px(x,     y + 1, 1, 1, '#fff3b0');
+  px(x,     y + 3, 1, 1, P.grassDk);
+}
+
+/* ---------- 食盆 ---------- */
+function drawBowl(x, y) {
+  px(x,     y,     12, 2, P.bowlD);   // 盆口
+  px(x + 1, y + 2, 10, 4, P.bowl);    // 盆身
+  px(x + 2, y + 6, 8,  1, P.bowlD);   // 盆底
+  px(x + 2, y - 1, 8,  1, P.bowlIn);  // 里面的食物
+  px(x + 3, y - 2, 6,  1, '#b5834a'); // 狗粮
+  px(x + 2, y + 2, 2,  3, '#a8dff0'); // 高光
+}
+
+/* ---------- 骨头 ---------- */
+function drawBone(x, y, s) {
+  // 一根横着的骨头：两端各两个圆头 + 中间骨干
+  px(x,           y + s,     s*2, s,   P.bone);
+  px(x + s*2,     y,         s*6, s*3, P.bone);   // 骨干
+  px(x + s*6,     y + s,     s*2, s,   P.bone);
+  // 左端圆头
+  px(x,           y,         s*2, s,   P.bone);
+  px(x,           y + s*2,   s*2, s,   P.bone);
+  // 右端圆头
+  px(x + s*6,     y,         s*2, s,   P.bone);
+  px(x + s*6,     y + s*2,   s*2, s,   P.bone);
+  // 阴影
+  px(x + s*2,     y + s*2,   s*6, s,   P.boneSh);
+  px(x,           y + s*2,   s*2, s,   P.boneSh);
+  px(x + s*6,     y + s*2,   s*2, s,   P.boneSh);
+  // 高光
+  px(x + s*3,     y,         s*4, s*.6, '#ffffff');
+}
+
+/* ---------- 像素小狗（啃骨头版） ---------- */
+function drawDog(x, y, t) {
+  const chew = Math.sin(t / 110) > 0 ? 1 : 0;      // 咀嚼：头部上下微动
+  const wag  = Math.sin(t / 90);                    // 尾巴摆动
+  const tailUp = wag > 0 ? 1 : 0;
+  const earTwist = Math.sin(t / 300) > .6 ? 1 : 0;  // 偶尔抖耳朵
+  const yy = y + chew;
+
+  // 尾巴（开心地摇）
+  px(x - 3, yy - 2 - tailUp, 2, 1, P.dogFur);
+  px(x - 4, yy - 3 - tailUp, 1, 2, P.dogFurD);
+  if (tailUp) px(x - 5, yy - 4, 1, 1, P.dogFurLt);
+
+  // 后腿（蹲坐）
+  px(x + 1, yy + 6, 4, 3, P.dogFurD);
+  px(x + 1, yy + 8, 4, 1, P.dogEar);
+
+  // 身体
+  px(x,     yy + 2, 8, 5, P.dogFur);
+  px(x,     yy + 6, 8, 1, P.dogFurD);
+  px(x + 6, yy + 3, 2, 4, P.dogFurD);      // 侧面阴影
+  px(x + 1, yy + 3, 3, 2, P.dogFurLt);     // 背部高光
+
+  // 前腿
+  px(x + 7, yy + 6, 2, 3, P.dogFur);
+  px(x + 7, yy + 8, 2, 1, P.dogEar);
+  px(x + 9, yy + 6, 1, 3, P.dogFurD);
+
+  // 头
+  px(x + 6, yy - 4, 7, 6, P.dogFur);
+  px(x + 6, yy + 1, 7, 1, P.dogFurD);
+  px(x + 7, yy - 3, 4, 2, P.dogFurLt);     // 额头高光
+
+  // 耳朵（垂耳，偶尔抖一下）
+  const eo = earTwist ? 1 : 0;
+  px(x + 6, yy - 6, 2, 2, P.dogEar);
+  px(x + 11, yy - 6 - eo, 2, 3, P.dogEar);
+  px(x + 6, yy - 4, 1, 3, P.dogEar);
+  px(x + 12, yy - 4 - eo, 1, 4, P.dogEar);
+
+  // 眼睛（开心地眯成 ^ ^）
+  px(x + 8, yy - 2, 1, 1, P.nose);
+  px(x + 10, yy - 2, 1, 1, P.nose);
+  px(x + 7, yy - 3, 1, 1, P.dogFurD);
+  px(x + 11, yy - 3, 1, 1, P.dogFurD);
+
+  // 鼻子 + 嘴（啃骨头：嘴一开一合）
+  px(x + 12, yy - 1, 1, 1, P.nose);
+  if (chew) {
+    px(x + 11, yy + 1, 3, 1, P.nose);      // 张嘴
+    px(x + 12, yy + 2, 1, 1, P.tongue);    // 小舌头
+  } else {
+    px(x + 11, yy + 1, 3, 1, P.dogFurD);   // 闭嘴
+  }
+
+  // 项圈
+  px(x + 6, yy + 3, 7, 1, P.collar);
+  px(x + 9, yy + 4, 2, 2, P.collarD);      // 小铃铛
+
+  return { mouthX: x + 13, mouthY: yy + 1 };  // 骨头的位置跟着嘴
+}
+
+/* ---------- 爱心粒子 ---------- */
+const hearts = [];
+function spawnHearts(x, y) {
+  hearts.push({ x, y: y - 3, vy: -.26, vx: 0, life: 1, size: 9, big: 1 });
+  for (let i = 0; i < 9; i++) {
+    hearts.push({
+      x: x + (Math.random() * 22 - 11),
+      y: y + (Math.random() * 6 - 3),
+      vy: -.30 - Math.random() * .45,
+      vx: (Math.random() - .5) * .35,
+      life: 1,
+      size: 2 + Math.random() * 2,
+      big: 0
+    });
+  }
+}
+
+function drawHeart(x, y, s, alpha) {
+  ctx.globalAlpha = alpha;
+  const u = Math.max(s / 3, .8);
+  px(x - u*1.5, y - u*1.5, u, u, P.heart);
+  px(x + u*0.5, y - u*1.5, u, u, P.heart);
+  px(x - u*2,   y - u*0.5, u*4, u, P.heart);
+  px(x - u*1.5, y + u*0.5, u*3, u, P.heart);
+  px(x - u*0.5, y + u*1.5, u*2, u, P.heart);
+  px(x - u*1.5, y - u*1.5, u*0.7, u*0.7, P.heartLt);
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- 碎屑粒子（啃骨头掉渣） ---------- */
+const crumbs = [];
+function spawnCrumb(x, y) {
+  crumbs.push({
+    x, y,
+    vx: (Math.random() - .3) * .5,
+    vy: -.4 - Math.random() * .5,
+    life: 1,
+    s: Math.random() < .5 ? 1 : 2
+  });
+}
+
+/* ---------- 主循环 ---------- */
+let t0 = performance.now();
+let lastCrumb = 0;
+
+function frame(now) {
+  const t = now - t0;
+
+  // 天空
+  const bands = 10;
+  for (let i = 0; i < bands; i++) {
+    const y = (62 / bands) * i;
+    const h = 62 / bands + 1;
+    let c;
+    if (i < bands * .5) c = P.skyTop;
+    else if (i < bands * .8) c = P.skyMid;
+    else c = P.skyLow;
+    px(0, y, W, h, c);
+  }
+
+  drawSun(t);
+
+  clouds.forEach(c => {
+    c.x += c.v;
+    if (c.x > W + 10) c.x = -20;
+    drawCloud(c);
+  });
+
+  // 远山
+  for (let i = 0; i < W; i++) {
+    const h = 10 + Math.round(Math.sin(i / 15) * 3.5) + Math.round(Math.sin(i / 6) * 1.5);
+    px(i, 62 - h, 1, h, '#a9cbe4');
+  }
+
+  drawTerrain();
+
+  // 树
+  drawPine(8, 62);
+  drawTree(96, 62);
+
+  // 小花
+  drawFlower(24, 56, P.flower);
+  drawFlower(30, 58, '#ff9ec4');
+  drawFlower(88, 57, P.flower);
+  drawFlower(44, 58, '#c9a0ff');
+
+  // 食盆（在右边，已经空了）
+  drawBowl(84, 54);
+
+  // 小狗 + 骨头
+  const dogX = 40, dogY = 50;
+  const mouth = drawDog(dogX, dogY, t);
+  drawBone(mouth.mouthX, mouth.mouthY - 1, 1);
+
+  // 啃骨头掉渣
+  if (t - lastCrumb > 260) {
+    lastCrumb = t;
+    spawnCrumb(mouth.mouthX + 2, mouth.mouthY + 1);
+  }
+  for (let i = crumbs.length - 1; i >= 0; i--) {
+    const c = crumbs[i];
+    c.x += c.vx; c.y += c.vy; c.vy += .04; c.life -= .022;
+    if (c.life <= 0) { crumbs.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.min(1, c.life * 1.5);
+    px(c.x, c.y, c.s, c.s, P.boneSh);
+    ctx.globalAlpha = 1;
+  }
+
+  // 爱心粒子
+  for (let i = hearts.length - 1; i >= 0; i--) {
+    const h = hearts[i];
+    h.x += h.vx; h.y += h.vy; h.life -= h.big ? .008 : .014;
+    if (h.life <= 0) { hearts.splice(i, 1); continue; }
+    drawHeart(h.x, h.y, h.size, Math.min(1, h.life * 1.4));
+  }
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- 点击交互 ---------- */
+const toast = document.getElementById('toast');
+let toastTimer = null;
+
+document.getElementById('stage').addEventListener('click', (e) => {
+  const r = cv.getBoundingClientRect();
+  const lx = (e.clientX - r.left) / r.width * W;
+  const ly = (e.clientY - r.top) / r.height * H;
+
+  if (navigator.vibrate) navigator.vibrate([28, 40, 28]);
+  spawnHearts(lx, ly);
+
+  toast.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('on'), 900);
+
+  const stage = document.getElementById('stage');
+  stage.animate(
+    [{ transform: 'translate(0,0)' }, { transform: 'translate(-2px,1px)' },
+     { transform: 'translate(2px,-1px)' }, { transform: 'translate(0,0)' }],
+    { duration: 180, iterations: 2 }
+  );
+});
+</script>
+</body>
+</html>

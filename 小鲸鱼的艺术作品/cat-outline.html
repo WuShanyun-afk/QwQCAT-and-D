@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小动物轮廓 · 猫咪 · 奶茶色</title>
+<style>
+  :root {
+    --c1: #cfbcb5;  /* 暖灰粉 */
+    --c2: #fcfaeb;  /* 奶油白 */
+    --c3: #ead9e1;  /* 淡藕粉 */
+    --c4: #ba9e93;  /* 深奶茶 */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    background: var(--c2);
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    padding: 40px 16px;
+  }
+
+  .frame {
+    position: relative;
+    width: 340px;
+    height: 340px;
+    border-radius: 36px;
+    background: linear-gradient(150deg, var(--c2) 0%, var(--c3) 100%);
+    overflow: hidden;
+    box-shadow: 0 18px 44px rgba(186,158,147,.28);
+  }
+
+  /* 背景装饰：两个淡色圆 */
+  .frame::before,
+  .frame::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+  }
+  .frame::before {
+    width: 220px; height: 220px;
+    background: var(--c1);
+    opacity: .35;
+    top: -60px; left: -50px;
+  }
+  .frame::after {
+    width: 160px; height: 160px;
+    background: var(--c4);
+    opacity: .18;
+    bottom: -50px; right: -40px;
+  }
+
+  svg {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* 轮廓线：只描边不填色 */
+  .outline {
+    fill: none;
+    stroke: var(--c4);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .outline-thin {
+    fill: none;
+    stroke: var(--c4);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .accent {
+    fill: none;
+    stroke: var(--c1);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .caption {
+    text-align: center;
+    color: var(--c4);
+    line-height: 1.8;
+  }
+  .caption h1 { font-size: 18px; letter-spacing: 1px; }
+  .caption p  { font-size: 12px; color: var(--c1); }
+
+  .palette { display: flex; gap: 8px; }
+  .swatch {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(186,158,147,.22);
+  }
+</style>
+</head>
+<body>
+
+  <div class="frame">
+    <svg viewBox="0 0 340 340" xmlns="http://www.w3.org/2000/svg">
+
+      <!-- 尾巴 -->
+      <path class="outline" d="M232 258 C280 262 292 214 268 190 C252 174 226 186 232 208" />
+
+      <!-- 身体 -->
+      <path class="outline" d="M170 132 C118 132 96 176 100 216 C104 254 132 276 170 276 C208 276 236 254 240 216 C244 176 222 132 170 132 Z" />
+
+      <!-- 前爪 -->
+      <path class="accent" d="M136 262 C136 274 146 280 156 280" />
+      <path class="accent" d="M204 262 C204 274 194 280 184 280" />
+
+      <!-- 头 -->
+      <path class="outline" d="M170 44 C118 44 88 84 88 128 C88 174 122 204 170 204 C218 204 252 174 252 128 C252 84 222 44 170 44 Z" />
+
+      <!-- 左耳 -->
+      <path class="outline" d="M104 78 L96 26 L146 56" />
+      <!-- 右耳 -->
+      <path class="outline" d="M236 78 L244 26 L194 56" />
+
+      <!-- 眼睛（闭眼微笑弧） -->
+      <path class="outline-thin" d="M128 122 C138 132 152 132 162 122" />
+      <path class="outline-thin" d="M178 122 C188 132 202 132 212 122" />
+
+      <!-- 鼻子 -->
+      <path class="outline-thin" d="M164 150 L176 150 L170 158 Z" />
+
+      <!-- 嘴巴 -->
+      <path class="outline-thin" d="M170 158 L170 166" />
+      <path class="outline-thin" d="M170 166 C162 176 152 172 148 166" />
+      <path class="outline-thin" d="M170 166 C178 176 188 172 192 166" />
+
+      <!-- 胡须 -->
+      <path class="accent" d="M118 148 L82 142" />
+      <path class="accent" d="M118 158 L82 160" />
+      <path class="accent" d="M222 148 L258 142" />
+      <path class="accent" d="M222 158 L258 160" />
+
+      <!-- 头顶小花（点缀） -->
+      <circle class="accent" cx="170" cy="30" r="7" />
+
+    </svg>
+  </div>
+
+  <div class="caption">
+    <h1>猫咪 · 纯轮廓</h1>
+    <p>奶茶色系 · 只描边不填色</p>
+  </div>
+
+  <div class="palette">
+    <div class="swatch" style="background:#cfbcb5"></div>
+    <div class="swatch" style="background:#fcfaeb"></div>
+    <div class="swatch" style="background:#ead9e1"></div>
+    <div class="swatch" style="background:#ba9e93"></div>
+  </div>
+
+</body>
+</html>
