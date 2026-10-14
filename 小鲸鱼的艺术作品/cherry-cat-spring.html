@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>樱花树下 · 一只在看花瓣的猫 🌸🐱</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #f0e6e8; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 30px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: 6px;
+    color: #6b4d55;
+    text-shadow: 0 1px 14px rgba(255,255,255,.9), 0 1px 3px rgba(255,255,255,.95);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #8c737b;
+    margin-top: 7px;
+    text-shadow: 0 1px 8px rgba(255,255,255,.95);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #9b8189;
+    opacity: .9; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(255,255,255,.95);
+  }
+  body.clean .hint { display: none; }   /* 出图用：?clean=1 去掉操作提示小字 */
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下画面 · 会落一场花瓣雨 🌸</div>
+<div class="caption">
+  <h1>樱 花 树 下</h1>
+  <p>四季 · 春 —— 一只在等花瓣的猫</p>
+</div>
+
+<script>
+if (location.search.includes('clean')) document.body.classList.add('clean');
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+
+/* ---------- 确定性随机（同一颗种子，每次都长一样） ---------- */
+let seed = 20261014;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+function rndBetween(a, b) { return a + rnd() * (b - a); }
+
+/* ---------- 小工具 ---------- */
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function tri(a, b, c, d, e, f) {
+  ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.lineTo(e, f); ctx.closePath(); ctx.fill();
+}
+
+/* ---------- 场景比例 ---------- */
+const HORIZON = H * 0.655;      // 地平线
+const GROUND_Y = H * 0.87;      // 猫坐的地方
+
+/* ================= 1. 天空 ================= */
+function sky() {
+  const g = ctx.createLinearGradient(0, 0, 0, HORIZON);
+  g.addColorStop(0.00, '#cddcea');
+  g.addColorStop(0.42, '#e6dfe6');
+  g.addColorStop(0.78, '#f4e2e0');
+  g.addColorStop(1.00, '#f8ece7');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, HORIZON + 2);
+
+  // 左上的柔光（春晨的太阳藏在雾里）
+  const s = ctx.createRadialGradient(W * 0.20, H * 0.20, 0, W * 0.20, H * 0.20, H * 0.62);
+  s.addColorStop(0, 'rgba(255,248,236,0.92)');
+  s.addColorStop(0.45, 'rgba(255,244,232,0.34)');
+  s.addColorStop(1, 'rgba(255,244,232,0)');
+  ctx.fillStyle = s;
+  ctx.fillRect(0, 0, W, HORIZON + 2);
+
+  // 几朵软软的云（用径向渐变，不要硬边椭圆）
+  for (let i = 0; i < 5; i++) {
+    const cx = rndBetween(W * 0.02, W * 0.92);
+    const cy = rndBetween(H * 0.10, H * 0.44);
+    const rx = rndBetween(W * 0.08, W * 0.17);
+    const ry = rx * rndBetween(0.24, 0.38);
+    const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    cg.addColorStop(0.00, 'rgba(255,255,255,0.50)');
+    cg.addColorStop(0.55, 'rgba(255,255,255,0.20)');
+    cg.addColorStop(1.00, 'rgba(255,255,255,0)');
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ================= 2. 远山（三层，越远越淡） ================= */
+function ridge(baseY, amp, freq, phase, color, step) {
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+  for (let x = 0; x <= 1.0001; x += step) {
+    const y = baseY
+      + Math.sin(x * freq + phase) * amp
+      + Math.sin(x * freq * 2.7 + phase * 1.7) * amp * 0.42
+      + Math.sin(x * freq * 6.1 + phase * 0.6) * amp * 0.16;
+    ctx.lineTo(x * W, y);
+  }
+  ctx.lineTo(W, baseY + H);
+  ctx.lineTo(0, baseY + H);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+function hills() {
+  // 越远越淡、越远越高（像晨雾里层层叠叠的丘陵）
+  ridge(HORIZON + H * 0.055, H * 0.060, 1.4, 0.4, 'rgba(190,206,208,0.85)', 0.004);
+  ridge(HORIZON + H * 0.039, H * 0.050, 2.2, 2.1, 'rgba(172,194,192,0.90)', 0.004);
+  ridge(HORIZON + H * 0.026, H * 0.040, 3.0, 4.3, 'rgba(158,182,172,0.95)', 0.004);
+}
+
+/* ================= 3. 草地 ================= */
+function ground() {
+  const g = ctx.createLinearGradient(0, HORIZON, 0, H);
+  g.addColorStop(0.00, '#a8bfa6');
+  g.addColorStop(0.28, '#9ab397');
+  g.addColorStop(0.62, '#8aa888');
+  g.addColorStop(1.00, '#7b9c7c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, HORIZON, W, H - HORIZON);
+
+  // 远处一层柔光，让地平线不生硬
+  const haze = ctx.createLinearGradient(0, HORIZON - 10, 0, HORIZON + H * 0.10);
+  haze.addColorStop(0, 'rgba(246,236,232,0.55)');
+  haze.addColorStop(1, 'rgba(246,236,232,0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, HORIZON - 10, W, H * 0.12);
+
+  // 草地上的光斑
+  ctx.save();
+  for (let i = 0; i < 9; i++) {
+    const x = rndBetween(0, W), y = rndBetween(HORIZON + 40, H);
+    const r = rndBetween(W * 0.06, W * 0.16);
+    const lg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    lg.addColorStop(0, 'rgba(255,250,240,0.16)');
+    lg.addColorStop(1, 'rgba(255,250,240,0)');
+    ctx.fillStyle = lg;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  ctx.restore();
+}
+
+/* 草叶：越远越小越淡 */
+function grass() {
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 420; i++) {
+    const t = Math.pow(rnd(), 0.7);                    // 0=远处 1=近处
+    const y = HORIZON + 8 + t * (H - HORIZON - 4);
+    const x = rndBetween(-20, W + 20);
+    const len = (7 + t * 32) * rndBetween(0.7, 1.25);
+    const lean = rndBetween(-0.75, 0.75);
+    ctx.strokeStyle = 'rgba(' + [110 + Math.round(t * 20), 140 + Math.round(t * 22), 112 + Math.round(t * 18)].join(',') + ',' + (0.22 + t * 0.42).toFixed(2) + ')';
+    ctx.lineWidth = 1 + t * 2.6;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + lean * len * 0.4, y - len * 0.6, x + lean * len, y - len);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* 地上的小花 & 落花瓣 */
+function groundDetails() {
+  // 小花
+  for (let i = 0; i < 34; i++) {
+    const t = Math.pow(rnd(), 0.6);
+    const y = HORIZON + 30 + t * (H - HORIZON - 40);
+    const x = rndBetween(0, W);
+    const r = 3 + t * 7;
+    const warm = rnd() < 0.5;
+    ctx.fillStyle = warm ? 'rgba(255,250,238,0.85)' : 'rgba(250,232,214,0.85)';
+    for (let k = 0; k < 5; k++) {
+      const a = k / 5 * Math.PI * 2;
+      ctx.beginPath();
+      ctx.ellipse(x + Math.cos(a) * r * 0.7, y + Math.sin(a) * r * 0.7, r * 0.5, r * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(240,205,150,0.9)';
+    ctx.beginPath(); ctx.arc(x, y, r * 0.34, 0, Math.PI * 2); ctx.fill();
+  }
+  // 落在地上的花瓣
+  for (let i = 0; i < 90; i++) {
+    const t = Math.pow(rnd(), 0.6);
+    const y = HORIZON + 16 + t * (H - HORIZON - 20);
+    const x = rndBetween(0, W);
+    const r = (5 + t * 11);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rndBetween(0, Math.PI * 2));
+    ctx.fillStyle = 'rgba(' + [250, 226, 234].join(',') + ',' + (0.35 + rnd() * 0.45).toFixed(2) + ')';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.62, r * 0.40, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ================= 4. 樱花树 ================= */
+const blossomClusters = [];
+function branch(x, y, ang, len, w, depth) {
+  const x2 = x + Math.cos(ang) * len;
+  const y2 = y + Math.sin(ang) * len;
+  const nx = Math.cos(ang + Math.PI / 2) * w / 2;
+  const ny = Math.sin(ang + Math.PI / 2) * w / 2;
+  ctx.beginPath();
+  ctx.moveTo(x + nx, y + ny);
+  ctx.lineTo(x2 + nx * 0.62, y2 + ny * 0.62);
+  ctx.lineTo(x2 - nx * 0.62, y2 - ny * 0.62);
+  ctx.lineTo(x - nx, y - ny);
+  ctx.closePath();
+  ctx.fill();
+
+  if (depth <= 0) {
+    blossomClusters.push({
+      x: x2 + rndBetween(-H * 0.020, H * 0.020),
+      y: y2 + rndBetween(-H * 0.045, H * 0.020),
+      r: rndBetween(H * 0.045, H * 0.095)
+    });
+    return;
+  }
+  const n = 2 + (rnd() < 0.4 ? 1 : 0);
+  for (let i = 0; i < n; i++) {
+    const spread = (i - (n - 1) / 2) * rndBetween(0.30, 0.46) + rndBetween(-0.10, 0.10);
+    branch(x2, y2, ang + spread, len * rndBetween(0.66, 0.76), w * 0.62, depth - 1);
+  }
+}
+
+function tree() {
+  // 树底下一小片淡淡的阴凉（别做成黑椭圆）
+  ctx.save();
+  ctx.fillStyle = 'rgba(72,92,74,0.065)';
+  ctx.beginPath();
+  ctx.ellipse(W * 0.700, H * 0.958, W * 0.115, H * 0.020, -0.05, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = '#8e7166';
+  branch(W * 0.712, H * 1.015, -Math.PI / 2 + 0.30, H * 0.225, W * 0.023, 4);
+
+  // 花团（先铺一层柔光，再叠小圆，做出蓬松感）
+  blossomClusters.forEach(c => {
+    const g = ctx.createRadialGradient(c.x, c.y - c.r * 0.3, c.r * 0.1, c.x, c.y, c.r * 1.25);
+    g.addColorStop(0.00, 'rgba(250,225,233,0.95)');
+    g.addColorStop(0.55, 'rgba(243,197,214,0.95)');
+    g.addColorStop(1.00, 'rgba(229,175,197,0.78)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r * 1.12, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  const shades = ['#f7d8e3', '#f3c6d6', '#eeadc5', '#e79cb6', '#f9e6ec', '#e59ab0', '#f1bccd'];
+  blossomClusters.forEach(c => {
+    for (let i = 0; i < 18; i++) {
+      const a = rndBetween(0, Math.PI * 2);
+      const d = Math.pow(rnd(), 0.6) * c.r * 0.95;
+      const px = c.x + Math.cos(a) * d;
+      const py = c.y + Math.sin(a) * d * 0.92;
+      const pr = rndBetween(c.r * 0.14, c.r * 0.30);
+      ctx.fillStyle = shades[Math.floor(rnd() * shades.length)];
+      ctx.globalAlpha = rndBetween(0.6, 0.98);
+      ctx.beginPath();
+      ctx.ellipse(px, py, pr, pr * 0.92, rndBetween(0, Math.PI), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // 花枝上零星的亮花瓣（让边缘不糊）
+  ctx.globalAlpha = 1;
+  blossomClusters.forEach(c => {
+    for (let i = 0; i < 4; i++) {
+      const a = rndBetween(0, Math.PI * 2);
+      const d = c.r * rndBetween(1.0, 1.25);
+      ctx.fillStyle = 'rgba(250,228,237,0.80)';
+      ctx.beginPath();
+      ctx.ellipse(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d, c.r * 0.15, c.r * 0.11, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
+/* ================= 5. 猫（主角） ================= */
+function drawCat(cx, baseY, h) {
+  const fur = '#d9a273';
+  const furDark = '#c88f5f';
+  const cream = '#f8eddf';
+  const pink = '#e6a3a6';
+  const ink = '#5f483d';
+
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.scale(h, h);          // 之后所有坐标都按「猫高 = 1」来写
+
+  // 影子
+  ctx.fillStyle = 'rgba(64,84,66,0.18)';
+  ctx.beginPath(); ctx.ellipse(-0.02, 0.012, 0.46, 0.058, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 尾巴（在身后）
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = furDark;
+  ctx.lineWidth = 0.115;
+  ctx.beginPath();
+  ctx.moveTo(-0.30, -0.22);
+  ctx.bezierCurveTo(-0.62, -0.20, -0.74, -0.46, -0.54, -0.58);
+  ctx.stroke();
+  ctx.strokeStyle = cream;          // 尾巴尖
+  ctx.lineWidth = 0.088;
+  ctx.beginPath();
+  ctx.moveTo(-0.63, -0.47);
+  ctx.bezierCurveTo(-0.64, -0.54, -0.60, -0.58, -0.54, -0.58);
+  ctx.stroke();
+
+  // 屁股 / 后腿
+  ctx.fillStyle = fur;
+  ctx.beginPath(); ctx.ellipse(-0.20, -0.27, 0.285, 0.295, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 身体
+  ctx.beginPath(); ctx.ellipse(-0.02, -0.37, 0.255, 0.335, -0.06, 0, Math.PI * 2); ctx.fill();
+
+  // 虎斑纹（淡淡的，别糊成一团）
+  ctx.strokeStyle = 'rgba(186,126,84,0.26)';
+  ctx.lineWidth = 0.040;
+  for (let i = 0; i < 2; i++) {
+    ctx.beginPath();
+    ctx.arc(-0.20 - i * 0.11, -0.44, 0.135, -Math.PI * 0.88, -Math.PI * 0.30);
+    ctx.stroke();
+  }
+
+  // 胸口浅色
+  ctx.fillStyle = cream;
+  ctx.beginPath(); ctx.ellipse(0.10, -0.40, 0.155, 0.275, -0.05, 0, Math.PI * 2); ctx.fill();
+
+  // 前腿（远→近）
+  ctx.fillStyle = furDark;
+  rrect(0.055, -0.36, 0.088, 0.365, 0.044); ctx.fill();
+  ctx.fillStyle = fur;
+  rrect(0.155, -0.36, 0.088, 0.365, 0.044); ctx.fill();
+  // 爪子
+  ctx.fillStyle = cream;
+  ctx.beginPath(); ctx.ellipse(0.099, -0.032, 0.058, 0.036, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.199, -0.032, 0.058, 0.036, 0, 0, Math.PI * 2); ctx.fill();
+
+  // ---------- 头（微微抬起，看向飘落的花瓣） ----------
+  ctx.save();
+  ctx.translate(0.10, -0.78);
+  ctx.rotate(-0.17);
+
+  // 耳朵（大一点更可爱）
+  ctx.fillStyle = fur;
+  tri(-0.215, -0.055, -0.075, -0.365, 0.045, -0.015);   // 远耳
+  tri(0.015, -0.130, 0.190, -0.360, 0.275, -0.015);     // 近耳
+  ctx.fillStyle = pink;
+  tri(-0.125, -0.105, -0.070, -0.285, -0.010, -0.075);
+  tri(0.085, -0.155, 0.180, -0.285, 0.215, -0.075);
+
+  // 头
+  ctx.fillStyle = fur;
+  ctx.beginPath(); ctx.arc(0.04, 0, 0.225, 0, Math.PI * 2); ctx.fill();
+
+  // 口鼻
+  ctx.fillStyle = cream;
+  ctx.beginPath(); ctx.ellipse(0.145, 0.062, 0.118, 0.088, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 眼睛：笑眯眯的闭眼
+  ctx.strokeStyle = ink; ctx.lineWidth = 0.019; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-0.055, 0.015); ctx.quadraticCurveTo(-0.005, -0.045, 0.045, 0.015); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0.095, 0.015); ctx.quadraticCurveTo(0.145, -0.045, 0.195, 0.015); ctx.stroke();
+  // 腮红
+  ctx.fillStyle = 'rgba(232,150,150,0.35)';
+  ctx.beginPath(); ctx.ellipse(-0.075, 0.075, 0.05, 0.032, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.19, 0.075, 0.05, 0.032, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 鼻子 + 嘴
+  ctx.fillStyle = '#d98b90';
+  ctx.beginPath(); ctx.moveTo(0.178, 0.035); ctx.lineTo(0.222, 0.035); ctx.lineTo(0.200, 0.072); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = ink; ctx.lineWidth = 0.013;
+  ctx.beginPath(); ctx.moveTo(0.200, 0.072); ctx.lineTo(0.200, 0.090); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0.176, 0.092, 0.026, 0, Math.PI * 0.85); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0.224, 0.092, 0.026, Math.PI * 0.15, Math.PI); ctx.stroke();
+
+  // 胡须
+  ctx.strokeStyle = 'rgba(95,72,61,0.45)'; ctx.lineWidth = 0.009;
+  for (let k = 0; k < 3; k++) {
+    const y0 = 0.030 + k * 0.038;
+    ctx.beginPath();
+    ctx.moveTo(0.145, y0);
+    ctx.quadraticCurveTo(0.25, y0 - 0.028 + k * 0.012, 0.345, y0 - 0.055 + k * 0.040);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+/* ================= 6. 飘落的花瓣 ================= */
+const petals = [];
+function makePetals(n) {
+  for (let i = 0; i < n; i++) {
+    const t = rnd();                                    // 0=远 1=近
+    petals.push({
+      x: rndBetween(-W * 0.05, W * 1.05),
+      y: rndBetween(-H * 0.1, H * 0.9),
+      r: (5 + t * 13),
+      t: t,
+      vy: (16 + t * 46),
+      sway: rndBetween(20, 70),
+      phase: rndBetween(0, Math.PI * 2),
+      spin: rndBetween(-0.7, 0.7),
+      rot: rndBetween(0, Math.PI * 2),
+      a: 0.45 + rnd() * 0.45
+    });
+  }
+}
+makePetals(150);
+
+function petalBurst(x, y) {
+  for (let i = 0; i < 46; i++) {
+    petals.push({
+      x: x + rndBetween(-30, 30),
+      y: y + rndBetween(-20, 20),
+      r: rndBetween(8, 22),
+      t: 1,
+      vy: rndBetween(30, 80),
+      sway: rndBetween(30, 90),
+      phase: rndBetween(0, Math.PI * 2),
+      spin: rndBetween(-1.2, 1.2),
+      rot: rndBetween(0, Math.PI * 2),
+      a: 0.5 + rnd() * 0.5
+    });
+  }
+  if (petals.length > 420) petals.splice(0, petals.length - 420);
+}
+
+function drawPetals(dt, time) {
+  ctx.save();
+  for (const p of petals) {
+    p.y += p.vy * dt;
+    p.rot += p.spin * dt;
+    if (p.y > H + 40) { p.y = -30; p.x = rndBetween(-W * 0.05, W * 1.05); }
+    const x = p.x + Math.sin(time * 0.0009 + p.phase) * p.sway * 0.5;
+    ctx.save();
+    ctx.translate(x, p.y);
+    ctx.rotate(p.rot);
+    ctx.globalAlpha = p.a * (0.55 + p.t * 0.45);
+    ctx.fillStyle = p.t > 0.55 ? '#fbe3ec' : '#f6d3e0';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, p.r * 0.62, p.r * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ================= 7. 两只小蝴蝶 ================= */
+const flies = [
+  { x: W * 0.30, y: H * 0.56, ph: 0.0, s: 1.0 },
+  { x: W * 0.58, y: H * 0.46, ph: 1.7, s: 0.78 }
+];
+function drawFlies(time) {
+  ctx.save();
+  for (const f of flies) {
+    const x = f.x + Math.sin(time * 0.0006 + f.ph) * W * 0.045;
+    const y = f.y + Math.cos(time * 0.0009 + f.ph * 2) * H * 0.030;
+    const flap = Math.abs(Math.sin(time * 0.012 + f.ph));
+    const s = H * 0.012 * f.s;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(252,236,242,0.92)';
+    ctx.beginPath(); ctx.ellipse(-s * 0.55, 0, s * 0.55, s * (0.28 + flap * 0.45), -0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s * 0.55, 0, s * 0.55, s * (0.28 + flap * 0.45), 0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(226,168,186,0.95)';
+    ctx.beginPath(); ctx.ellipse(0, 0, s * 0.14, s * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ================= 组装 & 动起来 ================= */
+let seedBackup = seed;
+function paintStatic() {
+  seed = seedBackup;               // 每次重画都用同一颗种子，草和花不会乱跳
+  ctx.clearRect(0, 0, W, H);
+  sky();
+  hills();
+  ground();
+  grass();
+  groundDetails();
+  blossomClusters.length = 0;
+  tree();
+  seedBackup = seed;               // 记下用过的种子
+  drawCat(W * 0.425, H * 0.885, H * 0.205);
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  paintStatic();
+  drawPetals(dt, now);
+  drawFlies(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+cv.addEventListener('pointerdown', e => petalBurst(e.clientX, e.clientY));
+
+window.addEventListener('resize', () => { resize(); paintStatic(); });
+</script>
+</body>
+</html>

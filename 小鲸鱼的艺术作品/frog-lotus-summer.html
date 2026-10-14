@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>荷塘边 · 一只在晒太阳的青蛙 🌞🐸</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #cfe0d8; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 30px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: 6px;
+    color: #3f5f52;
+    text-shadow: 0 1px 14px rgba(255,255,255,.85), 0 1px 3px rgba(255,255,255,.9);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #6b8a7c;
+    margin-top: 7px;
+    text-shadow: 0 1px 8px rgba(255,255,255,.9);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #5f7f71;
+    opacity: .9; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(255,255,255,.9);
+  }
+  body.clean .hint { display: none; }   /* 出图用：?clean=1 去掉操作提示小字 */
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下水面 · 会荡开一圈涟漪 🐸</div>
+<div class="caption">
+  <h1>荷 塘 边</h1>
+  <p>四季 · 夏 —— 一只在晒太阳的青蛙</p>
+</div>
+
+<script>
+if (location.search.includes('clean')) document.body.classList.add('clean');
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+
+/* ---------- 确定性随机 ---------- */
+let seed = 20261014 + 7;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+function rndBetween(a, b) { return a + rnd() * (b - a); }
+
+/* ---------- 小工具 ---------- */
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+const HORIZON = H * 0.42;      // 对岸线
+
+/* ================= 1. 天空（夏天的亮） ================= */
+function sky() {
+  const g = ctx.createLinearGradient(0, 0, 0, HORIZON);
+  g.addColorStop(0.00, '#b7d6e6');
+  g.addColorStop(0.45, '#d6e6e4');
+  g.addColorStop(0.80, '#ecf0dc');
+  g.addColorStop(1.00, '#f6f2dd');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, HORIZON + 2);
+
+  // 右上角的太阳光
+  const s = ctx.createRadialGradient(W * 0.78, H * 0.06, 0, W * 0.78, H * 0.06, H * 0.70);
+  s.addColorStop(0, 'rgba(255,252,226,0.90)');
+  s.addColorStop(0.42, 'rgba(255,250,226,0.28)');
+  s.addColorStop(1, 'rgba(255,250,226,0)');
+  ctx.fillStyle = s;
+  ctx.fillRect(0, 0, W, HORIZON + 2);
+
+  // 几朵软云
+  for (let i = 0; i < 5; i++) {
+    const cx = rndBetween(W * 0.02, W * 0.95);
+    const cy = rndBetween(H * 0.04, H * 0.30);
+    const rx = rndBetween(W * 0.07, W * 0.15);
+    const ry = rx * rndBetween(0.26, 0.40);
+    const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    cg.addColorStop(0.00, 'rgba(255,255,255,0.72)');
+    cg.addColorStop(0.55, 'rgba(255,255,255,0.30)');
+    cg.addColorStop(1.00, 'rgba(255,255,255,0)');
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ================= 2. 对岸（树丛 + 芦苇线） ================= */
+function farBank() {
+  // 对岸：波浪形的顶边，一层比一层深（不是一条硬黑边）
+  const bands = [
+    { top: HORIZON - H * 0.032, amp: H * 0.020, freq: 1.8, ph: 0.6, c: 'rgba(166,192,164,0.85)' },
+    { top: HORIZON - H * 0.020, amp: H * 0.015, freq: 3.0, ph: 2.4, c: 'rgba(138,172,140,0.90)' },
+    { top: HORIZON - H * 0.009, amp: H * 0.011, freq: 4.6, ph: 4.1, c: 'rgba(114,152,120,0.95)' }
+  ];
+  bands.forEach(b => {
+    ctx.beginPath();
+    ctx.moveTo(0, b.top);
+    for (let x = 0; x <= 1.0001; x += 0.004) {
+      const y = b.top
+        + Math.sin(x * b.freq + b.ph) * b.amp
+        + Math.sin(x * b.freq * 2.7 + b.ph * 1.7) * b.amp * 0.45;
+      ctx.lineTo(x * W, y);
+    }
+    ctx.lineTo(W, HORIZON + H * 0.06);
+    ctx.lineTo(0, HORIZON + H * 0.06);
+    ctx.closePath();
+    ctx.fillStyle = b.c;
+    ctx.fill();
+  });
+
+  // 岸上几丛灌木
+  for (let i = 0; i < 18; i++) {
+    const x = rndBetween(W * 0.02, W * 0.98);
+    const y = HORIZON - rndBetween(H * 0.003, H * 0.014);
+    const r = rndBetween(H * 0.009, H * 0.024);
+    ctx.fillStyle = 'rgba(100,138,108,' + rndBetween(0.55, 0.85).toFixed(2) + ')';
+    ctx.beginPath(); ctx.ellipse(x, y, r * 1.30, r * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // 岸边的芦苇影子（细细的一排，浅浅的）
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 150; i++) {
+    const x = rndBetween(0, W);
+    const h = rndBetween(H * 0.008, H * 0.026);
+    ctx.strokeStyle = 'rgba(96,132,104,' + rndBetween(0.14, 0.34).toFixed(2) + ')';
+    ctx.lineWidth = rndBetween(1.2, 2.6);
+    ctx.beginPath();
+    ctx.moveTo(x, HORIZON + 2);
+    ctx.quadraticCurveTo(x + rndBetween(-3, 3), HORIZON + 2 - h * 0.6, x + rndBetween(-7, 7), HORIZON + 2 - h);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ================= 3. 水面 ================= */
+function water() {
+  const g = ctx.createLinearGradient(0, HORIZON, 0, H);
+  g.addColorStop(0.00, '#c3d9c6');
+  g.addColorStop(0.16, '#aac9bc');
+  g.addColorStop(0.45, '#93b9b0');
+  g.addColorStop(0.75, '#82aba6');
+  g.addColorStop(1.00, '#74a09d');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, HORIZON, W, H - HORIZON);
+
+  // 对岸在水里的倒影
+  const ref = ctx.createLinearGradient(0, HORIZON, 0, HORIZON + H * 0.16);
+  ref.addColorStop(0, 'rgba(120,156,126,0.42)');
+  ref.addColorStop(1, 'rgba(120,156,126,0)');
+  ctx.fillStyle = ref;
+  ctx.fillRect(0, HORIZON, W, H * 0.16);
+}
+
+/* 水面的横向光纹（会慢慢晃） */
+function waterLines(time) {
+  ctx.save();
+  for (let i = 0; i < 80; i++) {
+    const t = Math.pow(rnd(), 0.65);
+    const y = HORIZON + 10 + t * (H - HORIZON - 20);
+    const w = (40 + t * 320) * rndBetween(0.6, 1.5);
+    const x = rndBetween(-60, W) + Math.sin(time * 0.0004 + i) * 14;
+    ctx.strokeStyle = 'rgba(240,250,238,' + (0.04 + t * 0.13).toFixed(3) + ')';
+    ctx.lineWidth = 1.2 + t * 3.0;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + w * 0.5, y + (t * 2), x + w, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ================= 4. 荷叶 ================= */
+/* 一片荷叶：圆盘 + 一个缺口 + 浅色叶脉 */
+function lilyPad(x, y, r, sq, rot, deep) {
+  const light = deep ? '#8fbb6d' : '#a6c98a';
+  const dark = deep ? '#6d9a55' : '#86ae6d';
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+
+  // 水面上的暗影
+  ctx.fillStyle = 'rgba(60,92,84,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * sq * 0.10, r * 1.03, r * sq * 1.05, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 叶盘（留个缺口）
+  const a0 = -Math.PI * 0.10, a1 = Math.PI * 1.90;
+  const g = ctx.createRadialGradient(-r * 0.15, -r * sq * 0.20, r * 0.05, 0, 0, r * 1.05);
+  g.addColorStop(0.00, light);
+  g.addColorStop(0.70, light);
+  g.addColorStop(1.00, dark);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.ellipse(0, 0, r, r * sq, 0, a0, a1);
+  ctx.closePath();
+  ctx.fill();
+
+  // 边缘一圈深色
+  ctx.strokeStyle = 'rgba(78,116,64,0.45)';
+  ctx.lineWidth = Math.max(1.5, r * 0.012);
+  ctx.stroke();
+
+  // 叶脉
+  ctx.strokeStyle = 'rgba(240,248,220,0.30)';
+  ctx.lineWidth = Math.max(1, r * 0.010);
+  for (let i = 0; i < 9; i++) {
+    const a = a0 + (a1 - a0) * (i + 0.5) / 9;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r * 0.16, Math.sin(a) * r * sq * 0.16);
+    ctx.lineTo(Math.cos(a) * r * 0.92, Math.sin(a) * r * sq * 0.92);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ================= 5. 荷花 ================= */
+function lotusFlower(x, y, s, bloom) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // 花瓣：外圈深、内圈浅
+  const layers = bloom
+    ? [{ n: 7, r: s * 1.00, w: s * 0.44, c: '#eda6c0' },
+       { n: 6, r: s * 0.72, w: s * 0.40, c: '#f5c3d6' },
+       { n: 5, r: s * 0.46, w: s * 0.34, c: '#fbe2ea' }]
+    : [{ n: 6, r: s * 0.64, w: s * 0.34, c: '#eaa2bd' },
+       { n: 4, r: s * 0.46, w: s * 0.30, c: '#f4c4d6' }];
+
+  layers.forEach((L, li) => {
+    for (let i = 0; i < L.n; i++) {
+      const a = -Math.PI / 2 + (i - (L.n - 1) / 2) * (bloom ? 0.60 : 0.34) + li * 0.14;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillStyle = L.c;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(L.w * 1.15, -L.r * 0.28, L.w * 0.80, -L.r * 0.88, 0, -L.r);
+      ctx.bezierCurveTo(-L.w * 0.80, -L.r * 0.88, -L.w * 1.15, -L.r * 0.28, 0, 0);
+      ctx.closePath();
+      ctx.fill();
+      if (li === 0) {
+        ctx.strokeStyle = 'rgba(212,136,168,0.30)';
+        ctx.lineWidth = s * 0.018;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  });
+
+  // 花心
+  ctx.fillStyle = '#f3d98a';
+  ctx.beginPath(); ctx.arc(0, -s * 0.10, s * 0.17, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e7c46a';
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * s * 0.07, -s * 0.10 + Math.sin(a) * s * 0.07, s * 0.035, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function lotusStem(x, yTop, yBottom) {
+  ctx.strokeStyle = '#7fa662';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x, yTop);
+  ctx.quadraticCurveTo(x + 8, (yTop + yBottom) / 2, x, yBottom);
+  ctx.stroke();
+  // 茎上的小刺
+  ctx.fillStyle = 'rgba(96,132,74,0.5)';
+  for (let t = 0.15; t < 0.95; t += 0.12) {
+    const yy = yTop + (yBottom - yTop) * t;
+    ctx.beginPath(); ctx.arc(x + (t < 0.5 ? 4 : -4), yy, 2.4, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/* ================= 6. 青蛙（主角） ================= */
+function drawFrog(cx, baseY, h) {
+  const green = '#93c06b';
+  const greenDark = '#7dab58';
+  const belly = '#eef3d2';
+  const ink = '#43583c';
+
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.scale(h, h);          // 之后都按「青蛙高 = 1」来写
+
+  // 荷叶上的影子
+  ctx.fillStyle = 'rgba(48,80,58,0.20)';
+  ctx.beginPath(); ctx.ellipse(0, 0.006, 0.40, 0.052, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 后腿（鼓鼓的，在身体两边）
+  ctx.fillStyle = greenDark;
+  ctx.beginPath(); ctx.ellipse(-0.33, -0.185, 0.185, 0.195, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.33, -0.185, 0.185, 0.195, 0, 0, Math.PI * 2); ctx.fill();
+  // 后脚蹼
+  ctx.fillStyle = green;
+  ctx.beginPath(); ctx.ellipse(-0.42, -0.030, 0.115, 0.048, -0.10, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.42, -0.030, 0.115, 0.048, 0.10, 0, Math.PI * 2); ctx.fill();
+
+  // 身体
+  const bg = ctx.createRadialGradient(-0.10, -0.48, 0.05, 0, -0.30, 0.55);
+  bg.addColorStop(0.00, '#a9cf7d');
+  bg.addColorStop(0.60, green);
+  bg.addColorStop(1.00, greenDark);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -0.30, 0.345, 0.315, 0, 0, Math.PI * 2); ctx.fill();
+  // 头
+  ctx.beginPath(); ctx.ellipse(0, -0.585, 0.335, 0.255, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 肚皮
+  ctx.fillStyle = belly;
+  ctx.beginPath(); ctx.ellipse(0, -0.215, 0.195, 0.165, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 背上的斑点
+  ctx.fillStyle = 'rgba(88,126,66,0.42)';
+  [[-0.10, -0.700, 0.030], [0.12, -0.680, 0.026], [-0.24, -0.360, 0.034], [0.26, -0.335, 0.030]]
+    .forEach(([sx, sy, sr]) => {
+      ctx.beginPath(); ctx.ellipse(sx, sy, sr, sr * 0.78, 0.4, 0, Math.PI * 2); ctx.fill();
+    });
+
+  // 眼睛（鼓在头顶）
+  ctx.fillStyle = green;
+  ctx.beginPath(); ctx.arc(-0.190, -0.795, 0.140, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.190, -0.795, 0.140, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fdfaf0';
+  ctx.beginPath(); ctx.arc(-0.186, -0.790, 0.107, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.186, -0.790, 0.107, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3d4c38';
+  ctx.beginPath(); ctx.ellipse(-0.178, -0.778, 0.062, 0.076, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.194, -0.778, 0.062, 0.076, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.beginPath(); ctx.arc(-0.205, -0.815, 0.030, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.167, -0.815, 0.030, 0, Math.PI * 2); ctx.fill();
+
+  // 鼻孔 + 笑嘴
+  ctx.fillStyle = 'rgba(67,88,60,0.75)';
+  ctx.beginPath(); ctx.arc(-0.048, -0.655, 0.014, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.048, -0.655, 0.014, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = 0.024;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-0.205, -0.548);
+  ctx.quadraticCurveTo(0, -0.442, 0.205, -0.548);
+  ctx.stroke();
+
+  // 腮红
+  ctx.fillStyle = 'rgba(232,150,150,0.32)';
+  ctx.beginPath(); ctx.ellipse(-0.278, -0.600, 0.058, 0.036, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.278, -0.600, 0.058, 0.036, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 前腿 + 手指
+  ctx.fillStyle = greenDark;
+  rrect(-0.190, -0.300, 0.098, 0.290, 0.049); ctx.fill();
+  rrect(0.092, -0.300, 0.098, 0.290, 0.049); ctx.fill();
+  ctx.fillStyle = green;
+  ctx.beginPath(); ctx.ellipse(-0.141, -0.030, 0.075, 0.045, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.141, -0.030, 0.075, 0.045, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(120,168,88,0.9)';
+  [-0.055, 0, 0.055].forEach(dx => {
+    ctx.beginPath(); ctx.arc(-0.141 + dx, -0.052, 0.020, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0.141 + dx, -0.052, 0.020, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // 头顶的一点点高光（湿漉漉的感觉）
+  const hl = ctx.createRadialGradient(-0.11, -0.72, 0, -0.11, -0.72, 0.20);
+  hl.addColorStop(0, 'rgba(255,255,255,0.30)');
+  hl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hl;
+  ctx.beginPath(); ctx.arc(-0.11, -0.72, 0.20, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+/* ================= 7. 蜻蜓 ================= */
+function drawDragonfly(x, y, s, time, ph) {
+  const flap = Math.sin(time * 0.030 + ph);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.sin(time * 0.0009 + ph) * 0.12);
+
+  // 四片细长的翅膀（半透明）
+  ctx.fillStyle = 'rgba(255,255,255,0.30)';
+  ctx.strokeStyle = 'rgba(150,190,190,0.45)';
+  ctx.lineWidth = Math.max(1, s * 0.035);
+  const wings = [
+    [-1, -0.30, 0.95, 0.16], [1, -0.30, 0.95, 0.16],
+    [-1, 0.10, 0.82, 0.14], [1, 0.10, 0.82, 0.14]
+  ];
+  wings.forEach(([dir, oy, len, thick], i) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(dir * s * len * 0.62, s * oy + flap * s * 0.07, s * len * 0.62, s * thick, dir * 0.22, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  });
+
+  // 细长的肚子 + 胸 + 头
+  ctx.fillStyle = '#6f9aa2';
+  ctx.beginPath(); ctx.ellipse(0, s * 0.72, s * 0.115, s * 0.78, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#82aeb5';
+  ctx.beginPath(); ctx.ellipse(0, s * 0.10, s * 0.19, s * 0.30, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8fbcc2';
+  ctx.beginPath(); ctx.arc(0, -s * 0.34, s * 0.22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3f5c63';
+  ctx.beginPath(); ctx.arc(-s * 0.09, -s * 0.40, s * 0.055, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s * 0.09, -s * 0.40, s * 0.055, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+/* ================= 8. 涟漪 / 气泡 / 闪光 ================= */
+const rings = [];
+function addRing(x, y) {
+  rings.push({ x, y, r: 8, max: rndBetween(H * 0.16, H * 0.26), a: 0.55, grow: rndBetween(150, 230) });
+  if (rings.length > 26) rings.shift();
+  for (let i = 0; i < 10; i++) {
+    bubbles.push({
+      x: x + rndBetween(-40, 40), y: y + rndBetween(-10, 10),
+      r: rndBetween(4, 12), vy: rndBetween(-34, -14), life: 1
+    });
+  }
+}
+function drawRings(dt) {
+  ctx.save();
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const g = rings[i];
+    g.r += g.grow * dt;
+    g.a *= 0.985;
+    if (g.r > g.max || g.a < 0.02) { rings.splice(i, 1); continue; }
+    ctx.strokeStyle = 'rgba(246,252,240,' + g.a.toFixed(3) + ')';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.ellipse(g.x, g.y, g.r, g.r * 0.30, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(246,252,240,' + (g.a * 0.5).toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.ellipse(g.x, g.y, g.r * 0.72, g.r * 0.21, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+const bubbles = [];
+function drawBubbles(dt) {
+  ctx.save();
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i];
+    b.y += b.vy * dt;
+    b.life -= dt * 0.5;
+    if (b.life <= 0) { bubbles.splice(i, 1); continue; }
+    ctx.fillStyle = 'rgba(250,255,248,' + (0.5 * b.life).toFixed(2) + ')';
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.8 * b.life).toFixed(2) + ')';
+    ctx.beginPath(); ctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+const sparks = [];
+function makeSparks() {
+  for (let i = 0; i < 46; i++) {
+    const t = Math.pow(rnd(), 0.6);
+    sparks.push({
+      x: rndBetween(0, W),
+      y: HORIZON + 20 + t * (H - HORIZON - 30),
+      r: 2 + t * 6,
+      ph: rndBetween(0, Math.PI * 2)
+    });
+  }
+}
+function drawSparks(time) {
+  ctx.save();
+  for (const s of sparks) {
+    const a = 0.14 + 0.34 * Math.max(0, Math.sin(time * 0.0016 + s.ph));
+    ctx.fillStyle = 'rgba(255,253,235,' + a.toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y, s.r * 1.9, s.r * 0.58, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ================= 9. 前景芦苇 ================= */
+function reeds() {
+  const stalks = [
+    { x: W * 0.045, top: H * 0.30, lean: 0.10, w: 9 },
+    { x: W * 0.085, top: H * 0.42, lean: -0.06, w: 7 },
+    { x: W * 0.020, top: H * 0.48, lean: 0.16, w: 8 },
+    { x: W * 0.965, top: H * 0.34, lean: -0.12, w: 9 },
+    { x: W * 0.925, top: H * 0.46, lean: 0.07, w: 7 }
+  ];
+  ctx.save();
+  ctx.lineCap = 'round';
+  stalks.forEach(s => {
+    ctx.strokeStyle = '#5f8a52';
+    ctx.lineWidth = s.w;
+    ctx.beginPath();
+    ctx.moveTo(s.x, H * 1.02);
+    ctx.quadraticCurveTo(s.x + s.lean * 90, (s.top + H) / 2, s.x + s.lean * 200, s.top);
+    ctx.stroke();
+    // 叶子
+    for (let i = 1; i <= 3; i++) {
+      const t = i / 4;
+      const yy = H * 1.02 + (s.top - H * 1.02) * t;
+      const xx = s.x + s.lean * 200 * t * t;
+      const dir = i % 2 ? 1 : -1;
+      ctx.strokeStyle = 'rgba(96,138,82,0.9)';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(xx, yy);
+      ctx.quadraticCurveTo(xx + dir * 60, yy - 30, xx + dir * 130, yy - 10);
+      ctx.stroke();
+    }
+  });
+  ctx.restore();
+}
+
+/* 漂在水面上的落花瓣 */
+function floatingPetals() {
+  const spots = [
+    { x: W * 0.645, y: H * 0.795, r: H * 0.020, rot: 0.6 },
+    { x: W * 0.760, y: H * 0.830, r: H * 0.016, rot: 2.1 },
+    { x: W * 0.845, y: H * 0.790, r: H * 0.013, rot: 1.0 },
+    { x: W * 0.590, y: H * 0.880, r: H * 0.018, rot: 3.0 },
+    { x: W * 0.690, y: H * 0.730, r: H * 0.012, rot: 4.2 }
+  ];
+  ctx.save();
+  spots.forEach(s => {
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.rot);
+    // 水里的影子
+    ctx.fillStyle = 'rgba(70,102,94,0.14)';
+    ctx.beginPath(); ctx.ellipse(0, s.r * 0.35, s.r * 0.95, s.r * 0.40, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f3c3d4';
+    ctx.beginPath(); ctx.ellipse(0, 0, s.r * 0.80, s.r * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(253,236,242,0.85)';
+    ctx.beginPath(); ctx.ellipse(-s.r * 0.20, -s.r * 0.06, s.r * 0.32, s.r * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+/* ================= 组装 ================= */
+let seedBackup = seed;
+let pads = [];
+function layoutPads() {
+  pads = [
+    // 远处的小叶子
+    { x: W * 0.10, y: H * 0.50, r: W * 0.026, sq: 0.34, rot: 0.4, deep: false },
+    { x: W * 0.27, y: H * 0.47, r: W * 0.020, sq: 0.34, rot: 1.9, deep: false },
+    { x: W * 0.44, y: H * 0.52, r: W * 0.030, sq: 0.34, rot: 2.6, deep: false },
+    { x: W * 0.62, y: H * 0.49, r: W * 0.022, sq: 0.34, rot: 0.9, deep: false },
+    { x: W * 0.86, y: H * 0.53, r: W * 0.028, sq: 0.34, rot: 4.0, deep: false },
+    // 中景
+    { x: W * 0.20, y: H * 0.63, r: W * 0.062, sq: 0.34, rot: 1.2, deep: true },
+    { x: W * 0.58, y: H * 0.60, r: W * 0.055, sq: 0.34, rot: 3.1, deep: true },
+    { x: W * 0.82, y: H * 0.66, r: W * 0.070, sq: 0.34, rot: 2.2, deep: true },
+    { x: W * 0.05, y: H * 0.72, r: W * 0.075, sq: 0.34, rot: 0.5, deep: true },
+    // 前景大叶子（青蛙就坐这片上）
+    { x: W * 0.335, y: H * 0.845, r: W * 0.155, sq: 0.33, rot: 0.35, deep: true, frog: true },
+    { x: W * 0.795, y: H * 0.925, r: W * 0.130, sq: 0.32, rot: 2.4, deep: true }
+  ];
+}
+
+function paintStatic() {
+  seed = seedBackup;
+  ctx.clearRect(0, 0, W, H);
+  sky();
+  farBank();
+  water();
+  waterLines(0);
+  // 远/中景荷叶
+  pads.filter(p => !p.frog).forEach(p => lilyPad(p.x, p.y, p.r, p.sq, p.rot, p.deep));
+  // 荷花（长在右边那片大叶子旁边）
+  lotusStem(W * 0.70, H * 0.66, H * 0.88);
+  lotusFlower(W * 0.70, H * 0.66, H * 0.075, true);
+  lotusStem(W * 0.905, H * 0.700, H * 0.865);
+  lotusFlower(W * 0.905, H * 0.700, H * 0.048, false);
+  floatingPetals();
+  // 青蛙的叶子
+  const fp = pads.find(p => p.frog);
+  lilyPad(fp.x, fp.y, fp.r, fp.sq, fp.rot, true);
+  // 主角
+  drawFrog(W * 0.335, H * 0.800, H * 0.235);
+  reeds();
+  seedBackup = seed;
+}
+
+makeSparks();
+layoutPads();
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  paintStatic();
+  drawSparks(now);
+  drawRings(dt);
+  drawBubbles(dt);
+  // 蜻蜓：绕着荷塘飞
+  const dx = W * 0.55 + Math.sin(now * 0.00042) * W * 0.16;
+  const dy = H * 0.500 + Math.cos(now * 0.00061) * H * 0.070;
+  drawDragonfly(dx, dy, H * 0.030, now, 0.0);
+  const dx2 = W * 0.28 + Math.sin(now * 0.00033 + 2.1) * W * 0.13;
+  const dy2 = H * 0.435 + Math.cos(now * 0.00050 + 1.2) * H * 0.055;
+  drawDragonfly(dx2, dy2, H * 0.020, now, 1.6);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+cv.addEventListener('pointerdown', e => addRing(e.clientX, e.clientY));
+
+window.addEventListener('resize', () => { resize(); layoutPads(); makeSparks(); });
+</script>
+</body>
+</html>
