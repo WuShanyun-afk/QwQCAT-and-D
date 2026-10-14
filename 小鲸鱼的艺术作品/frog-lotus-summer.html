@@ -190,12 +190,12 @@ function water() {
 /* 水面的横向光纹（会慢慢晃） */
 function waterLines(time) {
   ctx.save();
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 60; i++) {                       // 原来 80 条
     const t = Math.pow(rnd(), 0.65);
     const y = HORIZON + 10 + t * (H - HORIZON - 20);
     const w = (40 + t * 320) * rndBetween(0.6, 1.5);
-    const x = rndBetween(-60, W) + Math.sin(time * 0.0004 + i) * 14;
-    ctx.strokeStyle = 'rgba(240,250,238,' + (0.04 + t * 0.13).toFixed(3) + ')';
+    const x = rndBetween(-60, W) + Math.sin(time * 0.0004 + i) * 5;   // 原来晃 ±14，水面在抖
+    ctx.strokeStyle = 'rgba(240,250,238,' + (0.03 + t * 0.09).toFixed(3) + ')';
     ctx.lineWidth = 1.2 + t * 3.0;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -417,7 +417,7 @@ function drawFrog(cx, baseY, h) {
 
 /* ================= 7. 蜻蜓 ================= */
 function drawDragonfly(x, y, s, time, ph) {
-  const flap = Math.sin(time * 0.030 + ph);
+  const flap = Math.sin(time * 0.006 + ph);        // 原来 0.030：一秒扇近 5 下，晃眼元凶
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(Math.sin(time * 0.0009 + ph) * 0.12);
@@ -433,7 +433,7 @@ function drawDragonfly(x, y, s, time, ph) {
   wings.forEach(([dir, oy, len, thick], i) => {
     ctx.save();
     ctx.beginPath();
-    ctx.ellipse(dir * s * len * 0.62, s * oy + flap * s * 0.07, s * len * 0.62, s * thick, dir * 0.22, 0, Math.PI * 2);
+    ctx.ellipse(dir * s * len * 0.62, s * oy + flap * s * 0.035, s * len * 0.62, s * thick, dir * 0.22, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
     ctx.restore();
   });
@@ -501,12 +501,12 @@ function drawBubbles(dt) {
 
 const sparks = [];
 function makeSparks() {
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < 20; i++) {                       // 原来 46 颗，闪成迪厅
     const t = Math.pow(rnd(), 0.6);
     sparks.push({
       x: rndBetween(0, W),
       y: HORIZON + 20 + t * (H - HORIZON - 30),
-      r: 2 + t * 6,
+      r: 1.8 + t * 4.5,                                // 原来 2+t*6
       ph: rndBetween(0, Math.PI * 2)
     });
   }
@@ -514,7 +514,7 @@ function makeSparks() {
 function drawSparks(time) {
   ctx.save();
   for (const s of sparks) {
-    const a = 0.14 + 0.34 * Math.max(0, Math.sin(time * 0.0016 + s.ph));
+    const a = 0.06 + 0.16 * Math.max(0, Math.sin(time * 0.0006 + s.ph));   // 原来 0.14~0.48，太亮；频率再放慢
     ctx.fillStyle = 'rgba(255,253,235,' + a.toFixed(3) + ')';
     ctx.beginPath();
     ctx.ellipse(s.x, s.y, s.r * 1.9, s.r * 0.58, 0, 0, Math.PI * 2);
@@ -585,7 +585,11 @@ function floatingPetals() {
 }
 
 /* ================= 组装 ================= */
-let seedBackup = seed;
+/* ⚠️ 2026-10-14 晚 修 bug：和「樱花树下的猫」同一个毛病 ——
+   原来把「画完之后的种子」记下来当下一帧的起点，种子会一帧帧漂走，
+   对岸、荷叶、水纹就会每帧重新随机一遍（在闪）。
+   现在改成固定常量种子，静态场景纹丝不动。 */
+const SCENE_SEED = 20261014 + 7;
 let pads = [];
 function layoutPads() {
   pads = [
@@ -607,7 +611,7 @@ function layoutPads() {
 }
 
 function paintStatic() {
-  seed = seedBackup;
+  seed = SCENE_SEED;               // 固定种子：对岸、荷叶、水纹绝不会每帧乱跳
   ctx.clearRect(0, 0, W, H);
   sky();
   farBank();
@@ -627,7 +631,6 @@ function paintStatic() {
   // 主角
   drawFrog(W * 0.335, H * 0.800, H * 0.235);
   reeds();
-  seedBackup = seed;
 }
 
 makeSparks();
@@ -641,12 +644,12 @@ function frame(now) {
   drawSparks(now);
   drawRings(dt);
   drawBubbles(dt);
-  // 蜻蜓：绕着荷塘飞
-  const dx = W * 0.55 + Math.sin(now * 0.00042) * W * 0.16;
-  const dy = H * 0.500 + Math.cos(now * 0.00061) * H * 0.070;
+  // 蜻蜓：绕着荷塘飞（2026-10-14 晚调慢约 40%，原来飘得有点急）
+  const dx = W * 0.55 + Math.sin(now * 0.00026) * W * 0.16;
+  const dy = H * 0.500 + Math.cos(now * 0.00036) * H * 0.070;
   drawDragonfly(dx, dy, H * 0.030, now, 0.0);
-  const dx2 = W * 0.28 + Math.sin(now * 0.00033 + 2.1) * W * 0.13;
-  const dy2 = H * 0.435 + Math.cos(now * 0.00050 + 1.2) * H * 0.055;
+  const dx2 = W * 0.28 + Math.sin(now * 0.00020 + 2.1) * W * 0.13;
+  const dy2 = H * 0.435 + Math.cos(now * 0.00030 + 1.2) * H * 0.055;
   drawDragonfly(dx2, dy2, H * 0.020, now, 1.6);
   requestAnimationFrame(frame);
 }

@@ -441,35 +441,36 @@ function makePetals(n) {
     petals.push({
       x: rndBetween(-W * 0.05, W * 1.05),
       y: rndBetween(-H * 0.1, H * 0.9),
-      r: (5 + t * 13),
+      r: (5 + t * 11),
       t: t,
-      vy: (16 + t * 46),
-      sway: rndBetween(20, 70),
+      vy: (11 + t * 24),                                // 原来 16+t*46，落太快
+      sway: rndBetween(16, 46),                         // 原来 20~70，横向晃得太开
       phase: rndBetween(0, Math.PI * 2),
-      spin: rndBetween(-0.7, 0.7),
+      spin: rndBetween(-0.18, 0.18),                    // 原来 ±0.7，自转快得像风扇
       rot: rndBetween(0, Math.PI * 2),
-      a: 0.45 + rnd() * 0.45
+      a: 0.36 + rnd() * 0.30                            // 原来 0.45~0.90，太亮
     });
   }
 }
-makePetals(150);
+makePetals(95);   // 原来 150 片，满屏都在转，改稀一点
 
 function petalBurst(x, y) {
-  for (let i = 0; i < 46; i++) {
+  // 点一下的「花瓣雨」也收一收：少一点、小一点、慢一点、淡一点
+  for (let i = 0; i < 30; i++) {
     petals.push({
-      x: x + rndBetween(-30, 30),
-      y: y + rndBetween(-20, 20),
-      r: rndBetween(8, 22),
+      x: x + rndBetween(-26, 26),
+      y: y + rndBetween(-16, 16),
+      r: rndBetween(7, 16),
       t: 1,
-      vy: rndBetween(30, 80),
-      sway: rndBetween(30, 90),
+      vy: rndBetween(18, 44),
+      sway: rndBetween(18, 48),
       phase: rndBetween(0, Math.PI * 2),
-      spin: rndBetween(-1.2, 1.2),
+      spin: rndBetween(-0.30, 0.30),
       rot: rndBetween(0, Math.PI * 2),
-      a: 0.5 + rnd() * 0.5
+      a: 0.38 + rnd() * 0.30
     });
   }
-  if (petals.length > 420) petals.splice(0, petals.length - 420);
+  if (petals.length > 280) petals.splice(0, petals.length - 280);
 }
 
 function drawPetals(dt, time) {
@@ -478,11 +479,11 @@ function drawPetals(dt, time) {
     p.y += p.vy * dt;
     p.rot += p.spin * dt;
     if (p.y > H + 40) { p.y = -30; p.x = rndBetween(-W * 0.05, W * 1.05); }
-    const x = p.x + Math.sin(time * 0.0009 + p.phase) * p.sway * 0.5;
+    const x = p.x + Math.sin(time * 0.0007 + p.phase) * p.sway * 0.45;
     ctx.save();
     ctx.translate(x, p.y);
     ctx.rotate(p.rot);
-    ctx.globalAlpha = p.a * (0.55 + p.t * 0.45);
+    ctx.globalAlpha = p.a * (0.45 + p.t * 0.40);
     ctx.fillStyle = p.t > 0.55 ? '#fbe3ec' : '#f6d3e0';
     ctx.beginPath();
     ctx.ellipse(0, 0, p.r * 0.62, p.r * 0.42, 0, 0, Math.PI * 2);
@@ -502,13 +503,13 @@ function drawFlies(time) {
   for (const f of flies) {
     const x = f.x + Math.sin(time * 0.0006 + f.ph) * W * 0.045;
     const y = f.y + Math.cos(time * 0.0009 + f.ph * 2) * H * 0.030;
-    const flap = Math.abs(Math.sin(time * 0.012 + f.ph));
+    const flap = Math.abs(Math.sin(time * 0.006 + f.ph));   // 原来 0.012：一秒扇两下，像在抖
     const s = H * 0.012 * f.s;
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = 'rgba(252,236,242,0.92)';
-    ctx.beginPath(); ctx.ellipse(-s * 0.55, 0, s * 0.55, s * (0.28 + flap * 0.45), -0.35, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(s * 0.55, 0, s * 0.55, s * (0.28 + flap * 0.45), 0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-s * 0.55, 0, s * 0.55, s * (0.30 + flap * 0.22), -0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s * 0.55, 0, s * 0.55, s * (0.30 + flap * 0.22), 0.35, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(226,168,186,0.95)';
     ctx.beginPath(); ctx.ellipse(0, 0, s * 0.14, s * 0.42, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
@@ -517,9 +518,15 @@ function drawFlies(time) {
 }
 
 /* ================= 组装 & 动起来 ================= */
-let seedBackup = seed;
+/* ⚠️ 2026-10-14 晚 修 bug：原来写的是
+     let seedBackup = seed;  ...  seed = seedBackup;  ...  seedBackup = seed;
+   看着挺合理，但树的分枝是「递归 + 概率决定长几根」的，
+   每一帧消耗掉的随机数个数并不一样 → seedBackup 一帧一帧地漂走，
+   于是云、草、光斑、整棵树冠每一帧都重新随机一遍，整幅画在闪。
+   现在改成「固定常量种子」：每帧都从同一个数开始画，场景绝对纹丝不动。 */
+const SCENE_SEED = 20261014;
 function paintStatic() {
-  seed = seedBackup;               // 每次重画都用同一颗种子，草和花不会乱跳
+  seed = SCENE_SEED;               // 固定种子：草、云、树、光斑绝不会乱跳
   ctx.clearRect(0, 0, W, H);
   sky();
   hills();
@@ -528,7 +535,6 @@ function paintStatic() {
   groundDetails();
   blossomClusters.length = 0;
   tree();
-  seedBackup = seed;               // 记下用过的种子
   drawCat(W * 0.425, H * 0.885, H * 0.205);
 }
 
