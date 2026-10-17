@@ -1,0 +1,684 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>银杏道上 · 一只背着白果的刺猬 🍂🦔</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #e9dcc2; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 30px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: 6px;
+    color: #5f4a30;
+    text-shadow: 0 1px 14px rgba(255,250,240,.92), 0 1px 3px rgba(255,250,240,.95);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #866b48;
+    margin-top: 7px;
+    text-shadow: 0 1px 8px rgba(255,250,240,.95);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #866b48;
+    opacity: .9; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(255,250,240,.95);
+  }
+  body.clean .hint { display: none; }   /* 出图用：?clean=1 去掉操作提示小字 */
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下画面 · 会落一场银杏雨 🍂</div>
+<div class="caption">
+  <h1>银 杏 道</h1>
+  <p>四季 · 秋 —— 一只背着白果的刺猬</p>
+</div>
+
+<script>
+if (location.search.includes('clean')) document.body.classList.add('clean');
+
+const cv = document.getElementById('cv');
+let ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+
+/* ---------- 确定性随机（固定种子） ---------- */
+const SCENE_SEED = 20261014 + 21;
+let seed = SCENE_SEED;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+function rndBetween(a, b) { return a + rnd() * (b - a); }
+function pick(arr) { return arr[Math.min(arr.length - 1, Math.floor(rnd() * arr.length))]; }
+
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* 银杏叶：一把小扇子，外缘中间有缺口，下面一根细柄 */
+function ginkgoLeaf(x, y, r, rot, color, alpha) {
+  const a0 = -Math.PI * 0.86, a1 = -Math.PI * 0.14;
+  const p0x = Math.cos(a0) * r, p0y = Math.sin(a0) * r;
+  const p1x = Math.cos(a1) * r, p1y = Math.sin(a1) * r;
+  const c0x = Math.cos(-Math.PI * 0.70) * r * 1.06, c0y = Math.sin(-Math.PI * 0.70) * r * 1.06;
+  const c1x = Math.cos(-Math.PI * 0.30) * r * 1.06, c1y = Math.sin(-Math.PI * 0.30) * r * 1.06;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(p0x, p0y);
+  ctx.quadraticCurveTo(c0x, c0y, 0, -r * 0.62);
+  ctx.quadraticCurveTo(c1x, c1y, p1x, p1y);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = color;
+  /* ⚠️ 这里千万别写 Math.max(1, r * 0.11)！
+     刺猬身上整个坐标系被放大了 400 倍，那「最小 1 像素」会变成 400 像素宽的圆头线，
+     一根圆头粗线画出来就是一个大圆球，直接把刺猬盖住了（2026-10-14 踩过）。 */
+  ctx.lineWidth = r * 0.13;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, r * 0.34);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/* ---------- 场景比例 ---------- */
+let HORIZON, VPX, VPY, PBL, PBR, BOT;
+function layout() {
+  HORIZON = H * 0.512;     // 地平线
+  VPX = W * 0.470;         // 路的尽头（灭点压在地平线上，稍微偏左，别那么对称）
+  VPY = H * 0.508;
+  PBL = W * 0.150;         // 路面左下角（近处宽一点，别像金字塔）
+  PBR = W * 0.795;
+  BOT = H * 1.06;
+}
+layout();
+
+/* 沿路往远处：u=0 在灭点，u=1 在最近处 */
+function persp(u, nearX) {
+  const k = Math.pow(u, 1.85);
+  return {
+    x: VPX + (nearX - VPX) * k,
+    y: VPY + (BOT - VPY) * k,
+    s: 0.05 + 0.95 * k
+  };
+}
+
+/* ================= 1. 天空（上冷下暖，才有秋天的通透） ================= */
+function sky() {
+  const g = ctx.createLinearGradient(0, 0, 0, HORIZON + H * 0.06);
+  g.addColorStop(0.00, '#cbd6d3');
+  g.addColorStop(0.30, '#dcdcc9');
+  g.addColorStop(0.62, '#eee1c3');
+  g.addColorStop(1.00, '#fbecc9');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, HORIZON + H * 0.07);
+
+  // 路尽头的一点暖光：太阳压得很低，光顺着银杏道淌过来
+  const s = ctx.createRadialGradient(VPX, VPY - H * 0.02, 0, VPX, VPY - H * 0.02, H * 0.58);
+  s.addColorStop(0.00, 'rgba(255,248,220,0.95)');
+  s.addColorStop(0.34, 'rgba(255,242,204,0.42)');
+  s.addColorStop(1.00, 'rgba(255,242,204,0)');
+  ctx.fillStyle = s;
+  ctx.fillRect(0, 0, W, HORIZON + H * 0.07);
+
+  // 几缕薄云
+  for (let i = 0; i < 5; i++) {
+    const cx = rndBetween(W * 0.02, W * 0.95);
+    const cy = rndBetween(H * 0.04, H * 0.28);
+    const rx = rndBetween(W * 0.08, W * 0.17);
+    const ry = rx * rndBetween(0.20, 0.32);
+    const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    cg.addColorStop(0.00, 'rgba(255,253,246,0.46)');
+    cg.addColorStop(0.55, 'rgba(255,253,246,0.17)');
+    cg.addColorStop(1.00, 'rgba(255,253,246,0)');
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ================= 2. 远处那一片银杏林（雾里的） ================= */
+function farTreeLine() {
+  // 一条低低的树带，越远越淡
+  for (let i = 0; i < 74; i++) {
+    const x = rndBetween(-W * 0.06, W * 1.06);
+    const r = H * rndBetween(0.020, 0.045);
+    ctx.fillStyle = 'rgba(206,183,138,' + rndBetween(0.30, 0.52).toFixed(2) + ')';
+    ctx.beginPath();
+    ctx.ellipse(x, HORIZON - H * 0.008 - r * 0.35, r * 1.6, r * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // 雾一压，远树就退到后面去了
+  const haze = ctx.createLinearGradient(0, HORIZON - H * 0.09, 0, HORIZON + H * 0.02);
+  haze.addColorStop(0, 'rgba(250,238,212,0.55)');
+  haze.addColorStop(0.62, 'rgba(250,238,212,0.72)');
+  haze.addColorStop(1, 'rgba(250,238,212,0.95)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, HORIZON - H * 0.09, W, H * 0.11);
+}
+
+/* ================= 3. 地面（厚厚一层落叶） ================= */
+function groundPlane() {
+  const g = ctx.createLinearGradient(0, HORIZON, 0, H);
+  g.addColorStop(0.00, '#dcbd85');
+  g.addColorStop(0.30, '#cda66a');
+  g.addColorStop(0.70, '#bb8f4f');
+  g.addColorStop(1.00, '#a97c3d');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, HORIZON, W, H - HORIZON);
+
+  const haze = ctx.createLinearGradient(0, HORIZON - 10, 0, HORIZON + H * 0.13);
+  haze.addColorStop(0, 'rgba(250,238,212,0.92)');
+  haze.addColorStop(1, 'rgba(250,238,212,0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, HORIZON - 10, W, H * 0.15);
+}
+
+/* ================= 4. 那条路（比地亮，边缘有落叶软化） ================= */
+function roadEdge(px, py) {
+  // 路的一侧：从灭点用二次曲线拉到近处，稍微带点弧度
+  const cxp = VPX + (px - VPX) * 0.42;
+  const cyp = VPY + (py - VPY) * 0.34;
+  return { cx: cxp, cy: cyp };
+}
+
+function road() {
+  const L = roadEdge(PBL, BOT);
+  const R = roadEdge(PBR, BOT);
+
+  ctx.beginPath();
+  ctx.moveTo(VPX, VPY);
+  ctx.quadraticCurveTo(R.cx, R.cy, PBR, BOT);
+  ctx.lineTo(PBL, BOT);
+  ctx.quadraticCurveTo(L.cx, L.cy, VPX, VPY);
+  ctx.closePath();
+
+  const g = ctx.createLinearGradient(0, VPY, 0, BOT);
+  g.addColorStop(0.00, '#f0e1bd');
+  g.addColorStop(0.28, '#e2cda0');
+  g.addColorStop(0.62, '#d2b787');
+  g.addColorStop(1.00, '#c0a271');
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  // 路面上几道浅浅的车辙印（压出纵深，不然像一块三角形贴纸）
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(VPX, VPY);
+  ctx.quadraticCurveTo(R.cx, R.cy, PBR, BOT);
+  ctx.lineTo(PBL, BOT);
+  ctx.quadraticCurveTo(L.cx, L.cy, VPX, VPY);
+  ctx.closePath();
+  ctx.clip();
+
+  for (let i = 0; i < 7; i++) {
+    const u = 0.16 + i * 0.135;
+    const p1 = persp(u, PBL + (PBR - PBL) * 0.26);
+    const p2 = persp(u, PBL + (PBR - PBL) * 0.74);
+    ctx.strokeStyle = 'rgba(190,164,116,0.16)';
+    ctx.lineWidth = 2 + u * 9;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.quadraticCurveTo((p1.x + p2.x) / 2, p1.y + 6 * u, p2.x, p2.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 路尽头化在光里（别太大太白，不然整条路像雪地）
+  const end = ctx.createRadialGradient(VPX, VPY, 0, VPX, VPY, H * 0.13);
+  end.addColorStop(0, 'rgba(255,249,226,0.82)');
+  end.addColorStop(1, 'rgba(255,249,226,0)');
+  ctx.fillStyle = end;
+  ctx.beginPath();
+  ctx.moveTo(VPX, VPY);
+  ctx.quadraticCurveTo(R.cx, R.cy, PBR, BOT);
+  ctx.lineTo(PBL, BOT);
+  ctx.quadraticCurveTo(L.cx, L.cy, VPX, VPY);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/* ================= 5. 满地落叶 ================= */
+function leafCarpet() {
+  const tones = ['#f3cd7c', '#ecc066', '#f8e0a4', '#dfab55', '#f6d68d', '#e8b45e'];
+
+  // 先铺一层暗叶做底，让地面有厚度
+  for (let i = 0; i < 260; i++) {
+    const t = Math.pow(rnd(), 0.60);
+    const y = HORIZON + 4 + t * (H - HORIZON);
+    const x = rndBetween(-W * 0.02, W * 1.02);
+    ginkgoLeaf(x, y, 3 + t * 11, rndBetween(0, Math.PI * 2), '#a37f49', 0.14 + rnd() * 0.14);
+  }
+  // 再撒亮叶
+  for (let i = 0; i < 620; i++) {
+    const t = Math.pow(rnd(), 0.58);
+    const y = HORIZON + 5 + t * (H - HORIZON);
+    const x = rndBetween(-W * 0.02, W * 1.02);
+    ginkgoLeaf(x, y, 3.5 + t * 16, rndBetween(0, Math.PI * 2), pick(tones), 0.40 + rnd() * 0.52);
+  }
+
+  // 路两边堆得厚一点（叶堆），顺便把路的硬边吃掉
+  for (let side = -1; side <= 1; side += 2) {
+    for (let i = 0; i < 210; i++) {
+      const t = Math.pow(rnd(), 0.55);
+      const y = HORIZON + 12 + t * (H - HORIZON);
+      const edge = side < 0 ? PBL : PBR;
+      const spread = (0.06 + t * 0.13) * W;
+      const x = edge + side * (rndBetween(-0.02, 1) * spread) * (1 - t * 0.15);
+      ginkgoLeaf(x, y, 4 + t * 15, rndBetween(0, Math.PI * 2), pick(tones), 0.45 + rnd() * 0.5);
+    }
+  }
+
+  // 画面最下沿再厚厚铺一层，把构图压住
+  for (let i = 0; i < 280; i++) {
+    const y = H * rndBetween(0.905, 1.03);
+    const x = rndBetween(-W * 0.02, W * 1.02);
+    const t = (y - HORIZON) / (H - HORIZON);
+    ginkgoLeaf(x, y, 8 + t * 15, rndBetween(0, Math.PI * 2), pick(tones), 0.50 + rnd() * 0.45);
+  }
+}
+
+/* ================= 6. 一棵银杏 ================= */
+/* 树冠的关键：几团椭圆**共用同一个渐变**，接缝就看不见了；
+   再往上撒扇形叶，才有「一树叶子」的蓬松感，而不是三坨冰淇淋。 */
+function treeAt(x, yBase, h, side) {
+  const tw = h * 0.058;
+  const lean = side * h * 0.020;
+  const trunkTop = yBase - h * 0.58;
+
+  // ---- 树影：光从路尽头来，影子朝观者铺开 ----
+  ctx.fillStyle = 'rgba(120,84,40,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(x + side * h * 0.012, yBase + h * 0.040, h * 0.165, h * 0.044, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- 树干：上细下粗 ----
+  ctx.fillStyle = '#8a6f4e';
+  ctx.beginPath();
+  ctx.moveTo(x - tw, yBase + h * 0.03);
+  ctx.quadraticCurveTo(x - tw * 0.70 + lean * 0.5, yBase - h * 0.28, x - tw * 0.30 + lean, trunkTop);
+  ctx.lineTo(x + tw * 0.30 + lean, trunkTop);
+  ctx.quadraticCurveTo(x + tw * 0.70 + lean * 0.5, yBase - h * 0.28, x + tw, yBase + h * 0.03);
+  ctx.closePath();
+  ctx.fill();
+
+  // 树干的亮面（光从路尽头来）
+  ctx.fillStyle = 'rgba(255,242,206,0.15)';
+  ctx.beginPath();
+  ctx.moveTo(x + tw * 0.10, yBase);
+  ctx.quadraticCurveTo(x + tw * 0.16 + lean * 0.5, yBase - h * 0.28, x + tw * 0.14 + lean, trunkTop);
+  ctx.lineTo(x + tw * 0.30 + lean, trunkTop);
+  ctx.quadraticCurveTo(x + tw * 0.70 + lean * 0.5, yBase - h * 0.28, x + tw, yBase);
+  ctx.closePath();
+  ctx.fill();
+
+  // 树皮的竖纹
+  ctx.strokeStyle = 'rgba(110,92,70,0.32)';
+  ctx.lineWidth = h * 0.006;
+  for (let i = -1; i <= 1; i += 2) {
+    ctx.beginPath();
+    ctx.moveTo(x + i * tw * 0.42, yBase);
+    ctx.quadraticCurveTo(x + i * tw * 0.28 + lean * 0.5, yBase - h * 0.28, x + i * tw * 0.12 + lean, trunkTop + h * 0.04);
+    ctx.stroke();
+  }
+
+  // ---- 两根斜枝，插进树冠 ----
+  ctx.strokeStyle = '#8a6f4e';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = h * 0.014;
+  ctx.beginPath();
+  ctx.moveTo(x + lean * 0.8, trunkTop + h * 0.06);
+  ctx.quadraticCurveTo(x - h * 0.08 * side, trunkTop - h * 0.01, x - h * 0.15 * side, trunkTop - h * 0.10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + lean * 0.8, trunkTop - h * 0.01);
+  ctx.quadraticCurveTo(x + h * 0.07 * side, trunkTop - h * 0.06, x + h * 0.11 * side, trunkTop - h * 0.16);
+  ctx.stroke();
+
+  // ---- 树冠 ----
+  const ccx = x + lean;
+  const ccy = trunkTop - h * 0.10;
+  const R = h * 0.34;
+  const RX = R * 0.90, RY = R * 1.08;          // 银杏冠是竖长的
+
+  const CROWN = [
+    { y: 0.36, rx: 0.94, ry: 0.54 },
+    { y: 0.02, rx: 0.86, ry: 0.60 },
+    { y: -0.44, rx: 0.62, ry: 0.48 },
+    { y: -0.82, rx: 0.34, ry: 0.30 }
+  ];
+
+  // 一个渐变喂所有椭圆 → 接缝消失
+  const cg = ctx.createRadialGradient(ccx - RX * 0.20, ccy - RY * 0.70, R * 0.08, ccx, ccy, RY * 1.35);
+  cg.addColorStop(0.00, '#fbefc2');
+  cg.addColorStop(0.40, '#f2d18a');
+  cg.addColorStop(0.76, '#e2b566');
+  cg.addColorStop(1.00, '#cb9b4b');
+  ctx.fillStyle = cg;
+  CROWN.forEach(b => {
+    ctx.beginPath();
+    ctx.ellipse(ccx, ccy + b.y * RY, RX * b.rx, RY * b.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // 冠底压一层暗，树冠才有厚度
+  const dg = ctx.createRadialGradient(ccx, ccy + RY * 0.50, R * 0.04, ccx, ccy + RY * 0.50, R * 0.98);
+  dg.addColorStop(0, 'rgba(170,116,42,0.40)');
+  dg.addColorStop(1, 'rgba(170,116,42,0)');
+  ctx.fillStyle = dg;
+  ctx.beginPath();
+  ctx.ellipse(ccx, ccy + RY * 0.40, RX * 0.92, RY * 0.50, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- 叶子：只当「纹理」，别撒到轮廓外面去（不然像碎纸片） ----
+  const top = ['#f9e8b8', '#f5dda2', '#f2d68e'];
+  const mid = ['#eec36f', '#e4b25c', '#f0cf85'];
+  const low = ['#cf9a48', '#bb863a', '#dcaa5c'];
+
+  for (let i = 0; i < 44; i++) {
+    const b = CROWN[Math.floor(rnd() * CROWN.length) % CROWN.length];
+    const a = rndBetween(0, Math.PI * 2);
+    const d = Math.sqrt(rnd()) * 0.82;
+    const lx = ccx + Math.cos(a) * RX * b.rx * d;
+    const ly = ccy + b.y * RY + Math.sin(a) * RY * b.ry * d;
+    const rel = (ly - (ccy - RY * 0.98)) / (RY * 1.95);     // 0 顶 1 底
+    const tone = pick(rel < 0.40 ? top : rel < 0.70 ? mid : low);
+    ginkgoLeaf(lx, ly, R * rndBetween(0.125, 0.240), rndBetween(0, Math.PI * 2), tone, rndBetween(0.70, 0.95));
+  }
+}
+
+function treeRows() {
+  const uList = [0.20, 0.33, 0.47, 0.63, 0.84];
+  uList.forEach(u => {
+    const L = persp(u, W * 0.075);
+    treeAt(L.x, L.y, H * 0.72 * L.s + H * 0.05, -1);
+    const R = persp(u, W * 0.925);
+    treeAt(R.x, R.y, H * 0.72 * R.s + H * 0.05, 1);
+  });
+
+  // 最近的两棵只露半个冠，把画面框住
+  const Ln = persp(1.14, W * -0.06);
+  treeAt(Ln.x, Ln.y, H * 0.72 * Ln.s + H * 0.05, -1);
+  const Rn = persp(1.14, W * 1.06);
+  treeAt(Rn.x, Rn.y, H * 0.72 * Rn.s + H * 0.05, 1);
+}
+
+/* ================= 7. 刺猬（主角） ================= */
+function drawHedgehog(cx, baseY, hh) {
+  const spineDark = '#8a6a4e';
+  const spineMid = '#a5825f';
+  const fur = '#c49a72';
+  const cream = '#f9efdd';
+  const ink = '#59422f';
+
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.scale(hh, hh);                    // 之后都按「刺猬高 = 1」来写
+
+  // 影子
+  ctx.fillStyle = 'rgba(120,90,52,0.22)';
+  ctx.beginPath(); ctx.ellipse(0, 0.012, 0.44, 0.058, 0, 0, Math.PI * 2); ctx.fill();
+
+  // ---- 背刺：三层，从左边绕过头顶到右前方，圆头不扎眼 ----
+  const bx = -0.02, by = -0.295, BR = 0.350;
+  ctx.fillStyle = '#8a6a4e';
+  ctx.beginPath(); ctx.ellipse(bx, by, BR * 1.03, BR * 0.99, 0, 0, Math.PI * 2); ctx.fill();
+
+  const A0 = -Math.PI * 1.16, A1 = Math.PI * 0.10;      // 背面一大圈，把背全盖住
+  for (let layer = 0; layer < 3; layer++) {
+    const RR = BR - layer * 0.040;
+    const n = 32 - layer * 7;
+    for (let i = 0; i < n; i++) {
+      const a = A0 + (i / (n - 1)) * (A1 - A0);
+      const len = (0.100 - layer * 0.014) * rndBetween(0.85, 1.15);
+      const px = bx + Math.cos(a) * RR, py = by + Math.sin(a) * RR;
+      const tx = bx + Math.cos(a) * (RR + len), ty = by + Math.sin(a) * (RR + len);
+      const nx = Math.cos(a + Math.PI / 2), ny = Math.sin(a + Math.PI / 2);
+      const w = (0.040 - layer * 0.009) * rndBetween(0.88, 1.08);
+
+      ctx.fillStyle = layer === 0 ? '#8a6a4e' : (layer === 1 ? '#a5825f' : '#bb9770');
+      ctx.beginPath();
+      ctx.moveTo(px + nx * w, py + ny * w);
+      ctx.quadraticCurveTo(tx + nx * w * 0.32, ty + ny * w * 0.32, tx, ty);
+      ctx.quadraticCurveTo(tx - nx * w * 0.32, ty - ny * w * 0.32, px - nx * w, py - ny * w);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // ---- 身体（毛的那一面，斜斜朝右） ----
+  ctx.fillStyle = fur;
+  ctx.beginPath(); ctx.ellipse(0.060, -0.235, 0.335, 0.275, -0.06, 0, Math.PI * 2); ctx.fill();
+
+  // ---- 脸：奶白的一大块，往右前延伸成小尖嘴 ----
+  ctx.fillStyle = cream;
+  ctx.beginPath();
+  ctx.ellipse(0.175, -0.230, 0.235, 0.230, -0.10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0.255, -0.345);
+  ctx.quadraticCurveTo(0.435, -0.300, 0.468, -0.228);
+  ctx.quadraticCurveTo(0.410, -0.150, 0.230, -0.130);
+  ctx.closePath();
+  ctx.fill();
+
+  // 鼻子
+  ctx.fillStyle = ink;
+  ctx.beginPath(); ctx.ellipse(0.455, -0.222, 0.032, 0.026, -0.30, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath(); ctx.arc(0.447, -0.233, 0.010, 0, Math.PI * 2); ctx.fill();
+
+  // 嘴（小小一道笑）
+  ctx.strokeStyle = 'rgba(89,66,47,0.80)';
+  ctx.lineWidth = 0.012;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0.428, -0.196);
+  ctx.quadraticCurveTo(0.398, -0.168, 0.366, -0.194);
+  ctx.stroke();
+
+  // 眼睛
+  ctx.fillStyle = ink;
+  ctx.beginPath(); ctx.arc(0.255, -0.322, 0.046, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.beginPath(); ctx.arc(0.241, -0.337, 0.017, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath(); ctx.arc(0.266, -0.310, 0.008, 0, Math.PI * 2); ctx.fill();
+
+  // 耳朵
+  ctx.fillStyle = fur;
+  ctx.beginPath(); ctx.ellipse(0.120, -0.452, 0.055, 0.048, -0.28, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(226,166,160,0.72)';
+  ctx.beginPath(); ctx.ellipse(0.120, -0.450, 0.029, 0.025, -0.28, 0, Math.PI * 2); ctx.fill();
+
+  // 腮红
+  ctx.fillStyle = 'rgba(226,152,140,0.30)';
+  ctx.beginPath(); ctx.ellipse(0.318, -0.250, 0.052, 0.034, -0.18, 0, Math.PI * 2); ctx.fill();
+
+  // 前爪
+  ctx.fillStyle = cream;
+  rrect(0.045, -0.080, 0.110, 0.080, 0.040); ctx.fill();
+  rrect(0.180, -0.075, 0.105, 0.075, 0.037); ctx.fill();
+  ctx.strokeStyle = 'rgba(166,136,104,0.42)';
+  ctx.lineWidth = 0.008;
+  for (let i = 0; i < 2; i++) {
+    ctx.beginPath(); ctx.moveTo(0.088 + i * 0.032, -0.014); ctx.lineTo(0.088 + i * 0.032, -0.040); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0.212 + i * 0.030, -0.012); ctx.lineTo(0.212 + i * 0.030, -0.038); ctx.stroke();
+  }
+
+  // ---- 背上那颗白果 ----
+  ctx.save();
+  ctx.translate(-0.125, -0.585);
+  ctx.rotate(-0.30);
+  ctx.fillStyle = 'rgba(104,78,46,0.26)';
+  ctx.beginPath(); ctx.ellipse(0.010, 0.014, 0.062, 0.046, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fbf5e6';
+  ctx.beginPath(); ctx.ellipse(0, 0, 0.056, 0.046, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(224,206,170,0.70)';
+  ctx.beginPath(); ctx.ellipse(0.014, 0.016, 0.030, 0.020, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.80)';
+  ctx.beginPath(); ctx.ellipse(-0.018, -0.016, 0.016, 0.010, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(176,150,108,0.55)';
+  ctx.lineWidth = 0.008;
+  ctx.beginPath(); ctx.moveTo(-0.004, -0.046); ctx.lineTo(0.004, -0.030); ctx.stroke();
+  ctx.restore();
+
+  // ---- 背刺上顺手挂两片叶子（秋天嘛） ----
+  ginkgoLeaf(-0.245, -0.475, 0.052, 1.15, '#f2cd7a', 0.95);
+  ginkgoLeaf(0.035, -0.640, 0.044, -0.35, '#e8b95e', 0.92);
+
+  ctx.restore();
+}
+
+/* ================= 8. 飘落的银杏叶 ================= */
+const leaves = [];
+const LEAF_TONES = ['#f3cd7c', '#ecc066', '#f8e0a4', '#e0ad57', '#f6d68d'];
+
+function makeLeaves(n) {
+  for (let i = 0; i < n; i++) {
+    const t = rnd();                                  // 0 远 1 近
+    leaves.push({
+      x: rndBetween(-W * 0.05, W * 1.05),
+      y: rndBetween(-H * 0.12, H * 0.95),
+      r: 5 + t * 10,
+      t: t,
+      vy: 10 + t * 22,                                // 慢慢落
+      sway: rndBetween(14, 38),
+      phase: rndBetween(0, Math.PI * 2),
+      spin: rndBetween(-0.16, 0.16),                  // 轻轻翻，不转风扇
+      rot: rndBetween(0, Math.PI * 2),
+      a: 0.40 + rnd() * 0.28,
+      tone: pick(LEAF_TONES)
+    });
+  }
+}
+makeLeaves(62);
+
+function leafBurst(x, y) {
+  for (let i = 0; i < 26; i++) {
+    leaves.push({
+      x: x + rndBetween(-30, 30),
+      y: y + rndBetween(-18, 18),
+      r: rndBetween(7, 15),
+      t: 1,
+      vy: rndBetween(16, 38),
+      sway: rndBetween(16, 44),
+      phase: rndBetween(0, Math.PI * 2),
+      spin: rndBetween(-0.24, 0.24),
+      rot: rndBetween(0, Math.PI * 2),
+      a: 0.45 + rnd() * 0.30,
+      tone: pick(LEAF_TONES)
+    });
+  }
+  if (leaves.length > 240) leaves.splice(0, leaves.length - 240);
+}
+
+function drawLeaves(dt, time) {
+  for (const p of leaves) {
+    p.y += p.vy * dt;
+    p.rot += p.spin * dt;
+    if (p.y > H + 40) {
+      p.y = -30;
+      p.x = rndBetween(-W * 0.05, W * 1.05);
+    }
+    const x = p.x + Math.sin(time * 0.0007 + p.phase) * p.sway * 0.42;
+    ginkgoLeaf(x, p.y, p.r, p.rot, p.tone, p.a * (0.45 + p.t * 0.40));
+  }
+}
+
+/* ================= 组装：静态层只画一次，之后每帧只贴图 ================= */
+const bg = document.createElement('canvas');
+
+function buildStatic() {
+  bg.width = Math.max(1, Math.round(W * DPR));
+  bg.height = Math.max(1, Math.round(H * DPR));
+  const main = ctx;
+  ctx = bg.getContext('2d');
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  seed = SCENE_SEED;                 // 固定种子：重建多少次都长一样
+  sky();
+  farTreeLine();
+  groundPlane();
+  road();
+  leafCarpet();
+  treeRows();
+  drawHedgehog(W * 0.400, H * 0.952, H * 0.285);
+
+  // 四角轻轻压暗一点，画面才不飘
+  const vg = ctx.createRadialGradient(W * 0.5, H * 0.55, H * 0.35, W * 0.5, H * 0.55, H * 1.15);
+  vg.addColorStop(0, 'rgba(120,86,44,0)');
+  vg.addColorStop(1, 'rgba(120,86,44,0.16)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx = main;
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  ctx.drawImage(bg, 0, 0, W, H);
+  drawLeaves(dt, now);
+  requestAnimationFrame(frame);
+}
+
+layout();
+buildStatic();
+requestAnimationFrame(frame);
+
+cv.addEventListener('pointerdown', e => leafBurst(e.clientX, e.clientY));
+
+window.addEventListener('resize', () => {
+  resize();
+  layout();
+  buildStatic();
+});
+</script>
+</body>
+</html>
+
+
+
+
