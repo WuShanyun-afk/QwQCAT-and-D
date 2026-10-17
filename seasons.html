@@ -75,7 +75,12 @@
   .card:nth-child(3) { animation-delay: .25s; }
   .card:nth-child(4) { animation-delay: .35s; }
 
-  .ph { position: absolute; inset: 0; }
+  .ph { position: absolute; inset: 0; background: #16122a; }
+  /* 图还没下载完时露出的底色（跟那张画的天空一个调，不会突兀） */
+  .spring .ph { background: #efdfe4; }
+  .summer .ph { background: #d3e6dc; }
+  .autumn .ph { background: #efe1c6; }
+  .winter .ph { background: #dfe9f0; }
   .ph img {
     width: 100%; height: 100%; display: block; object-fit: cover;
     transform: scale(1.001);
@@ -213,7 +218,7 @@
 
   <main class="strip" id="strip">
     <a class="card spring" href="小鲸鱼的艺术作品/cherry-cat-spring.html">
-      <span class="ph"><img src="预览图/preview-cherry-cat-spring.png" alt="春天：樱花树下的一只猫"></span>
+      <span class="ph"><img src="预览图/seasons-spring.jpg" alt="春天：樱花树下的一只猫"></span>
       <span class="veil"></span>
       <span class="num">01</span>
       <span class="glyph">春</span>
@@ -225,7 +230,7 @@
     </a>
 
     <a class="card summer" href="小鲸鱼的艺术作品/frog-lotus-summer.html">
-      <span class="ph"><img src="预览图/preview-frog-lotus-summer.png" alt="夏天：荷塘边晒太阳的一只青蛙"></span>
+      <span class="ph"><img src="预览图/seasons-summer.jpg" alt="夏天：荷塘边晒太阳的一只青蛙"></span>
       <span class="veil"></span>
       <span class="num">02</span>
       <span class="glyph">夏</span>
@@ -237,7 +242,7 @@
     </a>
 
     <a class="card autumn" href="小鲸鱼的艺术作品/hedgehog-ginkgo-autumn.html">
-      <span class="ph"><img src="预览图/preview-hedgehog-ginkgo-autumn.png" alt="秋天：银杏道上一只背着白果的刺猬"></span>
+      <span class="ph"><img src="预览图/seasons-autumn.jpg" alt="秋天：银杏道上一只背着白果的刺猬"></span>
       <span class="veil"></span>
       <span class="num">03</span>
       <span class="glyph">秋</span>
@@ -249,7 +254,7 @@
     </a>
 
     <a class="card winter" href="小鲸鱼的艺术作品/penguin-snowhut-winter.html">
-      <span class="ph"><img src="预览图/preview-penguin-snowhut-winter.png" alt="冬天：雪屋前围着红围巾的一只小企鹅"></span>
+      <span class="ph"><img src="预览图/seasons-winter.jpg" alt="冬天：雪屋前围着红围巾的一只小企鹅"></span>
       <span class="veil"></span>
       <span class="num">04</span>
       <span class="glyph">冬</span>
