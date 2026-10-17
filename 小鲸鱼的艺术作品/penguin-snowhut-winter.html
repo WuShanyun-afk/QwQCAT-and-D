@@ -1,0 +1,720 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雪屋前 · 一只围着围巾的小企鹅 ❄️🐧</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #dfe9f0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 30px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: 6px;
+    color: #3f5566;
+    text-shadow: 0 1px 14px rgba(255,255,255,.95), 0 1px 3px rgba(255,255,255,.98);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #6b8296;
+    margin-top: 7px;
+    text-shadow: 0 1px 8px rgba(255,255,255,.98);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #6b8296;
+    opacity: .9; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(255,255,255,.98);
+  }
+  body.clean .hint { display: none; }   /* 出图用：?clean=1 去掉操作提示小字 */
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下画面 · 会扬起一片雪沫 ❄️</div>
+<div class="caption">
+  <h1>雪 屋 前</h1>
+  <p>四季 · 冬 —— 一只围着围巾的小企鹅</p>
+</div>
+
+<script>
+if (location.search.includes('clean')) document.body.classList.add('clean');
+
+const cv = document.getElementById('cv');
+let ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+resize();
+
+/* ---------- 确定性随机（固定种子） ---------- */
+const SCENE_SEED = 20261014 + 35;
+let seed = SCENE_SEED;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+function rndBetween(a, b) { return a + rnd() * (b - a); }
+function pick(arr) { return arr[Math.min(arr.length - 1, Math.floor(rnd() * arr.length))]; }
+
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* ---------- 场景比例 ---------- */
+let HORIZON, HUTX, HUTY, HUTR, PENGX, PENGY, PENGH;
+function layout() {
+  HORIZON = H * 0.575;
+  HUTX = W * 0.285; HUTY = H * 0.815; HUTR = W * 0.108;      // 雪屋：中心/底/半径
+  PENGX = W * 0.625; PENGY = H * 0.925; PENGH = H * 0.335;   // 企鹅
+}
+layout();
+
+/* ================= 1. 天空 ================= */
+function sky() {
+  const g = ctx.createLinearGradient(0, 0, 0, HORIZON + H * 0.06);
+  g.addColorStop(0.00, '#b9cdda');
+  g.addColorStop(0.34, '#cbdaE4'.toLowerCase());
+  g.addColorStop(0.66, '#e2ebf1');
+  g.addColorStop(1.00, '#f3f7f9');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, HORIZON + H * 0.07);
+
+  // 冬天的太阳压得很低，光很淡
+  const s = ctx.createRadialGradient(W * 0.74, H * 0.20, 0, W * 0.74, H * 0.20, H * 0.62);
+  s.addColorStop(0.00, 'rgba(255,250,235,0.85)');
+  s.addColorStop(0.34, 'rgba(255,248,232,0.34)');
+  s.addColorStop(1.00, 'rgba(255,248,232,0)');
+  ctx.fillStyle = s;
+  ctx.fillRect(0, 0, W, HORIZON + H * 0.07);
+
+  // 几缕薄云
+  for (let i = 0; i < 4; i++) {
+    const cx = rndBetween(W * 0.02, W * 0.95);
+    const cy = rndBetween(H * 0.06, H * 0.30);
+    const rx = rndBetween(W * 0.10, W * 0.19);
+    const ry = rx * rndBetween(0.16, 0.26);
+    const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    cg.addColorStop(0.00, 'rgba(255,255,255,0.55)');
+    cg.addColorStop(0.55, 'rgba(255,255,255,0.20)');
+    cg.addColorStop(1.00, 'rgba(255,255,255,0)');
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ================= 2. 远处的雪山 ================= */
+function ridge(baseY, amp, freq, phase, color, step) {
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+  for (let x = 0; x <= 1.0001; x += step) {
+    const y = baseY
+      + Math.sin(x * freq + phase) * amp
+      + Math.sin(x * freq * 2.6 + phase * 1.7) * amp * 0.40
+      + Math.sin(x * freq * 5.7 + phase * 0.6) * amp * 0.14;
+    ctx.lineTo(x * W, y);
+  }
+  ctx.lineTo(W, baseY + H);
+  ctx.lineTo(0, baseY + H);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function farMountains() {
+  ridge(HORIZON - H * 0.004, H * 0.078, 1.5, 0.7, 'rgba(190,207,222,0.95)', 0.004);
+  ridge(HORIZON + H * 0.002, H * 0.058, 2.4, 2.6, 'rgba(170,190,208,0.97)', 0.004);
+  ridge(HORIZON + H * 0.008, H * 0.038, 3.4, 4.4, 'rgba(154,176,196,0.99)', 0.004);
+
+  // 山脚下的雾，把远山压远
+  const haze = ctx.createLinearGradient(0, HORIZON - H * 0.10, 0, HORIZON + H * 0.03);
+  haze.addColorStop(0, 'rgba(244,249,252,0.18)');
+  haze.addColorStop(0.70, 'rgba(244,249,252,0.40)');
+  haze.addColorStop(1, 'rgba(244,249,252,0.72)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, HORIZON - H * 0.10, W, H * 0.14);
+}
+
+/* ================= 2.5 天上几只小鸟 ================= */
+function birds() {
+  ctx.strokeStyle = 'rgba(126,152,172,0.40)';
+  ctx.lineWidth = H * 0.0016;
+  ctx.lineCap = 'round';
+  const spots = [
+    [W * 0.305, H * 0.170, H * 0.011],
+    [W * 0.352, H * 0.142, H * 0.0085],
+    [W * 0.278, H * 0.132, H * 0.007],
+    [W * 0.615, H * 0.205, H * 0.009]
+  ];
+  spots.forEach(([x, y, s]) => {
+    ctx.beginPath();
+    ctx.moveTo(x - s, y);
+    ctx.quadraticCurveTo(x - s * 0.45, y - s * 0.90, x, y - s * 0.18);
+    ctx.quadraticCurveTo(x + s * 0.45, y - s * 0.90, x + s, y);
+    ctx.stroke();
+  });
+}
+
+/* ================= 3. 雪地 ================= */
+function snowField() {
+  // 上边缘是缓缓起伏的雪坡，不是一条硬直线
+  const topAt = x => HORIZON
+    + Math.sin(x * 3.1 + 0.8) * H * 0.009
+    + Math.sin(x * 7.7 + 2.1) * H * 0.004
+    + Math.sin(x * 1.3 + 4.0) * H * 0.006;
+
+  ctx.beginPath();
+  ctx.moveTo(0, H + 2);
+  for (let x = 0; x <= 1.0001; x += 0.004) ctx.lineTo(x * W, topAt(x));
+  ctx.lineTo(W, H + 2);
+  ctx.closePath();
+
+  const g = ctx.createLinearGradient(0, HORIZON, 0, H);
+  g.addColorStop(0.00, '#f5fafd');
+  g.addColorStop(0.30, '#ecf4fa');
+  g.addColorStop(0.68, '#e2edf5');
+  g.addColorStop(1.00, '#d5e3ee');
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  // 上边缘压一道很淡的冷影，雪坡才有转折
+  ctx.save();
+  ctx.beginPath();
+  for (let x = 0; x <= 1.0001; x += 0.004) {
+    const y = topAt(x);
+    if (x === 0) ctx.moveTo(0, y); else ctx.lineTo(x * W, y);
+  }
+  ctx.lineTo(W, HORIZON + H * 0.05);
+  ctx.lineTo(0, HORIZON + H * 0.05);
+  ctx.closePath();
+  const sh = ctx.createLinearGradient(0, HORIZON, 0, HORIZON + H * 0.06);
+  sh.addColorStop(0, 'rgba(178,201,219,0.28)');
+  sh.addColorStop(1, 'rgba(178,201,219,0)');
+  ctx.fillStyle = sh;
+  ctx.fill();
+  ctx.restore();
+
+  // 雪坡上的起伏：几团很淡的冷影 + 迎光的白
+  for (let i = 0; i < 9; i++) {
+    const t = Math.pow(rnd(), 0.55);
+    const y = HORIZON + H * 0.04 + t * (H - HORIZON);
+    const rx = W * rndBetween(0.16, 0.42);
+    ctx.fillStyle = 'rgba(190,212,228,' + rndBetween(0.06, 0.13).toFixed(2) + ')';
+    ctx.beginPath();
+    ctx.ellipse(rndBetween(-W * 0.08, W * 1.08), y, rx, rx * rndBetween(0.028, 0.052), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (let i = 0; i < 8; i++) {
+    const t = Math.pow(rnd(), 0.55);
+    const y = HORIZON + H * 0.05 + t * (H - HORIZON);
+    const rx = W * rndBetween(0.10, 0.28);
+    ctx.fillStyle = 'rgba(255,255,255,' + rndBetween(0.22, 0.42).toFixed(2) + ')';
+    ctx.beginPath();
+    ctx.ellipse(rndBetween(-W * 0.08, W * 1.08), y, rx, rx * rndBetween(0.025, 0.045), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 画面下沿两堆雪，把构图收住
+  [[W * 0.045, H * 1.035, W * 0.20, H * 0.055], [W * 0.905, H * 1.045, W * 0.22, H * 0.060]].forEach(([x, y, rx, ry]) => {
+    ctx.fillStyle = 'rgba(192,213,229,0.50)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + ry * 0.55, rx, ry * 1.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+/* ================= 4. 雪屋 ================= */
+function snowHut(cx, baseY, s) {
+  const domeR = s;
+  const domeH = s * 0.92;
+
+  // 地上的影子（冷蓝，淡淡的）
+  ctx.fillStyle = 'rgba(150,178,200,0.24)';
+  ctx.beginPath();
+  ctx.ellipse(cx + s * 0.12, baseY + s * 0.035, domeR * 1.10, domeH * 0.17, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 圆顶
+  const g = ctx.createLinearGradient(cx - domeR * 0.8, baseY - domeH, cx + domeR, baseY);
+  g.addColorStop(0.00, '#ffffff');
+  g.addColorStop(0.42, '#f8fcfe');
+  g.addColorStop(0.78, '#e8f2f9');
+  g.addColorStop(1.00, '#cfe0ed');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY, domeR, domeH, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // 雪块的横缝（一圈一圈，像砖）
+  const courses = [0.24, 0.45, 0.64, 0.80, 0.92];
+  ctx.strokeStyle = 'rgba(170,197,217,0.42)';
+  ctx.lineWidth = Math.max(1.2, s * 0.011);
+  ctx.lineCap = 'round';
+  courses.forEach(f => {
+    const hw = domeR * Math.sqrt(Math.max(0, 1 - f * f));
+    const y = baseY - domeH * f;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, y);
+    ctx.quadraticCurveTo(cx, y + domeH * 0.05, cx + hw, y);
+    ctx.stroke();
+  });
+
+  // 竖缝：每一层里错开几道短竖线
+  ctx.strokeStyle = 'rgba(170,197,217,0.30)';
+  ctx.lineWidth = Math.max(1, s * 0.009);
+  const bands = [[0, 0.26], [0.26, 0.48], [0.48, 0.68], [0.68, 0.85]];
+  bands.forEach(([f0, f1], bi) => {
+    const y0 = baseY - domeH * f0, y1 = baseY - domeH * f1;
+    const hw = domeR * Math.sqrt(Math.max(0, 1 - ((f0 + f1) / 2) ** 2));
+    const cnt = bi < 2 ? 4 : 3;
+    for (let i = 0; i < cnt; i++) {
+      const px = (i + 0.5) / cnt * 2 - 1;          // -1..1
+      if (Math.abs(px) > 0.86) continue;
+      const x = cx + px * hw * 0.94;
+      ctx.beginPath();
+      ctx.moveTo(x, y0);
+      ctx.lineTo(x, y0 + (y1 - y0) * 0.82);
+      ctx.stroke();
+    }
+  });
+
+  // 门口那摊暖光（先铺在雪上）
+  const spill = ctx.createRadialGradient(cx, baseY - domeH * 0.02, 0, cx, baseY - domeH * 0.02, s * 1.05);
+  spill.addColorStop(0.00, 'rgba(255,212,148,0.62)');
+  spill.addColorStop(0.42, 'rgba(255,212,148,0.24)');
+  spill.addColorStop(1.00, 'rgba(255,212,148,0)');
+  ctx.fillStyle = spill;
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY + s * 0.02, s * 1.05, s * 0.34, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 门洞：拱形
+  const dw = s * 0.40, dh = s * 0.60;
+  ctx.beginPath();
+  ctx.moveTo(cx - dw / 2, baseY + s * 0.012);
+  ctx.lineTo(cx - dw / 2, baseY - dh * 0.52);
+  ctx.quadraticCurveTo(cx, baseY - dh * 1.18, cx + dw / 2, baseY - dh * 0.52);
+  ctx.lineTo(cx + dw / 2, baseY + s * 0.012);
+  ctx.closePath();
+  const dg = ctx.createRadialGradient(cx, baseY - dh * 0.30, 0, cx, baseY - dh * 0.30, dw * 1.0);
+  dg.addColorStop(0.00, '#ffeecb');
+  dg.addColorStop(0.50, '#f8d59b');
+  dg.addColorStop(1.00, '#d99f5c');
+  ctx.fillStyle = dg;
+  ctx.fill();
+
+  // 门框的一圈暖边（雪被里面的光染热了）
+  ctx.strokeStyle = 'rgba(255,238,204,0.90)';
+  ctx.lineWidth = Math.max(1.6, s * 0.014);
+  ctx.stroke();
+
+  // 烟囱 + 雪帽
+  const chx = cx + s * 0.46, chy = baseY - domeH * 0.68;
+  ctx.fillStyle = '#e8f1f7';
+  rrect(chx - s * 0.075, chy - s * 0.30, s * 0.15, s * 0.34, s * 0.02);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(chx, chy - s * 0.30, s * 0.098, s * 0.036, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(214,230,240,0.9)';
+  ctx.beginPath();
+  ctx.ellipse(chx, chy + s * 0.035, s * 0.078, s * 0.016, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 门口堆着的一点雪
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.beginPath();
+  ctx.ellipse(cx - s * 0.62, baseY + s * 0.012, s * 0.22, s * 0.050, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + s * 0.64, baseY + s * 0.020, s * 0.24, s * 0.055, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  return { chx, chy };
+}
+
+/* ================= 5. 雪松 ================= */
+function pineTree(x, baseY, h) {
+  // 树干
+  ctx.fillStyle = '#8d9aa2';
+  rrect(x - h * 0.018, baseY - h * 0.20, h * 0.036, h * 0.21, h * 0.010);
+  ctx.fill();
+
+  const layers = [
+    { y: 0.20, w: 0.31, t: 0.58 },
+    { y: 0.42, w: 0.24, t: 0.74 },
+    { y: 0.62, w: 0.165, t: 0.90 }
+  ];
+
+  layers.forEach((L, i) => {
+    const botY = baseY - h * L.y;
+    const topY = baseY - h * L.t;
+    const w = h * L.w;
+
+    // 绿枝
+    ctx.fillStyle = i % 2 ? '#6d8a7c' : '#5f7c6d';
+    ctx.beginPath();
+    ctx.moveTo(x, topY);
+    ctx.quadraticCurveTo(x + w * 0.62, botY - h * 0.020, x + w, botY);
+    ctx.quadraticCurveTo(x, botY + h * 0.030, x - w, botY);
+    ctx.quadraticCurveTo(x - w * 0.62, botY - h * 0.020, x, topY);
+    ctx.closePath();
+    ctx.fill();
+
+    // 压在下沿的一层雪（中间厚、两头薄）
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    ctx.moveTo(x - w, botY);
+    ctx.quadraticCurveTo(x, botY + h * 0.032, x + w, botY);
+    ctx.quadraticCurveTo(x + w * 0.42, botY - h * 0.016, x, botY - h * 0.010);
+    ctx.quadraticCurveTo(x - w * 0.42, botY - h * 0.016, x - w, botY);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // 树尖上的一撮雪
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(x, baseY - h * 0.895, h * 0.036, h * 0.026, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 树根边的雪堆
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath();
+  ctx.ellipse(x, baseY + h * 0.008, h * 0.17, h * 0.038, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/* ================= 6. 小企鹅（主角） ================= */
+function drawPenguin(cx, baseY, hh) {
+  const dark = '#41515e';
+  const dark2 = '#33424e';
+  const belly = '#fbfdfe';
+  const orange = '#e9a95f';
+  const orange2 = '#cf8a45';
+  const ink = '#2e3a44';
+  const scarf = '#c76a60';
+  const scarf2 = '#ab574f';
+
+  ctx.save();
+  ctx.translate(cx, baseY);
+  ctx.scale(hh, hh);                    // 之后都按「企鹅高 = 1」来写
+
+  // 影子
+  ctx.fillStyle = 'rgba(140,168,192,0.28)';
+  ctx.beginPath(); ctx.ellipse(0, 0.010, 0.36, 0.050, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 翅膀（在身体后面）
+  ctx.fillStyle = dark2;
+  ctx.beginPath(); ctx.ellipse(-0.305, -0.425, 0.060, 0.190, 0.22, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.305, -0.425, 0.060, 0.190, -0.22, 0, Math.PI * 2); ctx.fill();
+
+  // 身体 + 头（两个圆叠成一个圆润的「保龄球瓶」）
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.ellipse(0, -0.320, 0.305, 0.335, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, -0.700, 0.255, 0, Math.PI * 2); ctx.fill();
+
+  // 白肚子（从下巴一直到底）
+  ctx.fillStyle = belly;
+  ctx.beginPath(); ctx.ellipse(0, -0.360, 0.195, 0.275, 0, 0, Math.PI * 2); ctx.fill();
+
+  // 脚（画在前面才看得见）
+  ctx.fillStyle = orange2;
+  ctx.beginPath(); ctx.ellipse(-0.130, -0.028, 0.105, 0.040, -0.06, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.130, -0.028, 0.105, 0.040, 0.06, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(158,100,46,0.32)';
+  ctx.lineWidth = 0.010;
+  for (let i = 0; i < 2; i++) {
+    ctx.beginPath(); ctx.moveTo(-0.170 + i * 0.045, -0.048); ctx.lineTo(-0.176 + i * 0.045, -0.014); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0.090 + i * 0.045, -0.048); ctx.lineTo(0.096 + i * 0.045, -0.014); ctx.stroke();
+  }
+
+  // 围巾：围在脖子上的一圈（带弧度，不是一块直板）
+  ctx.save();
+  ctx.translate(0, 0);
+  ctx.fillStyle = scarf;
+  ctx.beginPath();
+  ctx.moveTo(-0.255, -0.548);
+  ctx.quadraticCurveTo(0, -0.492, 0.255, -0.548);      // 上沿（中间往下垂）
+  ctx.quadraticCurveTo(0.272, -0.512, 0.258, -0.472);  // 右端
+  ctx.quadraticCurveTo(0, -0.416, -0.258, -0.472);     // 下沿
+  ctx.quadraticCurveTo(-0.272, -0.512, -0.255, -0.548);
+  ctx.closePath();
+  ctx.fill();
+
+  // 围巾上的两道褶
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 0.016;
+  ctx.beginPath();
+  ctx.moveTo(-0.230, -0.532);
+  ctx.quadraticCurveTo(0, -0.478, 0.230, -0.532);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(150,66,60,0.35)';
+  ctx.lineWidth = 0.014;
+  ctx.beginPath();
+  ctx.moveTo(-0.240, -0.462);
+  ctx.quadraticCurveTo(0, -0.408, 0.240, -0.462);
+  ctx.stroke();
+  ctx.restore();
+
+  // 垂下来的那一截
+  ctx.fillStyle = scarf2;
+  ctx.beginPath();
+  ctx.moveTo(0.185, -0.470);
+  ctx.quadraticCurveTo(0.240, -0.350, 0.215, -0.235);
+  ctx.lineTo(0.300, -0.245);
+  ctx.quadraticCurveTo(0.318, -0.360, 0.272, -0.470);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = scarf2;
+  ctx.lineWidth = 0.013;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0.228 + i * 0.028, -0.243);
+    ctx.lineTo(0.226 + i * 0.028, -0.205);
+    ctx.stroke();
+  }
+
+  // 眼睛
+  ctx.fillStyle = ink;
+  ctx.beginPath(); ctx.arc(-0.104, -0.716, 0.043, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.104, -0.716, 0.043, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.beginPath(); ctx.arc(-0.117, -0.730, 0.016, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.091, -0.730, 0.016, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.50)';
+  ctx.beginPath(); ctx.arc(-0.090, -0.702, 0.008, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.118, -0.702, 0.008, 0, Math.PI * 2); ctx.fill();
+
+  // 嘴：长在两只眼睛下面（这点很重要，之前长在眼睛中间像独角兽）
+  ctx.fillStyle = orange;
+  ctx.beginPath();
+  ctx.moveTo(-0.050, -0.658);
+  ctx.lineTo(0.050, -0.658);
+  ctx.quadraticCurveTo(0.030, -0.596, 0, -0.582);
+  ctx.quadraticCurveTo(-0.030, -0.596, -0.050, -0.658);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.40)';
+  ctx.beginPath(); ctx.ellipse(-0.016, -0.640, 0.016, 0.008, -0.25, 0, Math.PI * 2); ctx.fill();
+
+  // 腮红：在脸颊上（眼睛下面外侧），不是眉毛
+  ctx.fillStyle = 'rgba(230,150,145,0.38)';
+  ctx.beginPath(); ctx.ellipse(-0.172, -0.660, 0.046, 0.028, -0.10, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.172, -0.660, 0.046, 0.028, 0.10, 0, Math.PI * 2); ctx.fill();
+
+  // 头顶的一点雪光
+  const hl = ctx.createRadialGradient(-0.09, -0.800, 0, -0.09, -0.800, 0.22);
+  hl.addColorStop(0, 'rgba(255,255,255,0.22)');
+  hl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hl;
+  ctx.beginPath(); ctx.arc(-0.09, -0.800, 0.22, 0, Math.PI * 2); ctx.fill();
+
+  // 肚子上的一点柔光
+  const bh = ctx.createRadialGradient(-0.04, -0.330, 0, -0.04, -0.330, 0.22);
+  bh.addColorStop(0, 'rgba(255,255,255,0.45)');
+  bh.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = bh;
+  ctx.beginPath(); ctx.ellipse(-0.04, -0.330, 0.18, 0.22, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+/* ================= 7. 脚印 ================= */
+function footPrints() {
+  const n = 9;
+  for (let i = 0; i < n; i++) {
+    const k = i / (n - 1);
+    const x = HUTX + HUTR * 0.95 + (PENGX - HUTX - HUTR * 0.95) * k;
+    const y = HUTY + H * 0.045 + (PENGY - HUTY - H * 0.045) * k + Math.sin(k * 6) * H * 0.006;
+    const r = H * (0.006 + k * 0.008);
+    ctx.fillStyle = 'rgba(168,192,210,' + (0.30 + k * 0.22).toFixed(2) + ')';
+    ctx.beginPath();
+    ctx.ellipse(x + (i % 2 ? r * 0.9 : -r * 0.9), y, r * 1.1, r * 0.62, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* ================= 8. 雪 ================= */
+const flakes = [];
+function makeFlakes(n) {
+  for (let i = 0; i < n; i++) {
+    const t = rnd();
+    flakes.push({
+      x: rndBetween(-W * 0.05, W * 1.05),
+      y: rndBetween(-H * 0.1, H),
+      r: 1.3 + t * 2.6,
+      t: t,
+      vy: 10 + t * 22,                 // 慢慢飘下来
+      sway: rndBetween(8, 26),
+      phase: rndBetween(0, Math.PI * 2),
+      a: 0.35 + rnd() * 0.35
+    });
+  }
+}
+makeFlakes(70);
+
+function drawFlakes(dt, time) {
+  for (const p of flakes) {
+    p.y += p.vy * dt;
+    if (p.y > H + 10) { p.y = -12; p.x = rndBetween(-W * 0.05, W * 1.05); }
+    const x = p.x + Math.sin(time * 0.0006 + p.phase) * p.sway * 0.4;
+    ctx.globalAlpha = p.a * (0.45 + p.t * 0.4);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* 点一下：扬起一片雪沫 */
+const puffs = [];
+function snowPuff(x, y) {
+  for (let i = 0; i < 28; i++) {
+    const a = rndBetween(0, Math.PI * 2);
+    const sp = rndBetween(24, 95);
+    puffs.push({
+      x: x, y: y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp * 0.45 - 28,
+      r: rndBetween(1.8, 4.6),
+      life: 1
+    });
+  }
+  if (puffs.length > 220) puffs.splice(0, puffs.length - 220);
+}
+
+function drawPuffs(dt) {
+  for (let i = puffs.length - 1; i >= 0; i--) {
+    const p = puffs[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 70 * dt;
+    p.vx *= 0.965;
+    p.life -= dt * 0.55;
+    if (p.life <= 0) { puffs.splice(i, 1); continue; }
+    ctx.globalAlpha = 0.78 * p.life;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.7 + p.life * 0.5), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* 烟囱的烟：慢慢往上飘，飘没了从头来 */
+let CHIM = { chx: 0, chy: 0 };
+function drawSmoke(time) {
+  if (!CHIM.chx) return;
+  for (let i = 0; i < 4; i++) {
+    const ph = ((time * 0.00006 + i * 0.25) % 1);      // 0→1 一个循环约 16 秒
+    const y = CHIM.chy - H * 0.02 - ph * H * 0.16;
+    const x = CHIM.chx + Math.sin(ph * 4.2 + i) * H * 0.012 + ph * H * 0.02;
+    const r = H * (0.012 + ph * 0.030);
+    const a = 0.26 * (1 - ph) * (ph < 0.12 ? ph / 0.12 : 1);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#f2f7fa';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ================= 组装：静态层只画一次，之后每帧只贴图 ================= */
+const bg = document.createElement('canvas');
+
+function buildStatic() {
+  bg.width = Math.max(1, Math.round(W * DPR));
+  bg.height = Math.max(1, Math.round(H * DPR));
+  const main = ctx;
+  ctx = bg.getContext('2d');
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  seed = SCENE_SEED;                 // 固定种子：重建多少次都长一样
+  sky();
+  birds();
+  farMountains();
+  snowField();
+  footPrints();
+
+  // 远处的雪松（小、淡）
+  pineTree(W * 0.055, H * 0.700, H * 0.170);
+  pineTree(W * 0.130, H * 0.672, H * 0.115);
+  pineTree(W * 0.470, H * 0.648, H * 0.070);
+  pineTree(W * 0.845, H * 0.700, H * 0.175);
+  pineTree(W * 0.925, H * 0.735, H * 0.235);
+  pineTree(W * 0.995, H * 0.700, H * 0.135);
+
+  CHIM = snowHut(HUTX, HUTY, HUTR);
+
+  // 近景：两角各一丛，把画面框住（不挡主角）
+  pineTree(W * 0.952, H * 0.998, H * 0.420);
+  pineTree(W * 0.048, H * 1.012, H * 0.300);
+
+  drawPenguin(PENGX, PENGY, PENGH);
+
+  // 四角轻轻压暗，画面才不飘
+  const vg = ctx.createRadialGradient(W * 0.5, H * 0.55, H * 0.38, W * 0.5, H * 0.55, H * 1.12);
+  vg.addColorStop(0, 'rgba(120,148,172,0)');
+  vg.addColorStop(1, 'rgba(120,148,172,0.16)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx = main;
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  ctx.drawImage(bg, 0, 0, W, H);
+  drawSmoke(now);
+  drawFlakes(dt, now);
+  drawPuffs(dt);
+  requestAnimationFrame(frame);
+}
+
+layout();
+buildStatic();
+requestAnimationFrame(frame);
+
+cv.addEventListener('pointerdown', e => snowPuff(e.clientX, e.clientY));
+
+window.addEventListener('resize', () => {
+  resize();
+  layout();
+  buildStatic();
+});
+</script>
+</body>
+</html>
+
+
+
+
