@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>四季 · 四张画的小相册 🐋</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background:
+      radial-gradient(1100px 620px at 50% -8%, #221a45 0%, rgba(11,9,19,0) 62%),
+      #0b0913;
+    color: #e9e6f5;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+    padding: 0 clamp(18px, 4vw, 54px);
+  }
+
+  /* ---------- 顶部 ---------- */
+  .head { flex: 0 0 auto; margin-top: auto; text-align: center; padding: clamp(20px, 3vh, 34px) 0 clamp(18px, 2.6vh, 28px); }
+  .eyebrow {
+    margin: 0 0 14px; font-size: 10.5px; letter-spacing: 4.5px;
+    color: #6f679c; text-transform: uppercase;
+  }
+  h1 {
+    margin: 0; font-size: clamp(34px, 4.2vw, 76px); font-weight: 300;
+    letter-spacing: .34em; text-indent: .34em; line-height: 1.1;
+    background: linear-gradient(100deg, #f3c6cf 0%, #cdeee5 34%, #f6dfae 66%, #d6e6f3 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 .dot { font-size: .5em; vertical-align: .35em; letter-spacing: 0; color: #6f679c; }
+  .sub { margin: 16px 0 0; font-size: 13px; line-height: 1.9; color: #8b83b5; }
+  .sub b { color: #c4b5fd; font-weight: 600; }
+  .hint {
+    margin: 10px 0 0; font-size: 11.5px; letter-spacing: 1.2px; color: #5d5688;
+  }
+  body.clean .hint { display: none; }   /* 出图用：?clean=1 去掉这行小字 */
+
+  /* 一条小分界线：🌸 ☀️ 🍂 ❄️ */
+  .seasonline {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin: clamp(20px, 3vh, 32px) 0 0;
+  }
+  .seasonline .l {
+    height: 1px; width: min(140px, 13vw);
+    background: linear-gradient(90deg, rgba(46,39,81,0), #2e2751);
+  }
+  .seasonline .l:last-child { background: linear-gradient(90deg, #2e2751, rgba(46,39,81,0)); }
+  .seasonline em { font-style: normal; font-size: 13px; opacity: .75; }
+
+  /* ---------- 四张并排 ---------- */
+  .strip {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(10px, 1.6vw, 22px);
+    padding-bottom: clamp(8px, 1.4vh, 16px);
+    min-height: 0;
+  }
+
+  .card {
+    position: relative; display: block; overflow: hidden;
+    flex: 1 1 0; min-width: 0;
+    aspect-ratio: 3 / 2;
+    border-radius: 16px;
+    text-decoration: none; color: inherit;
+    background: #16122a;
+    box-shadow: 0 18px 44px -22px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.05);
+    transition: transform .55s cubic-bezier(.22,.7,.3,1), box-shadow .55s, opacity .45s, filter .45s;
+    animation: rise .9s cubic-bezier(.22,.7,.3,1) both;
+  }
+  .card:nth-child(1) { animation-delay: .05s; }
+  .card:nth-child(2) { animation-delay: .15s; }
+  .card:nth-child(3) { animation-delay: .25s; }
+  .card:nth-child(4) { animation-delay: .35s; }
+
+  .ph { position: absolute; inset: 0; }
+  .ph img {
+    width: 100%; height: 100%; display: block; object-fit: cover;
+    transform: scale(1.001);
+    transition: transform 1.1s cubic-bezier(.22,.7,.3,1), filter .6s;
+  }
+  .veil {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(to top, rgba(9,7,16,.88) 0%, rgba(9,7,16,.52) 26%, rgba(9,7,16,.06) 56%, rgba(9,7,16,.14) 100%);
+    transition: opacity .55s;
+  }
+
+  /* 角上的季节字 & 编号 */
+  .glyph {
+    position: absolute; top: 14px; right: 18px;
+    font-size: clamp(26px, 2.6vw, 38px); font-weight: 200; line-height: 1;
+    letter-spacing: .1em;
+    color: var(--acc);
+    opacity: .45; text-shadow: 0 2px 18px rgba(0,0,0,.45);
+    transition: opacity .5s, transform .6s;
+  }
+  .num {
+    position: absolute; top: 16px; left: 16px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 10.5px; letter-spacing: 2px; color: rgba(255,255,255,.5);
+  }
+
+  /* 底部的「浮出」文字 */
+  .meta {
+    position: absolute; left: clamp(14px, 1.6vw, 22px); right: 14px; bottom: clamp(14px, 1.8vw, 22px);
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity .45s ease, transform .55s cubic-bezier(.22,.7,.3,1);
+  }
+  .meta .k {
+    font-size: 10.5px; letter-spacing: 2.4px; color: var(--acc);
+    text-transform: uppercase;
+  }
+  .meta .t {
+    font-size: clamp(15px, 1.5vw, 19px); font-weight: 600; letter-spacing: .06em;
+    text-shadow: 0 2px 20px rgba(0,0,0,.7);
+  }
+  .meta .go {
+    margin-top: 4px; font-size: 11.5px; letter-spacing: 1.2px;
+    color: #fff; padding: 5px 12px; border-radius: 999px;
+    background: color-mix(in srgb, var(--acc) 34%, transparent);
+    border: 1px solid color-mix(in srgb, var(--acc) 62%, transparent);
+    transition: background .3s, border-color .3s;
+  }
+
+  /* 悬停：本张往前、发亮，其它退后变暗
+     （.is-hover 是给「出图/截图」用的替身，?hover=2 就让第 2 张假装被指着） */
+  .card:hover, .card:focus-visible, .card.is-hover {
+    transform: translateY(-8px) scale(1.012);
+    box-shadow: 0 30px 60px -26px rgba(0,0,0,.95),
+                0 0 0 1px color-mix(in srgb, var(--acc) 55%, transparent),
+                0 0 46px -12px color-mix(in srgb, var(--acc) 40%, transparent);
+    outline: none;
+  }
+  .card:hover .ph img, .card:focus-visible .ph img,
+  .card.is-hover .ph img { transform: scale(1.055); }
+  .card:hover .veil, .card:focus-visible .veil,
+  .card.is-hover .veil { opacity: .92; }
+  .card:hover .glyph, .card:focus-visible .glyph,
+  .card.is-hover .glyph { opacity: 1; transform: translateY(-2px); }
+  .card:hover .meta, .card:focus-visible .meta,
+  .card.is-hover .meta { opacity: 1; transform: translateY(0); }
+  .card:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+
+  .strip:hover .card:not(:hover) { opacity: .62; filter: saturate(.75); }
+  .strip.demo .card:not(.is-hover) { opacity: .62; filter: saturate(.75); }
+
+  /* 四季各自的色 */
+  .spring { --acc: #f0a9bb; }
+  .summer { --acc: #6fd0b6; }
+  .autumn { --acc: #e9b357; }
+  .winter { --acc: #9cc3de; }
+
+  /* 卡片下面一行小注脚 */
+  .stripline {
+    flex: 0 0 auto; margin: clamp(6px, 1.2vh, 14px) 0 clamp(16px, 2.6vh, 26px);
+    text-align: center; font-size: 11.5px; letter-spacing: 2.6px; color: #5d5688;
+  }
+
+  /* ---------- 页脚 ---------- */
+  .foot {
+    flex: 0 0 auto; margin-bottom: auto; text-align: center;
+    padding: clamp(10px, 1.8vh, 18px) 0 clamp(14px, 2.6vh, 30px);
+    font-size: 12px; color: #5d5688;
+  }
+  .foot a {
+    color: #c4b5fd; text-decoration: none;
+    border: 1px solid #3a2d6b; border-radius: 999px;
+    padding: 7px 16px; transition: background .2s, border-color .2s, color .2s;
+  }
+  .foot a:hover { background: #3a2d6b; border-color: #6d5bd0; color: #fff; }
+  .foot .sep { margin: 0 12px; color: #2e2751; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(26px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- 窄屏：2×2，再窄就一列 ---------- */
+  @media (max-width: 900px) {
+    .strip { flex-wrap: wrap; align-content: center; }
+    .card { flex: 1 1 calc(50% - 22px); }
+    .card { margin-bottom: clamp(8px, 1.6vw, 16px); }
+  }
+  @media (max-width: 560px) {
+    .card { flex: 1 1 100%; aspect-ratio: 16 / 9; }
+    .meta { opacity: 1; transform: none; }   /* 没有鼠标：名字直接露出来 */
+    .glyph { opacity: .8; }
+  }
+  @media (hover: none) {
+    .meta { opacity: 1; transform: none; }
+    .glyph { opacity: .8; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card, .ph img, .meta, .glyph, .veil { transition: none !important; animation: none !important; }
+    .card:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+  <header class="head">
+    <p class="eyebrow">Four Seasons · 用代码画的</p>
+    <h1>四<span class="dot">·</span>季</h1>
+    <p class="sub">一年四张画，每张里都住着一只<b>小动物</b></p>
+    <p class="hint">鼠标移上去，季节名才浮出来 · 点一下，走进那张画里 🌙</p>
+    <div class="seasonline" aria-hidden="true">
+      <span class="l"></span><em>🌸</em><em>☀️</em><em>🍂</em><em>❄️</em><span class="l"></span>
+    </div>
+  </header>
+
+  <main class="strip" id="strip">
+    <a class="card spring" href="小鲸鱼的艺术作品/cherry-cat-spring.html">
+      <span class="ph"><img src="预览图/preview-cherry-cat-spring.png" alt="春天：樱花树下的一只猫"></span>
+      <span class="veil"></span>
+      <span class="num">01</span>
+      <span class="glyph">春</span>
+      <span class="meta">
+        <span class="k">Spring · 春</span>
+        <span class="t">樱花树下的猫</span>
+        <span class="go">走进去 → 落一场花瓣雨</span>
+      </span>
+    </a>
+
+    <a class="card summer" href="小鲸鱼的艺术作品/frog-lotus-summer.html">
+      <span class="ph"><img src="预览图/preview-frog-lotus-summer.png" alt="夏天：荷塘边晒太阳的一只青蛙"></span>
+      <span class="veil"></span>
+      <span class="num">02</span>
+      <span class="glyph">夏</span>
+      <span class="meta">
+        <span class="k">Summer · 夏</span>
+        <span class="t">荷塘边的青蛙</span>
+        <span class="go">走进去 → 荡开一圈涟漪</span>
+      </span>
+    </a>
+
+    <a class="card autumn" href="小鲸鱼的艺术作品/hedgehog-ginkgo-autumn.html">
+      <span class="ph"><img src="预览图/preview-hedgehog-ginkgo-autumn.png" alt="秋天：银杏道上一只背着白果的刺猬"></span>
+      <span class="veil"></span>
+      <span class="num">03</span>
+      <span class="glyph">秋</span>
+      <span class="meta">
+        <span class="k">Autumn · 秋</span>
+        <span class="t">银杏道上的刺猬</span>
+        <span class="go">走进去 → 下一场银杏雨</span>
+      </span>
+    </a>
+
+    <a class="card winter" href="小鲸鱼的艺术作品/penguin-snowhut-winter.html">
+      <span class="ph"><img src="预览图/preview-penguin-snowhut-winter.png" alt="冬天：雪屋前围着红围巾的一只小企鹅"></span>
+      <span class="veil"></span>
+      <span class="num">04</span>
+      <span class="glyph">冬</span>
+      <span class="meta">
+        <span class="k">Winter · 冬</span>
+        <span class="t">雪屋前的小企鹅</span>
+        <span class="go">走进去 → 扬起一片雪沫</span>
+      </span>
+    </a>
+  </main>
+
+  <p class="stripline">🌸 春樱 &nbsp;／&nbsp; ☀️ 夏荷 &nbsp;／&nbsp; 🍂 秋杏 &nbsp;／&nbsp; ❄️ 冬雪</p>
+
+  <footer class="foot">
+    <a href="gallery.html">← 回到画廊</a>
+    <span class="sep">·</span>
+    点一下画就能玩 🐋
+  </footer>
+
+<script>
+if (location.search.includes('clean')) document.body.classList.add('clean');
+
+/* 截图辅助：?hover=2 让第 2 张假装被鼠标指着（跟 ?clean=1 一样，只给截图用） */
+const hv = new URLSearchParams(location.search).get('hover');
+if (hv) {
+  const card = document.querySelectorAll('.card')[(+hv || 1) - 1];
+  if (card) {
+    card.classList.add('is-hover');
+    document.getElementById('strip').classList.add('demo');
+  }
+}
+</script>
+</body>
+</html>
