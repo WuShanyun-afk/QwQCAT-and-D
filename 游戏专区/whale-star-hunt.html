@@ -238,7 +238,7 @@ function rrect(c, x, y, w, h, r) {
 function whaleScale() { return Math.min(W, H) * .115; }
 
 /* ---------- 状态 ---------- */
-const whale = { x: 0, y: 0, vx: 0, vy: 0, tilt: 0, blink: 0, blinkT: 2, face: 1, pop: 0, turn: 0 };
+const whale = { x: 0, y: 0, vx: 0, vy: 0, tilt: 0, blink: 0, blinkT: 2, face: 1, pop: 0, turn: 0, bubbleT: 0 };
 const target = { x: 0, y: 0 };
 const keys = {};
 let state = 'menu';       /* menu | play | over */
@@ -664,13 +664,15 @@ function update(t, dt) {
     b.life -= dt * .9;
     if (b.life <= 0 || b.y < -20) bubbles.splice(i, 1);
   }
-  if (state === 'play' && whale.vx !== undefined) {
+  if (state === 'play') {
     const spd = Math.hypot(whale.vx, whale.vy);
-    if (spd > 120 && bubbles.length < 34 && Math.random() < dt * 9) {
+    if (whale.bubbleT > 0) whale.bubbleT -= dt;
+    if (spd > 110 && bubbles.length < 28 && whale.bubbleT <= 0) {
+      whale.bubbleT = .10;
       bubbles.push({
         x: whale.x - whaleScale() * .95,
         y: whale.y + whaleScale() * .16,
-        r: whaleScale() * (.032 + Math.random() * .030),
+        r: whaleScale() * (.028 + Math.random() * .026),
         life: 1,
         ph: Math.random() * Math.PI * 2,
       });
@@ -827,6 +829,8 @@ requestAnimationFrame(loop);
 </script>
 </body>
 </html>
+
+
 
 
 
