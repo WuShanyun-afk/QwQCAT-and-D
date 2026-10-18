@@ -720,6 +720,8 @@ function drawTrain(t) {
 /* ---------- 烟 ---------- */
 let smokeTimer = 0;
 function puffSmoke(tx, ty) {
+  /* 兜底：坐标不合法就别生成，免得一帧报错把整个动画循环带停 */
+  if (!isFinite(tx) || !isFinite(ty)) return;
   smokes.push({
     x: tx + (Math.random() - .5) * 6,
     y: ty + (Math.random() - .5) * 4,
@@ -741,6 +743,7 @@ function drawSmoke(t, dt, p) {
   }
   for (let i = smokes.length - 1; i >= 0; i--) {
     const s = smokes[i];
+    if (!isFinite(s.x) || !isFinite(s.y) || !isFinite(s.r)) { smokes.splice(i, 1); continue; }
     s.x += (s.vx + Math.sin(t * 1.1 + s.ph) * 3) * dt;
     s.y += s.vy * dt;
     s.vy *= .992;
@@ -793,9 +796,10 @@ function spawnSparkles(x, y) {
       col: palette[Math.floor(Math.random() * palette.length)],
     });
   }
-  /* 顺便拉一声「汽笛」：烟囱里冒几团烟 */
+  /* 顺便拉一声「汽笛」：烟囱里冒几团烟
+     ⚠️ 这里取的位置是 lastChimney.chimneyX / chimneyY（不是 x / y） */
   if (lastChimney) {
-    for (let i = 0; i < 4; i++) puffSmoke(lastChimney.x, lastChimney.y);
+    for (let i = 0; i < 4; i++) puffSmoke(lastChimney.chimneyX, lastChimney.chimneyY);
   }
 }
 
