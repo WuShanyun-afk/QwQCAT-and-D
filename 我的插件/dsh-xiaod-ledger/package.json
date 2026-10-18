@@ -1,0 +1,30 @@
+{
+  "name": "dsh-xiaod-ledger",
+  "version": "0.1.0",
+  "description": "小D记账 · DSH 桌面挂件：DeepSeek 余额 + 每轮真实花费账本（自家插件，不依赖第三方挂件）",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "ledger",
+    "balance"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}

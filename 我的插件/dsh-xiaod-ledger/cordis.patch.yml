@@ -1,0 +1,9 @@
+# dsh-xiaod-ledger —— DSH bundle patch
+# 把「小D记账」插进 profile 的插件树。
+# 桌面端注入挂件脚本的方式与 dsh-whale-widget 相同：Host 半监听
+# `webserver/index-inject`，推一行内联 script，自己 new <script src="/dsh-xiaod/widget.js">。
+
+- insert:
+    - id: dsh-xiaod-ledger
+      name: dsh-xiaod-ledger
+      config: {}

@@ -62,6 +62,12 @@
 | `玩赛博虎鲸.bat` | 双击这个启动虎鲸（自动处理编码，不用手动开终端）|
 | `preview-day.png` / `preview-night.png` | 游戏截图 · 白天 / 夜晚（960×540，已无损压缩） |
 
+## 我的插件/ 🧩
+**规矩：给 DSH 写的小插件都放这里**（自家代码，形象和逻辑都能随时改）。
+
+| 目录 | 说明 |
+| --- | --- |
+| `dsh-xiaod-ledger/` | 🧾 **小D记账**（2026-10-18 写）DSH 桌面右下角小挂件：DeepSeek 余额 + 今日/本轮/累计花费 + 账本明细（时间·金额·模型·tokens）。余额优先走 DSH 账号登录态（没 API key 也能读），花费按每轮真实 token usage × 官方峰谷价折算；账本存在 `$DSH_HOME/xiaod-ledger/ledger.json`。**形象图在本机 `assets/character.png`，不进公开仓库**。Host 半 `lib/index.js`（路由 + 会话事件监听）+ 纯逻辑 `lib/core.js`（有 `test-core.mjs` 单测）+ 原生 DOM 挂件 `lib/widget.js` |
 ## 我的代码/ 💻
 **规矩：人类小姑娘自己写的代码，从「备份」里抢救出来的，都转正到这里。** 🐢
 
