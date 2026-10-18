@@ -18,9 +18,18 @@ dsh-xiaod-ledger/
 │   ├── index.js          # Host 半：路由 + 会话 usage 监听 + 余额读取 + 账本读写
 │   ├── core.js           # 纯逻辑：峰谷价 / 北京时间 / 汇总 / 账本文件（可单独跑测试）
 │   └── widget.js         # 浏览器半：右下角小挂件（原生 DOM，无框架）
-├── assets/character.png  # 挂件形象
+├── assets/character.png  # 挂件形象（小D自己：紫色小机器人抱账本）
 └── README.md
 ```
+
+## 形象
+
+挂件上的角色是**小D自己**：紫色小机器人，怀里抱着小账本，账本上压一枚金币。
+
+- 原图：`我的头像/小D-记账挂件.png`（透明 PNG，506×512）
+- 画图脚本：`工具/小D-记账挂件.html`（610 坐标系、2 倍出图的 canvas 页面）
+- 出图流程：无头 Edge `--default-background-color=00000000` 截透明 PNG → PIL 按 alpha（阈值 40，避开柔光把裁边撑大）裁边 → 缩到最长边 512 → 存原图 + 复制到 `assets/character.png`
+- `assets/character.png` **不进公开仓库**（`.gitignore` 里的 `我的插件/*/assets/*.png`），只在本机；想换成别的图见下面「配置」
 
 ## 数据 & 隐私
 

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小D · 记账挂件形象（透明 PNG）</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="cv" width="1220" height="1220"></canvas>
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+ctx.scale(2, 2);            /* 610×610 坐标系，2 倍分辨率出图 */
+
+/* ---------- 调色（跟 小D-小机器人挂件.html 同一套） ---------- */
+const HEAD1 = '#b3a6ff';
+const HEAD2 = '#6c5ce7';
+const SCREEN1 = '#242242';
+const SCREEN2 = '#0e0d22';
+const CYAN = '#7ef7ff';
+const GOLD1 = '#fff6b0';
+const GOLD2 = '#ffb703';
+const HAND = '#8f7ff5';
+const PINK1 = '#ffe3ef';
+const PINK2 = '#f0a2c4';
+const PAGES = '#fffaf2';
+
+function rr(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function star(cx, cy, r, rot, color) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 5;
+    const rad = i % 2 === 0 ? r : r * 0.44;
+    ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- 脑袋后面的柔光（半径收在画布里，不会留方框） ---------- */
+const glow = ctx.createRadialGradient(305, 280, 40, 305, 280, 240);
+glow.addColorStop(0, 'rgba(150,128,255,.20)');
+glow.addColorStop(1, 'rgba(150,128,255,0)');
+ctx.fillStyle = glow;
+ctx.beginPath();
+ctx.arc(305, 280, 240, 0, Math.PI * 2);
+ctx.fill();
+
+/* ---------- 天线 ---------- */
+ctx.strokeStyle = '#8f7ff5';
+ctx.lineWidth = 11;
+ctx.lineCap = 'round';
+ctx.beginPath();
+ctx.moveTo(305, 160);
+ctx.lineTo(305, 92);
+ctx.stroke();
+
+/* 金球（带光晕） */
+ctx.save();
+ctx.shadowColor = 'rgba(255,200,80,.9)';
+ctx.shadowBlur = 32;
+const ball = ctx.createRadialGradient(297, 67, 4, 305, 76, 26);
+ball.addColorStop(0, GOLD1);
+ball.addColorStop(1, GOLD2);
+ctx.fillStyle = ball;
+ctx.beginPath();
+ctx.arc(305, 76, 21, 0, Math.PI * 2);
+ctx.fill();
+ctx.restore();
+ctx.fillStyle = 'rgba(255,255,255,.9)';
+ctx.beginPath();
+ctx.arc(298, 68, 6, 0, Math.PI * 2);
+ctx.fill();
+
+/* ---------- 小账本（在脑袋下面，先画） ---------- */
+ctx.save();
+ctx.translate(305, 446);
+ctx.rotate(-0.05);
+
+/* 内页：往右下错开一点，露出纸边 */
+ctx.fillStyle = PAGES;
+rr(-70, -34, 144, 71, 10);
+ctx.fill();
+ctx.strokeStyle = 'rgba(212,168,190,.55)';
+ctx.lineWidth = 3;
+ctx.lineCap = 'round';
+for (let i = 0; i < 3; i++) {
+  ctx.beginPath();
+  ctx.moveTo(-40, -12 + i * 16);
+  ctx.lineTo(2, -12 + i * 16);
+  ctx.stroke();
+}
+
+/* 封面（淡粉） */
+const coverG = ctx.createLinearGradient(0, -42, 0, 42);
+coverG.addColorStop(0, PINK1);
+coverG.addColorStop(1, PINK2);
+ctx.fillStyle = coverG;
+rr(-78, -42, 150, 80, 14);
+ctx.fill();
+
+/* 书脊 */
+ctx.fillStyle = 'rgba(214,110,160,.42)';
+rr(-78, -42, 20, 80, 9);
+ctx.fill();
+
+/* 封面上的一枚金币 */
+ctx.save();
+ctx.shadowColor = 'rgba(255,190,70,.8)';
+ctx.shadowBlur = 18;
+const coin = ctx.createRadialGradient(34, -12, 3, 42, -4, 24);
+coin.addColorStop(0, GOLD1);
+coin.addColorStop(1, GOLD2);
+ctx.fillStyle = coin;
+ctx.beginPath();
+ctx.arc(42, -4, 23, 0, Math.PI * 2);
+ctx.fill();
+ctx.restore();
+ctx.fillStyle = 'rgba(255,255,255,.9)';
+ctx.beginPath();
+ctx.arc(34, -13, 6, 0, Math.PI * 2);
+ctx.fill();
+/* 金币上一点很淡的高光弧（不画 ¥，小尺寸会糊成白痕） */
+ctx.strokeStyle = 'rgba(255,255,255,.5)';
+ctx.lineWidth = 3;
+ctx.lineCap = 'round';
+ctx.beginPath();
+ctx.arc(42, -4, 13, Math.PI * 0.15, Math.PI * 0.85);
+ctx.stroke();
+
+/* 书签小丝带 */
+ctx.fillStyle = GOLD2;
+rr(58, 30, 13, 18, 5);
+ctx.fill();
+
+ctx.restore();
+
+/* ---------- 两只小手扒着账本 ---------- */
+for (const hx of [228, 382]) {
+  ctx.fillStyle = HAND;
+  ctx.beginPath();
+  ctx.arc(hx, 414, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.save();
+  ctx.globalAlpha = .35;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(hx - 5, 408, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- 脑袋 ---------- */
+const headG = ctx.createLinearGradient(0, 158, 0, 390);
+headG.addColorStop(0, HEAD1);
+headG.addColorStop(1, HEAD2);
+ctx.fillStyle = headG;
+rr(152, 158, 306, 232, 76);
+ctx.fill();
+
+/* 头顶高光 */
+ctx.save();
+ctx.globalAlpha = .33;
+ctx.fillStyle = '#e7e2ff';
+ctx.beginPath();
+ctx.ellipse(238, 200, 54, 23, -0.22, 0, Math.PI * 2);
+ctx.fill();
+ctx.restore();
+
+/* ---------- 屏幕脸 ---------- */
+const scrG = ctx.createRadialGradient(305, 240, 28, 305, 278, 176);
+scrG.addColorStop(0, SCREEN1);
+scrG.addColorStop(1, SCREEN2);
+ctx.fillStyle = scrG;
+rr(186, 192, 238, 172, 54);
+ctx.fill();
+
+/* ---------- 眼睛（青色发光） ---------- */
+for (const x of [264, 346]) {
+  ctx.save();
+  ctx.shadowColor = CYAN;
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = CYAN;
+  ctx.beginPath();
+  ctx.arc(x, 266, 24, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.beginPath();
+  ctx.arc(x - 7, 257, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 7, 274, 3.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/* ---------- 微笑 ---------- */
+ctx.save();
+ctx.shadowColor = CYAN;
+ctx.shadowBlur = 12;
+ctx.strokeStyle = CYAN;
+ctx.lineWidth = 8.5;
+ctx.lineCap = 'round';
+ctx.beginPath();
+ctx.moveTo(274, 318);
+ctx.quadraticCurveTo(305, 344, 336, 318);
+ctx.stroke();
+ctx.restore();
+
+/* ---------- 腮红（发光粉，叠在深色屏幕上） ---------- */
+ctx.save();
+ctx.globalCompositeOperation = 'lighter';
+ctx.fillStyle = 'rgba(255,105,165,.72)';
+ctx.beginPath(); ctx.ellipse(233, 326, 23, 13, 0, 0, Math.PI * 2); ctx.fill();
+ctx.beginPath(); ctx.ellipse(377, 326, 23, 13, 0, 0, Math.PI * 2); ctx.fill();
+ctx.restore();
+
+/* ---------- 耳朵上的小螺丝 ---------- */
+ctx.fillStyle = '#5b4fd0';
+for (const s of [-1, 1]) {
+  ctx.beginPath();
+  ctx.arc(305 + s * 148, 286, 8, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/* ---------- 旁边的小星星 ---------- */
+star(486, 200, 10, 0.3, 'rgba(126,247,255,.85)');
+star(510, 240, 5, 0.9, 'rgba(126,247,255,.55)');
+star(128, 330, 7, -0.2, 'rgba(185,167,255,.7)');
+</script>
+</body>
+</html>
