@@ -327,11 +327,6 @@ function drawWhale(t) {
   const fx = whale.face * (1 - whale.turn * .22);
   ctx.scale(fx * (1 + whale.pop * .05), 1 + whale.pop * .04);
 
-  /* 尾巴后面的泡泡 */
-  for (const b of bubbles) {
-    ctx.fillStyle = 'rgba(200,220,255,' + (b.life * .35).toFixed(3) + ')';
-    ctx.beginPath(); ctx.arc(b.x - whale.x, b.y - whale.y - bob, b.r, 0, Math.PI * 2); ctx.fill();
-  }
 
   /* 尾鳍（先画，藏在身体后） */
   ctx.save();
@@ -620,7 +615,7 @@ function update(t, dt) {
         ring = 1; ringX = st.x; ringY = st.y;
         whale.pop = 1;
         burst(st.x, st.y, '255,228,160', 22);
-        bubbles.push({ x: st.x, y: st.y, r: s * .05 });
+        bubbles.push({ x: st.x, y: st.y, r: s * .05, life: 1, ph: Math.random() * Math.PI * 2 });
         sfxCatch(); updateHUD();
       }
     }
@@ -660,13 +655,26 @@ function update(t, dt) {
     b.life -= b.decay * dt;
     if (b.life <= 0) bits.splice(i, 1);
   }
+  /* 泡泡：有寿命、有上限，游得快才冒几颗，不会糊成一片雾 */
   for (let i = bubbles.length - 1; i >= 0; i--) {
     const b = bubbles[i];
-    b.y -= 26 * dt; b.r += 3 * dt;
-    if (b.y < -20) bubbles.splice(i, 1);
+    b.y -= 22 * dt;
+    b.x += Math.sin(b.ph + t * 2) * 8 * dt;
+    b.r += 1.4 * dt;
+    b.life -= dt * .9;
+    if (b.life <= 0 || b.y < -20) bubbles.splice(i, 1);
   }
-  if (state === 'play' && Math.random() < dt * 6) {
-    bubbles.push({ x: whale.x - whaleScale() * .9, y: whale.y + whaleScale() * .18, r: 1 + Math.random() * 3 });
+  if (state === 'play' && whale.vx !== undefined) {
+    const spd = Math.hypot(whale.vx, whale.vy);
+    if (spd > 120 && bubbles.length < 34 && Math.random() < dt * 9) {
+      bubbles.push({
+        x: whale.x - whaleScale() * .95,
+        y: whale.y + whaleScale() * .16,
+        r: whaleScale() * (.032 + Math.random() * .030),
+        life: 1,
+        ph: Math.random() * Math.PI * 2,
+      });
+    }
   }
   if (shake > 0) shake = Math.max(0, shake - dt * 2.4);
   if (ring > 0) ring = Math.max(0, ring - dt * 1.8);
@@ -762,8 +770,12 @@ function draw(t) {
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r * (0.4 + b.life), 0, Math.PI * 2); ctx.fill();
   }
   for (const b of bubbles) {
-    ctx.fillStyle = 'rgba(200,220,255,.35)';
-    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    const a = Math.max(0, Math.min(1, b.life));
+    ctx.strokeStyle = 'rgba(205,225,255,' + (a * .45).toFixed(3) + ')';
+    ctx.lineWidth = Math.max(1, b.r * .35);
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(225,238,255,' + (a * .12).toFixed(3) + ')';
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r * .8, 0, Math.PI * 2); ctx.fill();
   }
 
   ctx.restore();
@@ -815,6 +827,10 @@ requestAnimationFrame(loop);
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
