@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>云朵上的小火车 · 开往好天气 🚂☁️</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #e9e6f2; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 30px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 23px; font-weight: 600; letter-spacing: 7px;    color: #3f4f77;
+    text-shadow: 0 1px 0 rgba(255,255,255,.85), 0 1px 14px rgba(255,255,255,.9), 0 2px 30px rgba(255,255,255,.7);
+  }
+  .caption p {
+    font-size: 12px; letter-spacing: 2.5px; color: #63708f;
+    margin-top: 7px;
+    text-shadow: 0 1px 0 rgba(255,255,255,.8), 0 1px 12px rgba(255,255,255,.85);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #6f7a9a;
+    opacity: .9; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(255,255,255,.95);
+  }
+  body.clean .hint { display: none; }
+  body.clean .caption { animation: none !important; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下画面 · 小火车会冒出一圈亮闪闪的星屑 ✨</div>
+<div class="caption">
+  <h1>云 朵 上 的 小 火 车</h1>
+  <p>开往下一个好天气 · 车厢里装着软软的梦</p>
+</div>
+
+<script>
+if (location.search.includes('clean')) document.body.classList.add('clean');
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+/* ---------- 确定性随机 ---------- */
+const SCENE_SEED = 20261019;
+let seed = SCENE_SEED;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+function between(a, b) { return a + rnd() * (b - a); }
+function rngFrom(s) {
+  let v = s;
+  return function () {
+    v = (v * 9301 + 49297) % 233280;
+    return v / 233280;
+  };
+}
+
+/* ---------- 离屏静态层 ---------- */
+const bg = document.createElement('canvas');
+const bx = bg.getContext('2d');
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  bg.width = cv.width; bg.height = cv.height;
+  bx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  paintStatic();
+}
+window.addEventListener('resize', resize);
+
+/* ---------- 小工具 ---------- */
+function rrect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+/* 一团积云：底部平、顶上圆鼓鼓 */
+function puffCluster(C, cx, baseY, w, h, color, alpha, rand) {
+  C.save();
+  C.globalAlpha = alpha;
+  C.fillStyle = color;
+  C.beginPath();
+  C.ellipse(cx, baseY, w * .5, h * .30, 0, 0, Math.PI * 2);
+  C.fill();
+  const n = 7;
+  for (let i = 0; i < n; i++) {
+    const fx = (i + .5) / n;
+    const prof = Math.sin(Math.PI * fx);
+    const r = h * (.15 + .42 * prof) * (.82 + rand() * .42);
+    const x = cx + (fx - .5) * w * (0.86 + rand() * .2);
+    const y = baseY - h * .16 - r * (.45 + rand() * .4);
+    C.beginPath();
+    C.ellipse(x, y, r * (1.05 + rand() * .3), r * (.86 + rand() * .16), 0, 0, Math.PI * 2);
+    C.fill();
+  }
+  C.restore();
+}
+
+/* 一排云（可以超出画布左右，接缝就不会露） */
+function cloudRow(baseY, h, color, alpha, count, seedBase, spread) {
+  const rand = rngFrom(seedBase);
+  for (let i = 0; i < count; i++) {
+    const cx = (-.12 + (i + rand() * .55) / count * 1.24) * W;
+    const w = W * (.16 + rand() * .13) * (spread || 1);
+    const hh = h * (.72 + rand() * .55);
+    puffCluster(bx, cx, baseY + h * (.06 + rand() * .1), w, hh, color, alpha, rand);
+  }
+}
+
+/* 一排云浪：半圆一个接一个连成起伏的云边，用渐变做体积 */
+function seaRow(baseY, rMin, rMax, top, bot, seedBase, alpha) {
+  const C = bx;
+  const rand = rngFrom(seedBase);
+  const puffs = [];
+  let x = -W * .10;
+  while (x < W * 1.10) {
+    const r = H * (rMin + rand() * (rMax - rMin));
+    puffs.push({ x, r, y: baseY + (rand() - .5) * H * .014 });
+    x += r * (.92 + rand() * .5);
+  }
+  const g = C.createLinearGradient(0, baseY - H * rMax * 1.7, 0, baseY + H * .10);
+  g.addColorStop(0, top);
+  g.addColorStop(1, bot);
+  C.save();
+  C.globalAlpha = alpha;
+  C.fillStyle = g;
+  C.beginPath();
+  C.moveTo(-W * .12, H);
+  C.lineTo(-W * .12, baseY + H * .02);
+  for (const p of puffs) C.arc(p.x, p.y, p.r, Math.PI, 0);
+  C.lineTo(W * 1.12, H);
+  C.closePath();
+  C.fill();
+  /* 每个云浪顶上的柔光，亮在心口 */
+  for (const p of puffs) {
+    const hg = C.createRadialGradient(p.x - p.r * .1, p.y - p.r * .92, p.r * .06, p.x, p.y - p.r * .55, p.r * 1.15);
+    hg.addColorStop(0, 'rgba(255,253,248,.55)');
+    hg.addColorStop(.55, 'rgba(255,253,248,.16)');
+    hg.addColorStop(1, 'rgba(255,253,248,0)');
+    C.fillStyle = hg;
+    C.beginPath();
+    C.arc(p.x, p.y, p.r, Math.PI, 0);
+    C.fill();
+  }
+  /* 云浪后面垫一点更远的云，接缝不至于太平 */
+  C.restore();
+}
+
+/* 画面前景两侧的大云团，轻轻把画面框住 */
+function foregroundMounds() {
+  const C = bx;
+  const rand = rngFrom(SCENE_SEED + 211);
+  const back = [
+    { x: W * .04, w: W * .46, h: H * .20 },
+    { x: W * .96, w: W * .48, h: H * .21 },
+  ];
+  for (const b of back) puffCluster(C, b.x, H * 1.03, b.w, b.h, '#dfe6f4', 1, rand);
+  const front = [
+    { x: W * .15, w: W * .34, h: H * .15 },
+    { x: W * .85, w: W * .36, h: H * .16 },
+  ];
+  for (const f of front) puffCluster(C, f.x, H * 1.08, f.w, f.h, '#f7f9fe', 1, rand);
+  /* 云团顶上的一点暖光 */
+  const warm = C.createRadialGradient(W * .08, H * .86, H * .01, W * .08, H * .90, H * .22);
+  warm.addColorStop(0, 'rgba(255,248,240,.35)');
+  warm.addColorStop(1, 'rgba(255,248,240,0)');
+  C.fillStyle = warm;
+  C.fillRect(0, H * .80, W * .42, H * .20);
+}
+
+/* ================================================================
+   静态层：天空 / 太阳 / 云海 / 云轨道 / 星屑
+   ================================================================ */
+function paintStatic() {
+  seed = SCENE_SEED;
+  const C = bx;
+  C.clearRect(0, 0, W, H);
+
+  /* ---- 天空 ---- */
+  const sky = C.createLinearGradient(0, 0, 0, H * .78);
+  sky.addColorStop(0, '#aec3e4');
+  sky.addColorStop(.30, '#cdd8ec');
+  sky.addColorStop(.56, '#eadfe7');
+  sky.addColorStop(.74, '#f8e9dd');
+  sky.addColorStop(1, '#f6e7df');
+  C.fillStyle = sky;
+  C.fillRect(0, 0, W, H);
+
+  /* ---- 太阳：右边低低一颗，暖雾一样的光晕 ---- */
+  const sx = W * .845, sy = H * .205;
+  const sunGlow = C.createRadialGradient(sx, sy, H * .01, sx, sy, H * .30);
+  sunGlow.addColorStop(0, 'rgba(255,250,232,.98)');
+  sunGlow.addColorStop(.16, 'rgba(255,243,214,.62)');
+  sunGlow.addColorStop(.48, 'rgba(255,228,196,.20)');
+  sunGlow.addColorStop(1, 'rgba(255,228,196,0)');
+  C.fillStyle = sunGlow;
+  C.fillRect(0, 0, W, H * .70);
+  C.fillStyle = 'rgba(255,247,219,.99)';
+  C.beginPath();
+  C.arc(sx, sy, H * .047, 0, Math.PI * 2);
+  C.fill();
+  C.strokeStyle = 'rgba(255,232,182,.8)';
+  C.lineWidth = Math.max(1, H * .002);
+  C.stroke();
+
+  /* ---- 高处淡淡的云丝 ---- */
+  function veil(cx, cy, w, h, a) {
+    C.save();
+    C.globalAlpha = a;
+    C.fillStyle = '#ffffff';
+    C.beginPath();
+    C.ellipse(cx, cy, w * .5, h * .5, 0, 0, Math.PI * 2);
+    C.fill();
+    C.beginPath();
+    C.ellipse(cx - w * .26, cy + h * .12, w * .3, h * .34, 0, 0, Math.PI * 2);
+    C.fill();
+    C.beginPath();
+    C.ellipse(cx + w * .28, cy + h * .1, w * .32, h * .3, 0, 0, Math.PI * 2);
+    C.fill();
+    C.restore();
+  }
+  veil(W * .20, H * .14, W * .17, H * .036, .50);
+  veil(W * .48, H * .09, W * .13, H * .026, .38);
+  veil(W * .66, H * .17, W * .10, H * .022, .30);
+  veil(W * .92, H * .40, W * .12, H * .024, .26);
+
+  /* ---- 远处的小鸟 ---- */
+  C.save();
+  C.strokeStyle = 'rgba(116,110,132,.42)';
+  C.lineWidth = Math.max(1, H * .0016);
+  C.lineCap = 'round';
+  const birds = [
+    [W * .18, H * .19, 1], [W * .215, H * .215, .82], [W * .155, H * .225, .7],
+    [W * .705, H * .265, .85], [W * .735, H * .288, .65],
+  ];
+  for (const [bx0, by0, sc] of birds) {
+    const s = H * .0085 * sc;
+    C.beginPath();
+    C.moveTo(bx0 - s, by0);
+    C.quadraticCurveTo(bx0 - s * .35, by0 - s * .55, bx0, by0 - s * .05);
+    C.quadraticCurveTo(bx0 + s * .35, by0 - s * .55, bx0 + s, by0);
+    C.stroke();
+  }
+  C.restore();
+
+  /* ---- 高处一点点星屑（很淡，只作质感） ---- */
+  seed = SCENE_SEED + 7;
+  for (let i = 0; i < 46; i++) {
+    const x = rnd() * W;
+    const y = H * (.04 + rnd() * .34);
+    const r = H * (.0015 + rnd() * .0022);
+    C.strokeStyle = 'rgba(255,252,240,' + between(.18, .5).toFixed(2) + ')';
+    C.lineWidth = Math.max(1, r * .55);
+    C.beginPath();
+    C.moveTo(x - r, y); C.lineTo(x + r, y);
+    C.moveTo(x, y - r); C.lineTo(x, y + r);
+    C.stroke();
+  }
+
+  /* ---- 中景几团飘着的小云（给云海做层次） ---- */
+  const midRand = rngFrom(SCENE_SEED + 41);
+  for (let i = 0; i < 5; i++) {
+    puffCluster(C, W * (.08 + i * .21 + midRand() * .05), H * (.50 + midRand() * .035),
+      W * (.10 + midRand() * .05), H * (.030 + midRand() * .02),
+      '#fdf7ee', .78, midRand);
+  }
+
+  /* ---- 云轨道：小火车跑的那一条 ---- */
+  C.save();
+  const railShadow = C.createLinearGradient(0, H * .565, 0, H * .625);
+  railShadow.addColorStop(0, 'rgba(150,158,188,.16)');
+  railShadow.addColorStop(1, 'rgba(150,158,188,0)');
+  C.fillStyle = railShadow;
+  C.fillRect(0, H * .565, W, H * .07);
+  cloudRow(H * .578, H * .050, '#fdfaf3', 1, 12, SCENE_SEED + 61, 1.05);
+  /* 云轨下面的阴影，让这条云脊看得出来 */
+  const ridgeShadow = C.createLinearGradient(0, H * .582, 0, H * .645);
+  ridgeShadow.addColorStop(0, 'rgba(148,158,190,.13)');
+  ridgeShadow.addColorStop(.5, 'rgba(148,158,190,.06)');
+  ridgeShadow.addColorStop(1, 'rgba(148,158,190,0)');
+  C.fillStyle = ridgeShadow;
+  C.fillRect(0, H * .582, W, H * .063);
+  const railGlow = C.createLinearGradient(0, H * .545, 0, H * .585);
+  railGlow.addColorStop(0, 'rgba(255,255,255,0)');
+  railGlow.addColorStop(.55, 'rgba(255,255,255,.55)');
+  railGlow.addColorStop(1, 'rgba(255,255,255,0)');
+  C.fillStyle = railGlow;
+  C.fillRect(0, H * .545, W, H * .045);
+  C.restore();
+
+  /* 轮子底下再垫一层小云，让火车像踩在云脊上 */
+  cloudRow(H * .600, H * .044, '#fffdf8', 1, 14, SCENE_SEED + 55, 1.0);
+
+  /* ---- 云海：一排排圆鼓鼓的云浪，一排压着一排 ---- */
+  seaRow(H * .640, .032, .062, '#f0f3fc', '#dfe6f3', SCENE_SEED + 181, 1);
+  seaRow(H * .686, .048, .090, '#fbf6ef', '#e6e8f3', SCENE_SEED + 191, 1);
+  seaRow(H * .752, .070, .130, '#f7eee5', '#d3dcee', SCENE_SEED + 203, 1);
+
+  /* 云海之间的薄雾，把每排云分开 */
+  const haze = C.createLinearGradient(0, H * .655, 0, H * .80);
+  haze.addColorStop(0, 'rgba(255,251,245,0)');
+  haze.addColorStop(.35, 'rgba(255,251,245,.26)');
+  haze.addColorStop(.65, 'rgba(255,251,245,.18)');
+  haze.addColorStop(1, 'rgba(255,251,245,0)');
+  C.fillStyle = haze;
+  C.fillRect(0, H * .655, W, H * .15);
+
+  /* 云谷里再铺两层很淡的云带，让空处也有远近 */
+  for (const mb of [{ x: .24, y: .800, w: .34, h: .045, a: .34 }, { x: .62, y: .812, w: .40, h: .050, a: .30 }, { x: .88, y: .795, w: .26, h: .038, a: .26 }]) {
+    C.save();
+    C.translate(mb.x * W, mb.y * H);
+    C.scale(1, mb.h / mb.w);
+    const g = C.createRadialGradient(0, 0, 0, 0, 0, mb.w * W);
+    g.addColorStop(0, 'rgba(255,255,255,' + mb.a + ')');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    C.fillStyle = g;
+    C.beginPath();
+    C.arc(0, 0, mb.w * W, 0, Math.PI * 2);
+    C.fill();
+    C.restore();
+  }
+
+  /* ---- 最前面的两团大云，把画面轻轻框住，也给署名一块舒服的底 ---- */
+  foregroundMounds();
+
+  /* 最底下薄薄一层蓝，云才不会「飘」起来 */
+  const floor = C.createLinearGradient(0, H * .90, 0, H);
+  floor.addColorStop(0, 'rgba(146,164,198,0)');
+  floor.addColorStop(.6, 'rgba(134,154,190,.12)');
+  floor.addColorStop(1, 'rgba(112,136,178,.22)');
+  C.fillStyle = floor;
+  C.fillRect(0, H * .90, W, H * .10);
+}
+
+/* ================================================================
+   动态层：小火车 / 烟 / 星屑
+   ================================================================ */
+const smokes = [];
+const sparkles = [];
+const drifts = [];
+
+function buildDrifts() {
+  const rand = rngFrom(SCENE_SEED + 131);
+  drifts.length = 0;
+  for (let i = 0; i < 3; i++) {
+    drifts.push({
+      x: rand(), y: H * (.30 + rand() * .16),
+      w: W * (.06 + rand() * .05), h: H * (.014 + rand() * .012),
+      sp: (4 + rand() * 7), a: .18 + rand() * .16,
+    });
+  }
+}
+
+/* ---------- 车轮 ---------- */
+function drawWheel(c, x, ang, r) {
+  const cy = 2 - r;            /* 轮底刚好踩在 y=2（云上） */
+  c.save();
+  c.translate(x, cy);
+  c.fillStyle = '#5b6172';
+  c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#f1e7da';
+  c.beginPath(); c.arc(0, 0, r * .76, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = 'rgba(91,97,114,.8)';
+  c.lineWidth = Math.max(1, r * .10);
+  for (let i = 0; i < 6; i++) {
+    const a = ang + i * Math.PI / 3;
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.lineTo(Math.cos(a) * r * .70, Math.sin(a) * r * .70);
+    c.stroke();
+  }
+  c.fillStyle = '#b98f63';
+  c.beginPath(); c.arc(0, 0, r * .20, 0, Math.PI * 2); c.fill();
+  c.restore();
+}
+
+/* ---------- 车厢乘客剪影 ---------- */
+function drawPax(c, x, y, kind) {
+  c.save();
+  c.fillStyle = 'rgba(120,92,74,.72)';
+  if (kind === 'cat') {
+    c.beginPath(); c.arc(x, y + 2, 8, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.moveTo(x - 8, y - 2); c.lineTo(x - 4, y - 12); c.lineTo(x - 1, y - 4); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(x + 8, y - 2); c.lineTo(x + 4, y - 12); c.lineTo(x + 1, y - 4); c.closePath(); c.fill();
+  } else if (kind === 'bear') {
+    c.beginPath(); c.arc(x, y + 3, 9, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(x - 7, y - 6, 4.2, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(x + 7, y - 6, 4.2, 0, Math.PI * 2); c.fill();
+  } else if (kind === 'whale') {
+    c.beginPath();
+    c.ellipse(x, y + 2, 11, 7.5, 0, 0, Math.PI * 2);
+    c.fill();
+    c.beginPath();
+    c.moveTo(x + 10, y + 2);
+    c.lineTo(x + 17, y - 5);
+    c.lineTo(x + 17, y + 8);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+}
+
+/* ---------- 车厢 ---------- */
+function drawCarriage(c, x0, pal, ang) {
+  const len = 168, top = -104, bot = -34;
+
+  /* 车轮 */
+  drawWheel(c, x0 + 30, ang, 19);
+  drawWheel(c, x0 + len - 32, ang, 19);
+
+  /* 底架 */
+  c.fillStyle = '#6b6b7d';
+  rrect(c, x0 + 2, bot - 2, len - 4, 9, 4); c.fill();
+
+  /* 车身 */
+  const body = c.createLinearGradient(0, top, 0, bot);
+  body.addColorStop(0, pal.body[0]);
+  body.addColorStop(1, pal.body[1]);
+  c.fillStyle = body;
+  rrect(c, x0, top, len, bot - top, 13); c.fill();
+
+  /* 车身下沿一条深色腰带 */
+  c.fillStyle = pal.skirt;
+  rrect(c, x0 + 3, bot - 13, len - 6, 10, 5); c.fill();
+
+  /* 车顶 */
+  c.fillStyle = pal.roof;
+  rrect(c, x0 - 9, top - 19, len + 18, 23, 11); c.fill();
+  c.fillStyle = 'rgba(255,255,255,.35)';
+  rrect(c, x0 - 6, top - 16, len + 12, 5, 3); c.fill();
+
+  /* 两扇窗（暖黄的光） */
+  const winW = 44, winH = 40, winY = top + 17;
+  const winXs = [x0 + 20, x0 + len - 20 - winW];
+  for (let i = 0; i < winXs.length; i++) {
+    const wx = winXs[i];
+    const glow = c.createLinearGradient(0, winY, 0, winY + winH);
+    glow.addColorStop(0, '#fff2c9');
+    glow.addColorStop(1, '#ffdca4');
+    c.fillStyle = glow;
+    rrect(c, wx, winY, winW, winH, 8); c.fill();
+    drawPax(c, wx + winW / 2, winY + winH * .60, pal.pax[i]);
+    c.strokeStyle = pal.frame;
+    c.lineWidth = 3;
+    rrect(c, wx, winY, winW, winH, 8); c.stroke();
+    /* 窗上的小反光 */
+    c.fillStyle = 'rgba(255,255,255,.55)';
+    c.beginPath();
+    c.moveTo(wx + 5, winY + 8);
+    c.lineTo(wx + 15, winY + 3);
+    c.lineTo(wx + 15, winY + 8);
+    c.lineTo(wx + 6, winY + 13);
+    c.closePath();
+    c.fill();
+  }
+
+  /* 车厢顶上的小把手 */
+  c.fillStyle = pal.roof;
+  rrect(c, x0 + len / 2 - 9, top - 28, 18, 10, 5); c.fill();
+}
+
+/* ---------- 车头 ---------- */
+function drawEngine(c, ang) {
+  /* 车轮（先画，被车身盖住上半） */
+  drawWheel(c, -58, ang, 27);
+  drawWheel(c, 8, ang, 27);
+  drawWheel(c, 66, ang, 17);
+
+  /* 连杆（在轮心高度上） */
+  c.strokeStyle = 'rgba(94,100,118,.9)';
+  c.lineWidth = 4;
+  c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(-58, -25);
+  c.lineTo(66, -15);
+  c.stroke();
+  c.fillStyle = '#c9a565';
+  for (const wx of [-58, 8, 66]) {
+    c.beginPath(); c.arc(wx, wx === 66 ? -15 : -25, 4, 0, Math.PI * 2); c.fill();
+  }
+
+  /* 底架 + 踏板 */
+  c.fillStyle = '#6b6b7d';
+  rrect(c, -102, -40, 188, 8, 4); c.fill();
+  c.fillStyle = '#e4d0ba';
+  rrect(c, -98, -38, 178, 6, 3); c.fill();
+
+  /* 排障器（车头前面那个带竖条的三角） */
+  c.fillStyle = '#8b8b9e';
+  c.beginPath();
+  c.moveTo(74, -32);
+  c.lineTo(100, -10);
+  c.lineTo(100, 3);
+  c.lineTo(74, -16);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = 'rgba(255,255,255,.35)';
+  c.lineWidth = 1.6;
+  for (let i = 0; i < 3; i++) {
+    const t = (i + 1) / 4;
+    c.beginPath();
+    c.moveTo(74 + 26 * t, -32 + 22 * t);
+    c.lineTo(74 + 26 * t, 3 - 19 * t);
+    c.stroke();
+  }
+
+  /* 锅炉 */
+  const boil = c.createLinearGradient(0, -104, 0, -32);
+  boil.addColorStop(0, '#fbf1e3');
+  boil.addColorStop(.45, '#f4e3d0');
+  boil.addColorStop(1, '#e6cfb8');
+  c.fillStyle = boil;
+  rrect(c, -96, -100, 170, 64, 15); c.fill();
+
+  /* 锅炉前脸（一圈铜圈，像个小门） */
+  c.fillStyle = '#ecd8c3';
+  c.beginPath(); c.ellipse(74, -68, 13, 32, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = 'rgba(201,160,110,.85)';
+  c.lineWidth = 3.6;
+  c.beginPath(); c.ellipse(74, -68, 9.5, 25, 0, 0, Math.PI * 2); c.stroke();
+  c.fillStyle = '#d9b678';
+  c.beginPath(); c.arc(74, -68, 5, 0, Math.PI * 2); c.fill();
+
+  /* 铜箍 */
+  c.strokeStyle = 'rgba(201,160,110,.85)';
+  c.lineWidth = 5;
+  for (const bxp of [-42, 20]) {
+    c.beginPath();
+    c.moveTo(bxp, -97);
+    c.lineTo(bxp, -35);
+    c.stroke();
+  }
+
+  /* 汽包 */
+  c.fillStyle = '#d9b678';
+  c.beginPath();
+  c.arc(-12, -100, 16, Math.PI, 0);
+  c.fill();
+  c.fillStyle = '#c9a565';
+  c.beginPath(); c.arc(-12, -100, 6, Math.PI, 0); c.fill();
+
+  /* 车灯（锅炉前上方） */
+  const lampGlow = c.createRadialGradient(64, -104, 2, 64, -104, 26);
+  lampGlow.addColorStop(0, 'rgba(255,240,198,.95)');
+  lampGlow.addColorStop(.4, 'rgba(255,226,160,.30)');
+  lampGlow.addColorStop(1, 'rgba(255,226,160,0)');
+  c.fillStyle = lampGlow;
+  c.beginPath(); c.arc(64, -104, 26, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#ffe7ad';
+  c.beginPath(); c.arc(64, -104, 8, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#c9a565';
+  c.lineWidth = 2.4;
+  c.stroke();
+
+  /* 驾驶室 */
+  c.fillStyle = '#f5e6d4';
+  rrect(c, -172, -130, 80, 94, 11); c.fill();
+  c.fillStyle = '#fbeedd';
+  rrect(c, -168, -126, 72, 40, 9); c.fill();
+
+  /* 驾驶室窗（圆角，像家里的窗） */
+  c.fillStyle = '#ffe9b9';
+  rrect(c, -158, -118, 48, 42, 10); c.fill();
+  drawPax(c, -134, -99, 'cat');
+  c.strokeStyle = '#bb9068';
+  c.lineWidth = 3.4;
+  rrect(c, -158, -118, 48, 42, 10); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.5)';
+  c.beginPath();
+  c.moveTo(-154, -112); c.lineTo(-144, -116); c.lineTo(-144, -111); c.lineTo(-155, -107);
+  c.closePath(); c.fill();
+
+  /* 驾驶室门线 + 小台阶 */
+  c.strokeStyle = 'rgba(190,150,110,.45)';
+  c.lineWidth = 2;
+  c.beginPath(); c.moveTo(-122, -104); c.lineTo(-122, -38); c.stroke();
+  c.fillStyle = '#d8bfa6';
+  rrect(c, -128, -46, 22, 6, 3); c.fill();
+
+  /* 车顶：带弧度的雨棚 */
+  c.fillStyle = '#d8a3a3';
+  c.beginPath();
+  c.moveTo(-182, -128);
+  c.quadraticCurveTo(-133, -156, -84, -128);
+  c.quadraticCurveTo(-96, -134, -133, -134);
+  c.quadraticCurveTo(-170, -134, -182, -128);
+  c.closePath();
+  c.fill();
+  /* 雨棚下沿薄薄一条深色 */
+  c.strokeStyle = 'rgba(176,120,120,.55)';
+  c.lineWidth = 2.4;
+  c.beginPath();
+  c.moveTo(-180, -128);
+  c.quadraticCurveTo(-133, -137, -86, -128);
+  c.stroke();
+
+  /* 汽笛（车顶上那根小管子） */
+  c.fillStyle = '#c9a565';
+  rrect(c, -64, -148, 9, 20, 4); c.fill();
+  c.beginPath(); c.arc(-59.5, -149, 6, Math.PI, 0); c.fill();
+
+  /* 烟囱 */
+  c.fillStyle = '#f2dfca';
+  rrect(c, 36, -148, 26, 50, 7); c.fill();
+  c.fillStyle = '#cf9d99';
+  rrect(c, 27, -160, 44, 16, 8); c.fill();
+  c.fillStyle = 'rgba(255,255,255,.35)';
+  rrect(c, 31, -157, 36, 5, 2); c.fill();
+  c.strokeStyle = 'rgba(201,160,110,.75)';
+  c.lineWidth = 3;
+  c.beginPath(); c.moveTo(36, -128); c.lineTo(62, -128); c.stroke();
+
+  /* 车顶小旗（轻轻飘） */
+  c.strokeStyle = '#8d8a99';
+  c.lineWidth = 2.6;
+  c.beginPath();
+  c.moveTo(-166, -132);
+  c.lineTo(-166, -178);
+  c.stroke();
+  c.fillStyle = '#e8a8a8';
+  c.beginPath();
+  c.moveTo(-166, -176);
+  c.quadraticCurveTo(-142, -172, -138, -165);
+  c.quadraticCurveTo(-152, -166, -166, -160);
+  c.closePath();
+  c.fill();
+}
+
+/* ---------- 小火车整体 ---------- */
+function drawTrain(t) {
+  const k = H / 780;
+  const bob = Math.sin(t * .9) * H * .0035;
+  const tx = W * .395 + Math.sin(t * .30) * W * .009;
+  const ty = H * .578 + bob;
+  const ang = -t * 1.5;
+
+  /* 云上的影子 */
+  ctx.save();
+  const sh = ctx.createRadialGradient(tx + W * .03, ty + H * .012, H * .01, tx + W * .03, ty + H * .012, W * .20);
+  sh.addColorStop(0, 'rgba(126,136,170,.14)');
+  sh.addColorStop(1, 'rgba(126,136,170,0)');
+  ctx.fillStyle = sh;
+  ctx.beginPath();
+  ctx.ellipse(tx + W * .03, ty + H * .012, W * .19, H * .022, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(tx, ty);
+  ctx.rotate(Math.sin(t * .9) * .0025);
+  ctx.scale(k, k);
+
+  /* 后一辆车厢（玫瑰色） */
+  drawCarriage(ctx, 318, {
+    body: ['#f6e7e0', '#eed6ce'], skirt: '#d9b9b1', roof: '#a9bcc8',
+    frame: '#b89a83', pax: ['whale', 'bear'],
+  }, ang);
+  /* 前一辆车厢（鼠尾草绿） */
+  drawCarriage(ctx, 118, {
+    body: ['#eaf0e7', '#dbe6d9'], skirt: '#bccdb8', roof: '#c9bcd8',
+    frame: '#a9a08a', pax: ['cat', 'bear'],
+  }, ang);
+  /* 车钩 */
+  ctx.strokeStyle = '#767688';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(104, -48); ctx.lineTo(118, -48);
+  ctx.moveTo(290, -48); ctx.lineTo(318, -48);
+  ctx.stroke();
+
+  /* 车头 */
+  drawEngine(ctx, ang);
+
+  ctx.restore();
+
+  /* 云把车轮底部轻轻盖住一点，看起来是「浮」在云上 */
+  ctx.save();
+  const rand = rngFrom(7);
+  for (let i = 0; i < 7; i++) {
+    const wx = tx + (W * (.26 + rand() * .28));
+    const wy = ty + H * (.004 + rand() * .006);
+    const ww = W * (.018 + rand() * .02);
+    const wh = H * (.004 + rand() * .005);
+    ctx.globalAlpha = .85;
+    ctx.fillStyle = '#fdfaf3';
+    ctx.beginPath();
+    ctx.ellipse(wx, wy, ww, wh, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  /* 烟囱的绝对位置，给烟用 */
+  return {
+    chimneyX: tx + 49 * k,
+    chimneyY: ty - 166 * k,
+  };
+}
+
+/* ---------- 烟 ---------- */
+let smokeTimer = 0;
+function puffSmoke(tx, ty) {
+  smokes.push({
+    x: tx + (Math.random() - .5) * 6,
+    y: ty + (Math.random() - .5) * 4,
+    vx: -46 - Math.random() * 34,
+    vy: -26 - Math.random() * 22,
+    r: H * .006 + Math.random() * H * .005,
+    gr: H * .009 + Math.random() * H * .007,
+    life: 1,
+    ph: Math.random() * Math.PI * 2,
+    a0: .34 + Math.random() * .18,
+  });
+}
+
+function drawSmoke(t, dt, p) {
+  smokeTimer -= dt;
+  if (smokeTimer <= 0) {
+    smokeTimer = .42;
+    puffSmoke(p.chimneyX, p.chimneyY);
+  }
+  for (let i = smokes.length - 1; i >= 0; i--) {
+    const s = smokes[i];
+    s.x += (s.vx + Math.sin(t * 1.1 + s.ph) * 3) * dt;
+    s.y += s.vy * dt;
+    s.vy *= .992;
+    s.r += s.gr * dt;
+    s.life -= dt * .30;
+    if (s.life <= 0) { smokes.splice(i, 1); continue; }
+    const a = s.a0 * Math.min(1, s.life * 1.8);
+    const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 1.75);
+    g.addColorStop(0, 'rgba(255,253,248,' + a.toFixed(3) + ')');
+    g.addColorStop(.55, 'rgba(250,244,238,' + (a * .72).toFixed(3) + ')');
+    g.addColorStop(.82, 'rgba(246,240,238,' + (a * .26).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(244,238,236,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r * 1.75, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* ---------- 星屑 ---------- */
+function starPath(c, x, y, r, rot) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(rot);
+  c.beginPath();
+  c.moveTo(0, -r);
+  c.quadraticCurveTo(r * .16, -r * .16, r, 0);
+  c.quadraticCurveTo(r * .16, r * .16, 0, r);
+  c.quadraticCurveTo(-r * .16, r * .16, -r, 0);
+  c.quadraticCurveTo(-r * .16, -r * .16, 0, -r);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+function spawnSparkles(x, y) {
+  const palette = ['rgba(255,246,214,', 'rgba(255,214,222,', 'rgba(214,232,255,'];
+  for (let i = 0; i < 24; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 40 + Math.random() * 120;
+    sparkles.push({
+      x, y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp * .7 - 20,
+      r: Math.max(3, H * (.002 + Math.random() * .0035)),
+      rot: Math.random() * Math.PI,
+      vr: (Math.random() - .5) * 3,
+      life: 1,
+      decay: .55 + Math.random() * .3,
+      col: palette[Math.floor(Math.random() * palette.length)],
+    });
+  }
+  /* 顺便拉一声「汽笛」：烟囱里冒几团烟 */
+  if (lastChimney) {
+    for (let i = 0; i < 4; i++) puffSmoke(lastChimney.x, lastChimney.y);
+  }
+}
+
+function drawSparkles(dt) {
+  for (let i = sparkles.length - 1; i >= 0; i--) {
+    const s = sparkles[i];
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    s.vy += 16 * dt;
+    s.vx *= .985;
+    s.rot += s.vr * dt;
+    s.life -= s.decay * dt;
+    if (s.life <= 0) { sparkles.splice(i, 1); continue; }
+    ctx.fillStyle = s.col + (s.life * .85).toFixed(3) + ')';
+    starPath(ctx, s.x, s.y, s.r * (0.5 + s.life * .7), s.rot);
+  }
+}
+
+/* ---------- 远处飘的小云 ---------- */
+function drawDrifts(t, dt) {
+  for (const d of drifts) {
+    d.x += (d.sp * dt) / W;
+    if (d.x > 1.15) d.x = -0.15;
+    const x = d.x * W;
+    ctx.save();
+    ctx.globalAlpha = d.a;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(x, d.y, d.w * .5, d.h * .5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x - d.w * .24, d.y + d.h * .12, d.w * .3, d.h * .34, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + d.w * .27, d.y + d.h * .1, d.w * .3, d.h * .3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ---------- 主循环 ---------- */
+let last = 0;
+let lastChimney = null;
+function loop(now) {
+  const t = now / 1000;
+  const dt = Math.min(.05, last ? t - last : .016);
+  last = t;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(bg, 0, 0, W, H);
+  drawDrifts(t, dt);
+  lastChimney = drawTrain(t);
+  drawSmoke(t, dt, lastChimney);
+  drawSparkles(dt);
+
+  requestAnimationFrame(loop);
+}
+
+cv.addEventListener('pointerdown', e => {
+  spawnSparkles(e.clientX, e.clientY);
+});
+
+resize();
+buildDrifts();
+/* 先冒几团烟，截图的瞬间就有「刚开过去」的感觉 */
+(function primeSmoke() {
+  const p = drawTrain(0);
+  lastChimney = p;
+  for (let i = 0; i < 11; i++) {
+    const jx = Math.sin(i * 1.9) * W * .007;
+    const jy = Math.cos(i * 1.4) * H * .009;
+    puffSmoke(p.chimneyX - i * W * .0135 + jx, p.chimneyY - i * H * .0125 + jy);
+    const s = smokes[smokes.length - 1];
+    s.life = .34 + i * .055;
+    s.r = H * (.007 + i * .0026);
+    s.vx *= .35;
+    s.vy *= .32;
+  }
+})();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
