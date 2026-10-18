@@ -35,7 +35,9 @@
     opacity: .9; pointer-events: none;
     text-shadow: 0 1px 8px rgba(255,255,255,.9);
   }
-  body.clean .hint { display: none; }   /* 出图用：?clean=1 去掉操作提示小字 */
+  body.clean .hint { display: none; }
+  body.clean .caption { animation: none !important; }   /* 出图时署名直接满亮，避免截到淡入中途 */
+   /* 出图用：?clean=1 去掉操作提示小字 */
 </style>
 </head>
 <body>

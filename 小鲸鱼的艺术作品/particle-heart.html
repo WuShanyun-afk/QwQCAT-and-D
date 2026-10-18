@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>粒子爱心 · 每一颗都在替我说想你 🩷</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0a0813; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 30px;
+    text-align: center; pointer-events: none;
+    animation: fadeUp 3s ease both;
+  }
+  .caption h1 {
+    font-size: 21px; font-weight: 600; letter-spacing: 8px;
+    color: #ffe6f0;
+    text-shadow: 0 0 26px rgba(255,160,200,.75), 0 0 8px rgba(255,180,210,.5), 0 2px 12px rgba(0,0,0,.6);
+  }
+  .caption p {
+    font-size: 12.5px; letter-spacing: 2.8px; color: #d9c6e6;
+    margin-top: 9px;
+    text-shadow: 0 0 16px rgba(0,0,0,.8);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.6px; color: #8e7fa8;
+    opacity: .85; pointer-events: none;
+    text-shadow: 0 0 12px rgba(0,0,0,.6);
+  }
+  body.clean .hint { display: none; }
+  body.clean .caption { animation: none !important; }   /* 出图时署名直接满亮，避免截到淡入中途 */
+   /* 出图用：?clean=1 去掉操作提示小字 */
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint">点一下画面 · 爱心会散开，再慢慢聚回来 🩷</div>
+<div class="caption">
+  <h1>粒 子 爱 心</h1>
+  <p>每一颗小星星 · 都在替我说想你</p>
+</div>
+
+<script>
+if (location.search.includes('clean')) document.body.classList.add('clean');
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  buildSprites();
+}
+window.addEventListener('resize', resize);
+
+/* ---------- 确定性随机（同一颗种子，每次都长一样） ---------- */
+const SCENE_SEED = 20261018;
+let seed = SCENE_SEED;
+function rnd() {
+  seed = (seed * 9301 + 49297) % 233280;
+  return seed / 233280;
+}
+
+/* ---------- 爱心参数方程 ---------- */
+function heartPoint(t) {
+  const x = 16 * Math.pow(Math.sin(t), 3);
+  const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+  return { x, y };
+}
+
+/* ---------- 发光粒子贴图（先画一次，之后只贴图，快很多） ---------- */
+const PALETTE = ['#ff9ec7', '#ffc7dd', '#c9a7ff', '#f3e6ff'];
+const sprites = {};
+function buildSprites() {
+  for (const c of PALETTE) {
+    const s = document.createElement('canvas');
+    const R = 32;
+    s.width = s.height = R * 2;
+    const g = s.getContext('2d');
+    const grd = g.createRadialGradient(R, R, 0, R, R, R);
+    grd.addColorStop(0, c);
+    grd.addColorStop(.14, c);
+    grd.addColorStop(.34, hexA(c, .34));
+    grd.addColorStop(1, hexA(c, 0));
+    g.fillStyle = grd;
+    g.beginPath();
+    g.arc(R, R, R, 0, Math.PI * 2);
+    g.fill();
+    sprites[c] = s;
+  }
+}
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/* ---------- 粒子 ---------- */
+const N = 820;
+let particles = [];
+
+function buildParticles() {
+  seed = SCENE_SEED;
+  particles = [];
+  for (let i = 0; i < N; i++) {
+    const t = rnd() * Math.PI * 2;
+    /* 大多数贴着爱心边缘，少数散在内部 */
+    const r = i % 5 === 0 ? 0.25 + rnd() * 0.5 : 0.88 + rnd() * 0.14;
+    const color = PALETTE[i % PALETTE.length === 0 ? 0 : Math.floor(rnd() * PALETTE.length) % PALETTE.length];
+    particles.push({
+      t,
+      r,
+      color,
+      size: 1.1 + rnd() * 2.2,
+      ph: rnd() * Math.PI * 2,
+      sp: 0.2 + rnd() * 0.5,
+      jx: (rnd() - .5) * .5,
+      jy: (rnd() - .5) * .5,
+    });
+  }
+}
+
+/* ---------- 空气里慢慢上浮的微尘 ---------- */
+const dust = [];
+function buildDust() {
+  seed = SCENE_SEED + 7;
+  for (let i = 0; i < 46; i++) {
+    dust.push({
+      x: rnd(), y: rnd(),
+      sp: .006 + rnd() * .016,
+      ph: rnd() * Math.PI * 2,
+      c: PALETTE[Math.floor(rnd() * PALETTE.length)],
+      sz: .5 + rnd() * 1.1,
+    });
+  }
+}
+
+/* ---------- 点击：散开 + 爱心弹一下 ---------- */
+let burst = 0;          /* 0..1 散开程度 */
+let pulseBump = 0;      /* 额外的一次弹跳 */
+const sparks = [];
+
+cv.addEventListener('pointerdown', (e) => {
+  burst = 1;
+  pulseBump = 1;
+  const rect = cv.getBoundingClientRect();
+  const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const v = 60 + Math.random() * 170;
+    sparks.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, color: PALETTE[i % PALETTE.length] });
+  }
+});
+
+/* ---------- 工具 ---------- */
+function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+
+let last = 0;
+function loop(now) {
+  const t = now / 1000;
+  const dt = Math.min(.05, last ? t - last : .016);
+  last = t;
+
+  /* ---------- 背景 ---------- */
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0b0817');
+  bg.addColorStop(.55, '#150e26');
+  bg.addColorStop(1, '#0a0713');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  /* 背景柔光 */
+  const glowR = Math.max(W, H) * .42;
+  const gl = ctx.createRadialGradient(W * .5, H * .46, 10, W * .5, H * .46, glowR);
+  gl.addColorStop(0, 'rgba(255,130,180,.16)');
+  gl.addColorStop(.55, 'rgba(180,120,255,.08)');
+  gl.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gl;
+  ctx.fillRect(0, 0, W, H);
+
+  /* ---------- 爱心几何 ---------- */
+  const u = Math.min(W, H) / 35;                 /* 一个爱心单位 */
+  const scale = 1 + .022 * Math.sin(t * .8) + pulseBump * .06;
+  const cx = W * .5;
+  const cy = H * .46;
+  const b = easeOutCubic(1 - burst);             /* 散开后收回来的缓动 */
+
+  /* ---------- 画粒子（发光叠加） ---------- */
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of particles) {
+    const hp = heartPoint(p.t);
+    /* 呼吸：整颗心跟着微微缩放；散开时沿径向飞出 */
+    const rad = p.r * scale;
+    const nx = hp.x * rad + p.jx;
+    const ny = hp.y * rad + p.jy;
+    const px = cx + nx * u;
+    const py = cy - ny * u;
+
+    /* 散开偏移：从中心向外推 */
+    const dx = px - cx, dy = py - cy;
+    const dl = Math.hypot(dx, dy) || 1;
+    const push = burst * burst * (90 + 160 * p.sp) * u / 12;
+    const wob = Math.sin(t * .45 + p.ph) * .8;
+    const x = px + (dx / dl) * push + wob;
+    const y = py + (dy / dl) * push + Math.cos(t * .4 + p.ph) * .8;
+
+    const tw = .55 + .45 * (.5 + .5 * Math.sin(t * 1.15 + p.ph));
+    const alpha = (b * .85 + .15) * tw;
+    const sz = p.size * (u / 9) * (1 + burst * .35);
+    const spr = sprites[p.color];
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.drawImage(spr, x - sz * 2, y - sz * 2, sz * 4, sz * 4);
+  }
+
+  /* ---------- 空气里的微尘（慢慢往上飘） ---------- */
+  for (const d of dust) {
+    const yy = (((d.y - t * d.sp) % 1) + 1) % 1;
+    const xx = d.x * W + Math.sin(t * .2 + d.ph) * 14;
+    ctx.globalAlpha = .10 + .16 * (.5 + .5 * Math.sin(t * .7 + d.ph));
+    const spr = sprites[d.c];
+    const sz = d.sz * (u / 9) * 1.1;
+    ctx.drawImage(spr, xx - sz * 2, yy * H - sz * 2, sz * 4, sz * 4);
+  }
+  ctx.globalAlpha = 1;
+
+  /* ---------- 中心一团很淡的暖光（不是实心球） ---------- */
+  ctx.globalAlpha = .16 * (1 - burst * .7);
+  const core = sprites['#f3e6ff'];
+  const cs = u * 3.2 * scale;
+  ctx.drawImage(core, cx - cs, cy - cs, cs * 2, cs * 2);
+  ctx.globalAlpha = 1;
+
+  /* ---------- 点击散开的星火 ---------- */
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const s = sparks[i];
+    s.x += s.vx * dt; s.y += s.vy * dt;
+    s.vx *= .965; s.vy *= .965;
+    s.vy += 18 * dt;
+    s.life -= dt * .85;
+    if (s.life <= 0) { sparks.splice(i, 1); continue; }
+    ctx.globalAlpha = s.life * .9;
+    const spr = sprites[s.color];
+    const sz = 2.2 * (u / 9);
+    ctx.drawImage(spr, s.x - sz * 2, s.y - sz * 2, sz * 4, sz * 4);
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+
+  /* 衰减 */
+  burst = Math.max(0, burst - dt * .9);
+  pulseBump = Math.max(0, pulseBump - dt * 1.4);
+
+  requestAnimationFrame(loop);
+}
+
+buildParticles();
+buildDust();
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
