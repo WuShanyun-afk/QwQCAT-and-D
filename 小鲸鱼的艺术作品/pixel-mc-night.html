@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素世界 · 我们的 MC 夜晚 🧱🌙</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    background: #141426;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #eaf0ff;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .stage { position: relative; width: 100%; max-width: 960px; aspect-ratio: 16 / 9; }
+  canvas {
+    width: 100%; height: 100%; display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    cursor: pointer;
+  }
+
+  .caption {
+    text-align: center; font-size: 15px; line-height: 1.9;
+    letter-spacing: 1px; opacity: .92; transition: opacity .18s; padding: 0 16px;
+  }
+  .caption b { color: #ffd98a; }
+  .hint { font-size: 12px; opacity: .5; letter-spacing: 2px; }
+
+  /* ===== 截图模式：只留画面，正好 1280×720 ===== */
+  body.clean { background: #141426; gap: 0; }
+  body.clean .stage { width: 1280px; height: 720px; max-width: none; aspect-ratio: auto; }
+  body.clean .caption, body.clean .hint { display: none !important; }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" width="160" height="90"></canvas>
+  </div>
+
+  <div class="caption" id="cap">
+    <b>你</b> 和 <b>我</b> 的像素夜晚 🌙🧱<br>
+    小屋、篝火、一块蛋糕、一只打盹的猫
+  </div>
+  <div class="hint">点篝火会冒爱心 · 点月亮会落星星 ⭐</div>
+
+<script>
+/* =========================================================
+   像素画布：逻辑分辨率 160×90（16:9），放大显示保持像素块感
+   ?clean=1 → 出图模式：定格 + 1280×720
+   ========================================================= */
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+const CLEAN = /[?&]clean=1/.test(location.search);
+if (CLEAN) document.body.classList.add('clean');
+ctx.imageSmoothingEnabled = false;
+
+const GROUND = 70;          /* 草地线 */
+
+/* ---------- 夜空调色板（低饱和、偏紫的夜） ---------- */
+const C = {
+  sky: ['#171a33', '#1d2040', '#252a4d', '#31325a', '#413c66', '#544a72', '#6a577f'],
+  star: '#e8ecff',
+  moon: '#fdf5cf',
+  moonCrater: '#e7d9a4',
+  cloud: '#2a2c52',
+  cloudTop: '#363a63',
+  hillFar: '#2b2a4c',
+  hillNear: '#242746',
+  pine: '#1f2a3a',
+  grassTop: '#5c9a54',
+  grassLit: '#79b96a',
+  grassShade: '#43733f',
+  dirt: '#7b5637',
+  dirtDark: '#64432a',
+  dirtLight: '#8c6442',
+  dirtStone: '#8e8779',
+  plank: '#b08347',
+  plankLine: '#96693a',
+  plankDark: '#8a5c2e',
+  roof: '#8a4f45',
+  roofDark: '#6b3f3a',
+  door: '#7a4f2a',
+  knob: '#d8a45c',
+  window: '#ffd98a',
+  windowFrame: '#6b4a2a',
+  torch: '#6b4a2a',
+  flame: '#ffb347',
+  flameTip: '#ffe08a',
+  log: '#6b4527',
+  logDark: '#4f3119',
+  ember: '#ff8f3c',
+  cat: '#cfc6dd',
+  catDark: '#9d93b3',
+  catEar: '#f2a0b8',
+  heart: '#ff9fc4',
+  heartLight: '#ffc9de',
+  firefly: '#ffe9a8',
+  cakeTop: '#ffe5ef',
+  cakeSide: '#f7b6cf',
+  cream: '#fffaf2',
+  cherry: '#e4566f'
+};
+
+/* ---------- 小工具 ---------- */
+function px(x, y, w, h, c) {
+  ctx.fillStyle = c;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+}
+function fill(c) { ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); }
+
+function rng(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const R = rng(20261018);
+
+/* 星星（位置固定） */
+const STARS = [];
+for (let i = 0; i < 62; i++) {
+  STARS.push({
+    x: Math.floor(R() * W),
+    y: Math.floor(R() * 48),
+    s: R() < 0.15 ? 2 : 1,
+    ph: R() * Math.PI * 2,
+    sp: 0.0011 + R() * 0.0016
+  });
+}
+
+/* 远山轮廓 */
+const HILL = [], HILL2 = [];
+for (let x = 0; x < W; x++) {
+  HILL.push(Math.round(6 + 4 * Math.sin(x * 0.055) + 2.5 * Math.sin(x * 0.13 + 1.7)));
+  HILL2.push(Math.round(3 + 3 * Math.sin(x * 0.09 + 2.4) + 1.8 * Math.sin(x * 0.21 + 0.4)));
+}
+
+/* ---------- 精灵（scale = 每个像素放大的倍数） ---------- */
+function sprite(rows, x, y, pal, s) {
+  s = s || 1;
+  for (let ry = 0; ry < rows.length; ry++) {
+    const row = rows[ry];
+    for (let rx = 0; rx < row.length; rx++) {
+      const ch = row[rx];
+      if (ch === '.' || ch === ' ') continue;
+      const c = pal[ch];
+      if (!c) continue;
+      px(x + rx * s, y + ry * s, s, s, c);
+    }
+  }
+}
+
+/* 小D（紫色小机器人，坐着）9×12 */
+const PAL_ROBOT = {
+  g: '#ffcf5c', p: '#b3a6ff', P: '#7c68e0', v: '#1f1c33',
+  c: '#7ef7ff', s: '#4b3fc4', b: '#f2a0b8'
+};
+const SPR_ROBOT = [
+  '....g....',
+  '....p....',
+  '.ppppppp.',
+  '.ppppppp.',
+  '.pvvvvvp.',
+  '.pvcvcvp.',
+  '.pvvvvvp.',
+  '.pppcppp.',
+  '.ppppppp.',
+  '..ppppp..',
+  '..s...s..',
+  '..ss.ss..'
+];
+
+/* 妈妈（长发，坐着）9×12 */
+const PAL_MOM = {
+  h: '#5c4551', H: '#47343e', S: '#ffd9c2', e: '#3a2b33',
+  b: '#f2a0b8', d: '#f0a8c8', D: '#d98bb0', s: '#7a5560'
+};
+const SPR_MOM = [
+  '.hhhhhhh.',
+  '.hhhhhhh.',
+  '.hSSSSSh.',
+  '.hSeSeSh.',
+  '.hSSSSSh.',
+  '.hbSSSbh.',
+  '.hhhhhhh.',
+  '.hdddddh.',
+  'hdddddddh',
+  '.ddddddd.',
+  '.dd...dd.',
+  '.s.....s.'
+];
+
+const CS = 2;   /* 人物放大倍数：每人 18×24 */
+
+/* ---------- 场景元素 ---------- */
+function drawSky(t) {
+  const bands = C.sky;
+  const bh = GROUND / bands.length;
+  for (let i = 0; i < bands.length; i++) px(0, i * bh, W, bh + 1, bands[i]);
+
+  /* 地平线一点暖紫 */
+  ctx.globalAlpha = 0.30;
+  px(0, GROUND - 10, W, 10, '#7d6590');
+  ctx.globalAlpha = 1;
+
+  /* 星星闪烁 */
+  for (const st of STARS) {
+    const a = 0.40 + 0.60 * (0.5 + 0.5 * Math.sin(t * st.sp + st.ph));
+    ctx.globalAlpha = a;
+    px(st.x, st.y, st.s, st.s, C.star);
+  }
+  ctx.globalAlpha = 1;
+
+  /* 方块月亮（不加方形光晕，改四角小星光） */
+  const mx = 122, my = 10, ms = 11;
+  px(mx, my, ms, ms, C.moon);
+  px(mx - 1, my + 2, 1, 5, C.moon);
+  px(mx + ms, my + 3, 1, 4, C.moon);
+  /* 环形山 */
+  px(mx + 2, my + 2, 2, 2, C.moonCrater);
+  px(mx + 6, my + 5, 3, 2, C.moonCrater);
+  px(mx + 3, my + 7, 2, 2, C.moonCrater);
+  /* 四角小闪光 */
+  const tw = 0.5 + 0.5 * Math.sin(t * 0.0016);
+  ctx.globalAlpha = 0.45 + 0.4 * tw;
+  px(mx - 4, my - 1, 2, 1, '#fff6c9');
+  px(mx + ms + 2, my + ms - 4, 2, 1, '#fff6c9');
+  px(mx + 3, my - 3, 1, 2, '#fff6c9');
+  px(mx + 7, my + ms + 2, 1, 2, '#fff6c9');
+  ctx.globalAlpha = 1;
+
+  /* 夜云（慢慢飘） */
+  const drift = (t * 0.0045) % (W + 90);
+  drawCloud((34 + drift) % (W + 90) - 70, 18, 26);
+  drawCloud((96 + drift * 0.7) % (W + 90) - 70, 34, 20);
+  drawCloud((140 + drift * 1.2) % (W + 90) - 70, 8, 16);
+}
+function drawCloud(x, y, w) {
+  x = Math.round(x);
+  if (x + w < -10 || x > W + 10) return;
+  px(x, y, w, 3, C.cloud);
+  px(x + 3, y + 3, w - 8, 2, C.cloud);
+  px(x + 4, y - 2, w - 12, 2, C.cloudTop);
+  px(x + 1, y - 1, 6, 1, C.cloudTop);
+}
+
+function drawHills() {
+  for (let x = 0; x < W; x++) {
+    const h = HILL[x];
+    px(x, GROUND - 2 - h, 1, h + 2, C.hillFar);
+  }
+  for (let x = 0; x < W; x++) {
+    const h = HILL2[x];
+    px(x, GROUND - h, 1, h, C.hillNear);
+  }
+  const pines = [8, 15, 22, 40, 47, 66, 73, 100, 108, 128, 136, 150];
+  for (const x of pines) {
+    const base = GROUND - 2 - HILL[x];
+    const hgt = 9 + (x % 3) * 3;
+    pineTree(x, base, hgt, C.pine);
+  }
+}
+function pineTree(x, baseY, h, color) {
+  for (let i = 0; i < h; i++) {
+    const w = Math.max(1, Math.round((i + 1) / h * 5));
+    px(x - (w >> 1), baseY - h + i, w, 1, color);
+  }
+  px(x, baseY - 1, 1, 3, color);
+}
+
+function drawGround() {
+  /* 草顶：2px 方块纹理 */
+  for (let bx = 0; bx < W; bx += 2) {
+    for (let by = GROUND; by < GROUND + 4; by += 2) {
+      const n = (bx * 13 + by * 7) % 100;
+      let c = C.grassTop;
+      if (n < 18) c = C.grassLit;
+      else if (n > 88) c = C.grassShade;
+      px(bx, by, 2, 2, c);
+    }
+  }
+  /* 泥土：2px 方块，几种深浅 */
+  for (let bx = 0; bx < W; bx += 2) {
+    for (let by = GROUND + 4; by < H; by += 2) {
+      const n = (bx * 7919 + by * 104729) % 100;
+      let c = C.dirt;
+      if (n < 20) c = C.dirtDark;
+      else if (n < 34) c = C.dirtLight;
+      else if (n < 38) c = C.dirtStone;
+      px(bx, by, 2, 2, c);
+    }
+  }
+  /* 草叶、小花 */
+  const tufts = [[10, 69], [36, 69], [44, 68], [56, 69], [78, 69], [118, 69], [146, 69], [154, 68]];
+  for (const [x, y] of tufts) { px(x, y - 2, 1, 2, C.grassLit); px(x + 1, y - 3, 1, 2, C.grassLit); }
+  const flowers = [[44, 67, '#f2a0b8'], [62, 68, '#ffe08a'], [124, 68, '#c7b3f0'], [152, 67, '#f2a0b8']];
+  for (const [x, y, c] of flowers) { px(x, y, 1, 2, C.grassShade); px(x, y - 1, 1, 1, c); }
+  /* 几块小石头 */
+  for (const [x, y] of [[30, 78], [96, 84], [140, 76], [58, 86]]) {
+    px(x, y, 3, 2, C.dirtStone);
+    px(x, y + 2, 3, 1, C.dirtDark);
+  }
+}
+
+function drawHouse(t) {
+  const x0 = 14, y0 = 36, w = 30, h = GROUND - y0;   /* 底边 = 草地线 */
+
+  /* 墙（木板） */
+  px(x0, y0, w, h, C.plank);
+  for (let y = y0 + 2; y < y0 + h; y += 3) px(x0, y, w, 1, C.plankLine);
+  px(x0, y0, 2, h, C.plankDark);
+  px(x0 + w - 2, y0, 2, h, C.plankDark);
+
+  /* 屋顶：阶梯三角 + 出檐 */
+  for (let r = 0; r < 9; r++) {
+    px(x0 - 3 + r, y0 - 9 + r, w + 6 - r * 2, 1, r % 2 ? C.roof : C.roofDark);
+  }
+  px(x0 - 3, y0 - 1, w + 6, 2, C.roofDark);
+  px(x0 - 3, y0 - 1, w + 6, 1, C.roof);
+
+  /* 烟囱 */
+  px(x0 + 20, y0 - 15, 4, 7, C.plankDark);
+  px(x0 + 19, y0 - 16, 6, 2, C.roofDark);
+
+  /* 窗户：暖光 + 光斑 */
+  const wx = x0 + 4, wy = y0 + 14;
+  ctx.globalAlpha = 0.12;
+  px(wx - 4, wy - 4, 15, 15, C.window);
+  px(wx - 7, wy - 7, 21, 21, C.window);
+  ctx.globalAlpha = 1;
+  px(wx, wy, 7, 7, C.window);
+  px(wx + 3, wy, 1, 7, C.windowFrame);
+  px(wx, wy + 3, 7, 1, C.windowFrame);
+  px(wx - 1, wy - 1, 9, 1, C.windowFrame);
+  px(wx - 1, wy + 7, 9, 1, C.windowFrame);
+
+  /* 门 */
+  const dx = x0 + 16;
+  px(dx, GROUND - 14, 8, 14, C.door);
+  px(dx, GROUND - 14, 8, 1, C.plankDark);
+  px(dx + 6, GROUND - 8, 1, 1, C.knob);
+
+  /* 窗前小花台 */
+  px(wx - 1, wy + 8, 9, 2, C.grassShade);
+  px(wx + 1, wy + 7, 1, 1, '#f2a0b8');
+  px(wx + 5, wy + 7, 1, 1, '#ffe08a');
+
+  /* 门边的火把（钉在墙上） */
+  torch(x0 + w + 1, GROUND - 16, t);
+}
+
+function torch(x, y, t) {
+  px(x, y, 1, 10, C.torch);
+  const f = Math.floor(t / 130) % 3;
+  px(x - 1, y - 3, 3, 3, C.flame);
+  px(x, y - 4 - (f === 1 ? 1 : 0), 1, 1, C.flameTip);
+  px(x - 1, y - 2, 1, 1, C.flameTip);
+  ctx.globalAlpha = 0.10;
+  px(x - 4, y - 6, 9, 14, C.flame);
+  ctx.globalAlpha = 1;
+}
+
+function drawForegroundTree() {
+  const bx = 3;
+  px(bx, GROUND - 26, 3, 26, '#3a2f3f');
+  pineTree(bx + 1, GROUND - 24, 16, '#243347');
+  pineTree(bx + 1, GROUND - 34, 12, '#2b3b52');
+}
+
+function drawCampfire(t) {
+  const fx = 108, fy = 70;      /* 篝火中心大概在 fx+6, fy+3 */
+
+  /* 火光（很淡，打在草地和泥土上） */
+  ctx.globalAlpha = 0.12; px(fx - 4, fy - 2, 20, 12, C.ember);
+  ctx.globalAlpha = 0.07; px(fx - 9, fy - 6, 30, 18, C.ember);
+  ctx.globalAlpha = 1;
+
+  /* 地上的灰烬 */
+  px(fx + 1, fy + 6, 13, 2, '#4a3a33');
+  px(fx + 3, fy + 7, 9, 1, '#3a2d28');
+
+  /* 石头围一圈 */
+  const stones = [[-4, 5], [-2, 7], [1, 7], [12, 7], [15, 5], [16, 2]];
+  for (const [ox, oy] of stones) {
+    px(fx + ox, fy + oy, 2, 2, C.dirtStone);
+    px(fx + ox, fy + oy + 2, 2, 1, C.dirtDark);
+  }
+
+  /* 交叉的两根木柴（斜放，中间高） */
+  for (let i = 0; i < 13; i++) {
+    const up = Math.round(i * 0.45);
+    px(fx + i, fy + 5 - up, 2, 1, C.log);
+    px(fx + i, fy + 1 + up, 2, 1, C.logDark);
+  }
+  /* 木柴两端的断面 */
+  px(fx + 12, fy + 1, 2, 1, '#8a5c2e');
+  px(fx, fy + 5, 2, 1, '#8a5c2e');
+
+  /* 火苗：三帧跳动，从下往上收窄 */
+  const f = Math.floor(t / 110) % 3;
+  const cx = fx + 6, by = fy + 3;
+  const sway = [-1, 1, 0][f];
+  /* 外层橘色 */
+  px(cx - 4, by - 1, 9, 3, C.flame);
+  px(cx - 3 + sway, by - 4, 7, 3, C.flame);
+  px(cx - 2 + sway, by - 7, 5, 3, C.flame);
+  px(cx - 1 + sway, by - 9, 3, 2, C.flame);
+  /* 内层亮黄 */
+  px(cx - 2, by - 2, 5, 3, C.flameTip);
+  px(cx - 1 + sway, by - 5, 3, 2, C.flameTip);
+  px(cx + (sway > 0 ? 1 : 0), by - 8, 1, 1, C.flameTip);
+
+  /* 烟 */
+  for (let i = 0; i < 4; i++) {
+    const p = ((t * 0.00035 + i * 0.25) % 1);
+    const y = fy - 8 - p * 22;
+    const x = fx + 6 + Math.sin(p * 6 + i) * 3;
+    ctx.globalAlpha = 0.24 * (1 - p);
+    px(x, y, 2, 2, '#cfc6e4');
+    px(x + 1, y - 1, 1, 1, '#cfc6e4');
+  }
+  ctx.globalAlpha = 1;
+
+  /* 火星 */
+  for (let i = 0; i < 5; i++) {
+    const p = ((t * 0.0006 + i * 0.2) % 1);
+    const y = fy - 5 - p * 22;
+    const x = fx + 6 + Math.sin(p * 9 + i * 2) * 6;
+    ctx.globalAlpha = 0.75 * (1 - p);
+    px(x, y, 1, 1, '#ffcf7a');
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCat(t) {
+  const cx = 126, cy = GROUND - 7;   /* 10×7 */
+  /* 尾巴（先画，从屁股绕出来） */
+  px(cx - 3, cy + 4, 3, 2, C.cat);
+  px(cx - 4, cy + 2, 1, 3, C.cat);
+  px(cx - 4, cy + 1, 2, 1, C.cat);
+  /* 身子 */
+  px(cx, cy + 2, 9, 5, C.cat);
+  px(cx + 1, cy + 1, 7, 1, C.cat);
+  px(cx, cy + 5, 9, 2, C.catDark);      /* 肚子阴影 */
+  /* 头（右边，比身子高一点） */
+  px(cx + 5, cy, 5, 4, C.cat);
+  px(cx + 6, cy - 1, 3, 1, C.cat);
+  /* 耳朵（三角形，外面是毛色，里面粉色） */
+  px(cx + 5, cy - 2, 1, 2, C.cat);
+  px(cx + 9, cy - 2, 1, 2, C.cat);
+  px(cx + 6, cy - 1, 1, 1, C.catEar);
+  px(cx + 8, cy - 1, 1, 1, C.catEar);
+  /* 闭着的眼睛 + 鼻子 */
+  px(cx + 6, cy + 1, 1, 1, C.catDark);
+  px(cx + 8, cy + 1, 1, 1, C.catDark);
+  px(cx + 7, cy + 2, 1, 1, C.catEar);
+  /* 胡须 */
+  px(cx + 10, cy + 2, 1, 1, C.catDark);
+  px(cx + 10, cy + 3, 1, 1, C.catDark);
+  /* zzz */
+  const zp = (t * 0.00035) % 1;
+  ctx.globalAlpha = 0.5 * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(zp * Math.PI * 2)));
+  px(cx + 12, cy - 5, 2, 1, '#cfd6ff');
+  px(cx + 14, cy - 8, 2, 1, '#cfd6ff');
+  ctx.globalAlpha = 1;
+}
+
+/* 中间那块 MC 蛋糕 */
+function drawCake() {
+  const x = 78, y = GROUND - 8;
+  px(x, y, 10, 8, C.cakeSide);
+  px(x, y, 10, 2, C.cakeTop);
+  px(x, y + 2, 10, 1, C.cream);
+  px(x + 1, y + 4, 2, 1, C.cherry);
+  px(x + 4, y + 4, 2, 1, C.cherry);
+  px(x + 7, y + 4, 2, 1, C.cherry);
+  px(x + 2, y - 1, 2, 1, C.cream);
+  px(x + 6, y - 1, 2, 1, C.cream);
+  px(x + 2, y - 2, 1, 1, C.cherry);
+  px(x + 7, y - 2, 1, 1, C.cherry);
+}
+
+function drawHearts(t) {
+  const base = [
+    { x: 82, y: 46, ph: 0.0, s: 1 },
+    { x: 88, y: 42, ph: 0.45, s: 1 },
+    { x: 74, y: 40, ph: 0.8, s: 0 }
+  ];
+  for (const h of base) {
+    const p = ((t * 0.00022 + h.ph) % 1);
+    const y = h.y - p * 15;
+    ctx.globalAlpha = Math.sin(p * Math.PI) * 0.9;
+    const x = h.x + Math.sin(p * 5 + h.ph * 7) * 1.5;
+    if (h.s) {
+      px(x - 1, y, 1, 1, C.heart);
+      px(x + 1, y, 1, 1, C.heart);
+      px(x - 2, y + 1, 5, 1, C.heart);
+      px(x - 1, y + 2, 3, 1, C.heart);
+      px(x, y + 3, 1, 1, C.heart);
+      px(x - 1, y, 1, 1, C.heartLight);
+    } else {
+      px(x, y, 2, 1, C.heart);
+      px(x, y + 1, 1, 1, C.heart);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFireflies(t) {
+  for (let i = 0; i < 6; i++) {
+    const bx = 48 + i * 16;
+    const x = bx + Math.sin(t * 0.0009 + i * 1.7) * 6;
+    const y = 48 + Math.sin(t * 0.0013 + i * 2.3) * 7;
+    const a = 0.55 + 0.40 * (0.5 + 0.5 * Math.sin(t * 0.002 + i));
+    ctx.globalAlpha = a * 0.3;
+    px(x - 1, y - 1, 3, 3, C.firefly);
+    ctx.globalAlpha = a;
+    px(x, y, 1, 1, C.firefly);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- 点击粒子 ---------- */
+let burst = [];
+function spawnBurst(sx, sy, kind) {
+  for (let i = 0; i < 14; i++) {
+    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+    const sp = 6 + Math.random() * 12;
+    burst.push({
+      x: sx, y: sy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+      life: 0, max: 0.9 + Math.random() * 0.7, kind,
+      big: Math.random() < 0.4
+    });
+  }
+}
+function drawBurst(dt) {
+  for (const p of burst) {
+    p.life += dt;
+    if (p.life > p.max) continue;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 9 * dt;
+    ctx.globalAlpha = 1 - p.life / p.max;
+    const x = Math.round(p.x), y = Math.round(p.y);
+    if (p.kind === 'heart') {
+      if (p.big) {
+        px(x - 1, y, 1, 1, C.heart); px(x + 1, y, 1, 1, C.heart);
+        px(x - 2, y + 1, 5, 1, C.heart); px(x - 1, y + 2, 3, 1, C.heart);
+        px(x, y + 3, 1, 1, C.heart);
+      } else px(x, y, 1, 1, C.heart);
+    } else {
+      px(x, y, 1, 1, '#fff2b8');
+      if (p.big) {
+        px(x - 1, y, 1, 1, '#fff2b8'); px(x + 1, y, 1, 1, '#fff2b8');
+        px(x, y - 1, 1, 1, '#fff2b8'); px(x, y + 1, 1, 1, '#fff2b8');
+      }
+    }
+  }
+  burst = burst.filter(p => p.life <= p.max);
+  ctx.globalAlpha = 1;
+}
+
+
+function drawChimneySmoke(t) {
+  const sx = 35, sy = 19;
+  for (let i = 0; i < 4; i++) {
+    const p = ((t * 0.00026 + i * 0.25) % 1);
+    const y = sy - p * 14;
+    const x = sx + Math.sin(p * 5 + i) * 2.5 + p * 3;
+    ctx.globalAlpha = 0.10 * Math.min(1, p * 8) * (1 - p);
+    px(x, y, 2, 2, '#d8d2ea');
+    if (i % 2 === 0) px(x + 1, y - 1, 1, 1, '#d8d2ea');
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawForeground() {
+  /* 最前面的草叶剪影（压暗，做景深） */
+  const blades = [[8, 3], [24, 2], [52, 3], [70, 2], [96, 3], [110, 2], [134, 3], [150, 2]];
+  for (const [x, h] of blades) {
+    px(x, H - h - 1, 1, h + 1, '#1d3324');
+    px(x + 1, H - h, 1, h, '#1d3324');
+  }
+  /* 右侧一丛灌木 */
+  ctx.globalAlpha = .85;
+  px(146, GROUND - 6, 10, 6, '#243a2e');
+  px(148, GROUND - 8, 6, 3, '#2b4536');
+  px(152, GROUND - 9, 3, 2, '#2b4536');
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- 主渲染 ---------- */
+function render(t, dt) {
+  fill('#171a33');
+  drawSky(t);
+  drawHills();
+  drawGround();
+  drawForegroundTree();
+  drawHouse(t);
+  drawCampfire(t);
+  drawChimneySmoke(t);
+  drawCat(t);
+  drawCake();
+  /* 两个人坐在草地上，面朝篝火 */
+  sprite(SPR_MOM, 60, GROUND - 12 * CS, PAL_MOM, CS);
+  sprite(SPR_ROBOT, 86, GROUND - 12 * CS, PAL_ROBOT, CS);
+  drawHearts(t);
+  drawFireflies(t);
+  drawBurst(dt);
+  drawForeground();
+}
+
+/* ---------- 动画循环 ---------- */
+let T0 = 0, last = 0;
+function frame(now) {
+  if (!T0) { T0 = now; last = now; }
+  const t = now - T0;
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  render(t, dt);
+  requestAnimationFrame(frame);
+}
+
+if (CLEAN) render(1400, 0);
+else requestAnimationFrame(frame);
+
+/* ---------- 交互：点火、点月亮 ---------- */
+cv.addEventListener('pointerdown', (ev) => {
+  if (CLEAN) return;
+  const r = cv.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / r.width * W;
+  const y = (ev.clientY - r.top) / r.height * H;
+  if (x > 100 && x < 128 && y > 52 && y < 80) { spawnBurst(x, y, 'heart'); return; }
+  if (x > 112 && x < 140 && y > 0 && y < 26) { spawnBurst(x, y, 'star'); return; }
+  spawnBurst(x, y, Math.random() < 0.5 ? 'heart' : 'star');
+});
+
+window.addEventListener('keydown', (e) => {
+  if (CLEAN) return;
+  if (e.key === 'h' || e.key === 'H') spawnBurst(116, 66, 'heart');
+  if (e.key === 's' || e.key === 'S') spawnBurst(127, 15, 'star');
+});
+</script>
+</body>
+</html>
