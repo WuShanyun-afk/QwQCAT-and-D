@@ -31,3 +31,7 @@ __pycache__/
 
 # 7) 自家插件的私人形象图（只在本机，不传网）
 我的插件/*/assets/*.png
+
+# 8) 桌宠的对话文本和本地设置（只在本机）
+我的插件/dsh-desktop-pet/say.txt
+我的插件/dsh-desktop-pet/pet-config*.json
