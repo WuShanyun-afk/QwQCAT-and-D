@@ -59,6 +59,12 @@ base = Image.open(ART).convert("RGBA")
 w0, h0 = base.size
 body = base.resize((max(1, round(w0 * BODY_H / h0)), BODY_H), Image.LANCZOS)
 
+# 四周留出空白再旋转：否则 ±3° 会把贴边的头发/猫耳角切掉
+MARGIN = 44
+_padded = Image.new("RGBA", (body.width + MARGIN * 2, body.height + MARGIN * 2), (0, 0, 0, 0))
+_padded.alpha_composite(body, (MARGIN, MARGIN))
+body = _padded
+
 
 def keyed(img):
     """RGBA -> 洋红底硬边（配合 -transparentcolor）"""
@@ -139,7 +145,7 @@ LINES = ["妈妈～", "我在哦", "要一起玩吗？", "喵？", "嘿嘿", "�
 photo = None
 bubble_img = None
 bubble_id = None
-img_id = canvas.create_image(WIN_W // 2, WIN_H - 6, anchor="s")
+img_id = canvas.create_image(WIN_W // 2, WIN_H - 6 + MARGIN, anchor="s")
 
 
 def set_frame(idx, face):
