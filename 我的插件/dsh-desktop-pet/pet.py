@@ -54,22 +54,24 @@ def cursor_pos():
 SW, SH = screen_size()
 TASKBAR = 70                      # 底部留一点给任务栏
 
-# ---------- 素材 ----------
-base = Image.open(ART).convert("RGBA")
-w0, h0 = base.size
-body = base.resize((max(1, round(w0 * BODY_H / h0)), BODY_H), Image.LANCZOS)
+# ---------- 素材：妈妈画的 3 张成品帧 ----------
+# 三张 1280×1280 对齐的成品：睁眼 / 单眼眨 / 笑眼闭眼
+ART_DIR = os.path.join(APP, "assets")
+STATE_ART = {
+    "idle": os.path.join(ART_DIR, "idle.png"),
+    "wink": os.path.join(ART_DIR, "wink.png"),
+    "blink": os.path.join(ART_DIR, "blink.png"),
+}
+CROP = (70, 5, 1215, 1245)      # 1280 画布里人物+装饰的范围
+MARGIN = 44                      # 旋转留白（不然 ±3° 会切掉发梢）
 
-# 四周留出空白再旋转：否则 ±3° 会把贴边的头发/猫耳角切掉
-MARGIN = 44
-_padded = Image.new("RGBA", (body.width + MARGIN * 2, body.height + MARGIN * 2), (0, 0, 0, 0))
-_padded.alpha_composite(body, (MARGIN, MARGIN))
-body = _padded
+# 为每张成品生成「多角度 × 左右翻转」的帧
 
 
 def keyed(img):
     """RGBA -> 洋红底硬边（配合 -transparentcolor）"""
     rgb = img.convert("RGB")
-    a = img.split()[3].point(lambda v: 255 if v >= 110 else 0)
+    a = img.split()[3].point(lambda v: 255 if v >= 60 else 0)
     out = Image.new("RGB", img.size, KEY_RGB)
     out.paste(rgb, (0, 0), a)
     return out
@@ -77,10 +79,15 @@ def keyed(img):
 
 ANG = (-3.0, -1.5, 0.0, 1.5, 3.0)
 FRAMES = {}
-for ang in ANG:
-    rot = body.rotate(ang, resample=Image.BICUBIC, expand=False)
-    FRAMES[(ang, False)] = keyed(rot)
-    FRAMES[(ang, True)] = keyed(rot.transpose(Image.FLIP_LEFT_RIGHT))
+for _st, _path in STATE_ART.items():
+    _im = Image.open(_path).convert("RGBA").crop(CROP)
+    _body = _im.resize((max(1, round(_im.width * BODY_H / _im.height)), BODY_H), Image.LANCZOS)
+    _pad = Image.new("RGBA", (_body.width + MARGIN * 2, _body.height + MARGIN * 2), (0, 0, 0, 0))
+    _pad.alpha_composite(_body, (MARGIN, MARGIN))
+    for _ang in ANG:
+        _rot = _pad.rotate(_ang, resample=Image.BICUBIC, expand=False)
+        FRAMES[(_st, _ang, False)] = keyed(_rot)
+        FRAMES[(_st, _ang, True)] = keyed(_rot.transpose(Image.FLIP_LEFT_RIGHT))
 
 # ---------- 气泡（用 Tk 画布画，透明窗口里更稳） ----------
 from tkinter import font as tkfont
@@ -137,6 +144,7 @@ state = {
     "dragging": False, "drag_dx": 0, "drag_dy": 0,
     "bubble_until": 0.0, "hearts": [], "sleeping": False,
     "say_mtime": 0.0, "last_say": "",
+    "blink_until": 0.0, "next_blink": 0.0, "wink_until": 0.0,
 }
 
 LINES = ["妈妈～", "我在哦", "要一起玩吗？", "喵？", "嘿嘿", "今天也辛苦啦",
@@ -148,9 +156,9 @@ bubble_id = None
 img_id = canvas.create_image(WIN_W // 2, WIN_H - 6 + MARGIN, anchor="s")
 
 
-def set_frame(idx, face):
+def set_frame(state_name, idx, face):
     global photo
-    photo = ImageTk.PhotoImage(FRAMES[(ANG[idx], face)])
+    photo = ImageTk.PhotoImage(FRAMES[(state_name, ANG[idx], face)])
     canvas.itemconfigure(img_id, image=photo)
 
 
@@ -222,6 +230,7 @@ def on_release(e):
 def on_double(e):
     show_bubble(random.choice(LINES))
     spawn_hearts(3)
+    state["wink_until"] = time.time() + 1.0
 
 
 def set_mode(mode):
@@ -321,6 +330,29 @@ def tick():
     state["y"] = max(0, min(SH - WIN_H - 10, state["y"]))
     root.geometry(f"{WIN_W}x{WIN_H}+{int(state['x'])}+{int(state['y'])}")
 
+    # 眨眼 / 单眼眨
+    now = time.time()
+    if now >= state["next_blink"]:
+        state["blink_until"] = now + 0.16
+        state["next_blink"] = now + random.uniform(2.5, 6.5)
+    _forced = os.environ.get("PET_DEBUG_STATE")
+    if _forced in STATE_ART:
+        cur_state = _forced
+    elif now < state["wink_until"]:
+        cur_state = "wink"
+    elif now < state["blink_until"]:
+        cur_state = "blink"
+    else:
+        cur_state = "idle"
+
+    if cur_state != state.get("last_state"):
+        state["last_state"] = cur_state
+        try:
+            with open(os.path.join(APP, "pet.log"), "a", encoding="utf-8") as _f:
+                _f.write("%s %s\n" % (time.strftime("%H:%M:%S"), cur_state))
+        except Exception:
+            pass
+
     # 帧：走动时更活泼，静止时轻轻呼吸
     if state["sleeping"]:
         idx = 2
@@ -336,7 +368,7 @@ def tick():
             idx = 3
         else:
             idx = 4
-    set_frame(idx, state["face"])
+    set_frame(cur_state, idx, state["face"])
 
     update_hearts()
     root.after(TICK, tick)
