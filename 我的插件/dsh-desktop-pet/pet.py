@@ -51,6 +51,20 @@ def cursor_pos():
     return p.x, p.y
 
 
+NIGHT_START = 21   # 21:00
+NIGHT_END = 6      # 06:00
+
+
+def is_night():
+    """晚上九点到早上六点 —— 困困模式"""
+    if os.environ.get("PET_FORCE_NIGHT") == "1":
+        return True
+    if os.environ.get("PET_FORCE_DAY") == "1":
+        return False
+    h = time.localtime().tm_hour
+    return h >= NIGHT_START or h < NIGHT_END
+
+
 SW, SH = screen_size()
 TASKBAR = 70                      # 底部留一点给任务栏
 
@@ -119,7 +133,7 @@ def round_rect(x1, y1, x2, y2, r, **kw):
 
 
 # ---------- 配置 ----------
-CFG_DEFAULT = {"mode": "follow", "x": SW - WIN_W - 80, "y": SH - WIN_H - TASKBAR}
+CFG_DEFAULT = {"mode": "corner", "x": SW - WIN_W - 30, "y": SH - WIN_H - TASKBAR}
 try:
     cfg = json.load(open(CFG, "r", encoding="utf-8"))
 except Exception:
@@ -145,15 +159,31 @@ state = {
     "bubble_until": 0.0, "hearts": [], "sleeping": False,
     "say_mtime": 0.0, "last_say": "",
     "blink_until": 0.0, "next_blink": 0.0, "wink_until": 0.0,
+    # 摸摸头
+    "press_x": 0, "press_y": 0, "press_at": 0.0, "pat_after": None,
+    "pat_until": 0.0, "pat_start": 0.0,
+    # 晚上九点后的困困模式
+    "is_night": None, "night_wink_until": 0.0, "next_night_wink": 0.0,
+    "next_night_talk": 0.0,
 }
+
+IMAGE_Y = WIN_H - 6 + MARGIN
 
 LINES = ["妈妈～", "我在哦", "要一起玩吗？", "喵？", "嘿嘿", "今天也辛苦啦",
          "小鲸鱼在游～", "陪我一会儿嘛", "右键可以设置我"]
 
+# 被摸头时说的话（随机）
+PAT_LINES = ["嘿嘿…好舒服", "再摸摸嘛～", "唔…被摸头了", "妈妈的摸摸最好了",
+             "呼噜呼噜…", "开心！", "还要还要～"]
+
+# 晚九点后的困困台词
+NIGHT_LINES = ["困困……九点啦", "哈——欠……", "妈妈也要早点睡哦", "眼皮好重…"]
+NIGHT_TALK = ["困……", "zzz……", "妈妈还不睡吗～", "陪我一起睡嘛", "眼睛要睁不开了…"]
+
 photo = None
 bubble_img = None
 bubble_id = None
-img_id = canvas.create_image(WIN_W // 2, WIN_H - 6 + MARGIN, anchor="s")
+img_id = canvas.create_image(WIN_W // 2, IMAGE_Y, anchor="s")
 
 
 def set_frame(state_name, idx, face):
@@ -193,7 +223,7 @@ def spawn_hearts(n=2):
         x = WIN_W // 2 + random.randint(-55, 55)
         y = WIN_H - 120
         it = canvas.create_text(x, y, text="💗", font=("Segoe UI Emoji", 15))
-        canvas.tag_raise(img_id)
+        canvas.tag_raise(it)          # 爱心要浮在角色前面
         state["hearts"].append({"id": it, "born": time.time(), "x": x, "y": y})
 
 
@@ -213,6 +243,9 @@ def update_hearts():
 # ---------- 交互 ----------
 def on_press(e):
     state["dragging"] = True
+    state["press_x"] = e.x_root
+    state["press_y"] = e.y_root
+    state["press_at"] = time.time()
     state["drag_dx"] = e.x_root - state["x"]
     state["drag_dy"] = e.y_root - state["y"]
 
@@ -223,11 +256,54 @@ def on_drag(e):
         state["y"] = e.y_root - state["drag_dy"]
 
 
+def _log(tag):
+    try:
+        with open(os.path.join(APP, "pet.log"), "a", encoding="utf-8") as f:
+            f.write("%s %s\n" % (time.strftime("%H:%M:%S"), tag))
+    except Exception:
+        pass
+
+
+def do_pat():
+    """摸摸头：笑眼 + 爱心 + 蹦一下 + 说句话"""
+    now = time.time()
+    state["pat_until"] = now + 1.3
+    state["pat_start"] = now
+    state["wink_until"] = 0.0
+    spawn_hearts(random.randint(2, 3))
+    show_bubble(random.choice(PAT_LINES), 2.8)
+    _log("pat")
+
+
 def on_release(e):
+    was = state["dragging"]
     state["dragging"] = False
+    if not was:
+        return
+    moved = math.hypot(e.x_root - state["press_x"], e.y_root - state["press_y"])
+    quick = time.time() - state["press_at"] < 0.45
+    if moved <= 6 and quick:
+        # 单击 = 摸摸头；等 0.22 秒确认不是双击
+        if state["pat_after"] is not None:
+            try:
+                root.after_cancel(state["pat_after"])
+            except Exception:
+                pass
+        state["pat_after"] = root.after(220, _pat_now)
+
+
+def _pat_now():
+    state["pat_after"] = None
+    do_pat()
 
 
 def on_double(e):
+    if state["pat_after"] is not None:
+        try:
+            root.after_cancel(state["pat_after"])
+        except Exception:
+            pass
+        state["pat_after"] = None
     show_bubble(random.choice(LINES))
     spawn_hearts(3)
     state["wink_until"] = time.time() + 1.0
@@ -258,8 +334,10 @@ def quit_pet():
 
 def on_context(e):
     menu = tk.Menu(root, tearoff=0)
+    menu.add_command(label="摸摸头 💗", command=do_pat)
+    menu.add_separator()
+    menu.add_command(label="待在角落（安静陪你）", command=lambda: set_mode("corner"))
     menu.add_command(label="跟着鼠标跑", command=lambda: set_mode("follow"))
-    menu.add_command(label="待在角落", command=lambda: set_mode("corner"))
     menu.add_command(label="睡觉 / 起床", command=toggle_sleep)
     menu.add_command(label="说句话", command=lambda: (show_bubble(random.choice(LINES)), spawn_hearts(2)))
     menu.add_separator()
@@ -276,6 +354,18 @@ for widget in (canvas, root):
     widget.bind("<ButtonRelease-1>", on_release)
     widget.bind("<Double-Button-1>", on_double)
     widget.bind("<Button-3>", on_context)
+
+# 鼠标放到小D身上 → 小手光标（暗示"可以摸摸"）
+def _hand_cursor(_e):
+    root.configure(cursor="hand2")
+
+
+def _arrow_cursor(_e):
+    root.configure(cursor="")
+
+
+root.bind("<Enter>", _hand_cursor)
+root.bind("<Leave>", _arrow_cursor)
 
 
 # ---------- 主循环 ----------
@@ -330,16 +420,40 @@ def tick():
     state["y"] = max(0, min(SH - WIN_H - 10, state["y"]))
     root.geometry(f"{WIN_W}x{WIN_H}+{int(state['x'])}+{int(state['y'])}")
 
-    # 眨眼 / 单眼眨
+    # 眨眼 / 单眼眨 / 困困
     now = time.time()
+    night = is_night()
+    if night != state["is_night"]:
+        state["is_night"] = night
+        if night:
+            show_bubble(random.choice(NIGHT_LINES), 4.0)
+            state["next_night_wink"] = now + random.uniform(4, 8)
+            state["next_night_talk"] = now + random.uniform(90, 150)
+        else:
+            state["next_blink"] = 0.0
+
     if now >= state["next_blink"]:
         state["blink_until"] = now + 0.16
         state["next_blink"] = now + random.uniform(2.5, 6.5)
+
+    # 困困时偶尔睁开一只眼睛卖萌
+    if night and now >= state["next_night_wink"]:
+        state["night_wink_until"] = now + random.uniform(2.2, 3.4)
+        state["next_night_wink"] = now + random.uniform(9, 20)
+    # 困困时的碎碎念
+    if night and now >= state["next_night_talk"]:
+        show_bubble(random.choice(NIGHT_TALK), 3.0)
+        state["next_night_talk"] = now + random.uniform(240, 600)
+
     _forced = os.environ.get("PET_DEBUG_STATE")
     if _forced in STATE_ART:
         cur_state = _forced
+    elif now < state["pat_until"]:
+        cur_state = "blink"          # 被摸头 → 笑眼开心
     elif now < state["wink_until"]:
         cur_state = "wink"
+    elif night:
+        cur_state = "wink" if now < state["night_wink_until"] else "blink"   # 闭眼犯困
     elif now < state["blink_until"]:
         cur_state = "blink"
     else:
@@ -353,22 +467,29 @@ def tick():
         except Exception:
             pass
 
-    # 帧：走动时更活泼，静止时轻轻呼吸
+    # 帧：走动时更活泼；待在角落只轻轻晃（±1.5°，不左右乱跑）；困了就几乎不动
     if state["sleeping"]:
         idx = 2
     else:
-        sway = math.sin(t * (4.5 if walking else 1.8))
-        if sway > 0.85:
-            idx = 0
-        elif sway > 0.5:
-            idx = 1
-        elif sway > -0.5:
-            idx = 2
-        elif sway > -0.85:
-            idx = 3
+        night_calm = night and now >= state["pat_until"] and now >= state["wink_until"]
+        if walking:
+            sway = math.sin(t * 4.5)
+            idx = 0 if sway > 0.85 else 1 if sway > 0.5 else 2 if sway > -0.5 else 3 if sway > -0.85 else 4
         else:
-            idx = 4
+            speed = 1.4 if (night_calm or state["mode"] == "corner") else 1.8
+            sway = math.sin(t * speed)
+            step = int(round(sway * 1.6))
+            if night_calm and abs(sway) < 0.6:
+                step = 0
+            idx = max(1, min(3, 2 + step))
     set_frame(cur_state, idx, state["face"])
+
+    # 摸头时蹦一下
+    bounce = 0.0
+    if now < state["pat_until"]:
+        p = 1.0 - (state["pat_until"] - now) / 1.3
+        bounce = -7.0 * abs(math.sin(p * math.pi * 2.0))
+    canvas.coords(img_id, WIN_W // 2, IMAGE_Y + bounce)
 
     update_hearts()
     root.after(TICK, tick)
@@ -381,6 +502,12 @@ try:
 except Exception:
     pass
 
-root.after(400, lambda: show_bubble("我是小D～右键可以设置我", 4.0))
+state["is_night"] = is_night()
+if state["is_night"]:
+    state["next_night_wink"] = time.time() + random.uniform(3, 6)
+    state["next_night_talk"] = time.time() + random.uniform(120, 300)
+    root.after(400, lambda: show_bubble(random.choice(NIGHT_LINES), 4.0))
+else:
+    root.after(400, lambda: show_bubble("我是小D～点我可以摸摸头", 4.0))
 root.after(150, tick)
 root.mainloop()
