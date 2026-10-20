@@ -24,7 +24,7 @@ KEY = "#ff00ff"
 KEY_RGB = (255, 0, 255)
 
 WIN_W, WIN_H = 340, 430          # 窗口（上：气泡区，下：角色）
-BODY_H = 340                     # 角色显示高度
+BODY_H = 340                     # 角色显示高度（素材已按这个高度渲好）
 TICK = 33                        # ~30fps
 
 try:
@@ -68,18 +68,13 @@ def is_night():
 SW, SH = screen_size()
 TASKBAR = 70                      # 底部留一点给任务栏
 
-# ---------- 素材：妈妈画的 3 张透明底成品帧 ----------
-# 三张 1280×1280 对齐的成品：睁眼 / 单眼眨 / 笑眼闭眼
-# 由 生成素材.py 从 小D\拆分图\成品-透明底 生成（已对齐裁切 + 底部渐隐）
+# ---------- 素材：妈妈画的 3 个表情 × 4 个尾巴角度 × 2 个耳朵角度 ----------
+# 由 生成素材.py 预先渲好：assets\{idle,wink,blink}_{尾巴角}_{耳朵角}.png
 ART_DIR = os.path.join(APP, "assets")
-STATE_ART = {
-    "idle": os.path.join(ART_DIR, "idle.png"),
-    "wink": os.path.join(ART_DIR, "wink.png"),
-    "blink": os.path.join(ART_DIR, "blink.png"),
-}
-MARGIN = 44                      # 旋转留白（不然 ±3° 会切掉发梢）
-
-# 为每张成品生成「多角度 × 左右翻转」的帧
+TAIL_N = 4          # 尾巴摇摆姿态数
+EAR_N = 2           # 耳朵：0=正常 1=抖一下
+SQUEAK = os.path.join(ART_DIR, "squeak.wav")
+MARGIN = 20         # 旋转留白（尾巴甩起来别切边）
 
 
 def keyed(img):
@@ -91,17 +86,24 @@ def keyed(img):
     return out
 
 
-ANG = (-3.0, -1.5, 0.0, 1.5, 3.0)
-FRAMES = {}
-for _st, _path in STATE_ART.items():
-    _im = Image.open(_path).convert("RGBA")
-    _body = _im.resize((max(1, round(_im.width * BODY_H / _im.height)), BODY_H), Image.LANCZOS)
-    _pad = Image.new("RGBA", (_body.width + MARGIN * 2, _body.height + MARGIN * 2), (0, 0, 0, 0))
-    _pad.alpha_composite(_body, (MARGIN, MARGIN))
-    for _ang in ANG:
-        _rot = _pad.rotate(_ang, resample=Image.BICUBIC, expand=False)
-        FRAMES[(_st, _ang, False)] = keyed(_rot)
-        FRAMES[(_st, _ang, True)] = keyed(_rot.transpose(Image.FLIP_LEFT_RIGHT))
+FRAME_CACHE = {}
+
+
+def get_frame(state_name, ti, ei, face):
+    """按需加载某一帧（带缓存）：洋红键控 + 可选左右翻转"""
+    key = (state_name, ti, ei, face)
+    im = FRAME_CACHE.get(key)
+    if im is not None:
+        return im
+    path = os.path.join(ART_DIR, "%s_%d_%d.png" % (state_name, ti, ei))
+    src = Image.open(path).convert("RGBA")
+    pad = Image.new("RGBA", (src.width + MARGIN * 2, src.height + MARGIN * 2), (0, 0, 0, 0))
+    pad.alpha_composite(src, (MARGIN, MARGIN))
+    if face:
+        pad = pad.transpose(Image.FLIP_LEFT_RIGHT)
+    im = keyed(pad)
+    FRAME_CACHE[key] = im
+    return im
 
 # ---------- 气泡（用 Tk 画布画，透明窗口里更稳） ----------
 from tkinter import font as tkfont
@@ -162,6 +164,8 @@ state = {
     # 摸摸头
     "press_x": 0, "press_y": 0, "press_at": 0.0, "pat_after": None,
     "pat_until": 0.0, "pat_start": 0.0,
+    # 耳朵 / 尾巴的小动作
+    "ear_until": 0.0, "next_ear": 0.0,
     # 晚上九点后的困困模式
     "is_night": None, "night_wink_until": 0.0, "next_night_wink": 0.0,
     "next_night_talk": 0.0,
@@ -186,9 +190,9 @@ bubble_id = None
 img_id = canvas.create_image(WIN_W // 2, IMAGE_Y, anchor="s")
 
 
-def set_frame(state_name, idx, face):
+def set_frame(state_name, ti, ei, face):
     global photo
-    photo = ImageTk.PhotoImage(FRAMES[(state_name, ANG[idx], face)])
+    photo = ImageTk.PhotoImage(get_frame(state_name, ti, ei, face))
     canvas.itemconfigure(img_id, image=photo)
 
 
@@ -218,13 +222,41 @@ def hide_bubble():
     state["bubble_until"] = 0
 
 
+# 颜文字只用微软雅黑里有的字符（๑ ㅂ ᴗ 这些会变方块）
+KAOMOJI = ["(≧▽≦)", "(*/ω＼*)", "(｡>﹏<｡)", "ヾ(≧▽≦*)o", "(>ω<)", "(＾▽＾)",
+           "(￣▽￣)", "(=^･ω･^=)"]
+
+
+def _add_particle(text, font, color, x, y, ttl=1.4, rise=46):
+    it = canvas.create_text(x, y, text=text, font=font, fill=color)
+    canvas.tag_raise(it)              # 要在角色前面
+    state["hearts"].append({"id": it, "born": time.time(), "x": x, "y": y,
+                            "ttl": ttl, "rise": rise})
+
+
 def spawn_hearts(n=2):
     for _ in range(n):
         x = WIN_W // 2 + random.randint(-55, 55)
         y = WIN_H - 120
-        it = canvas.create_text(x, y, text="💗", font=("Segoe UI Emoji", 15))
-        canvas.tag_raise(it)          # 爱心要浮在角色前面
-        state["hearts"].append({"id": it, "born": time.time(), "x": x, "y": y})
+        _add_particle("💗", ("Segoe UI Emoji", 15), "#ff7fae", x, y)
+
+
+def spawn_pop():
+    """点击时只冒一两个：一颗爱心 + 有概率一个颜文字"""
+    cx, cy = WIN_W // 2, WIN_H - 320
+    _add_particle("💗", ("Segoe UI Emoji", 18), "#ff6fa5",
+                  cx + random.randint(-70, -34), cy, ttl=1.5, rise=58)
+    if random.random() < 0.75:
+        _add_particle(random.choice(KAOMOJI), ("Microsoft YaHei", 11, "bold"), "#c96a9b",
+                      cx + random.randint(28, 72), cy + 8, ttl=1.5, rise=46)
+
+
+def play_squeak():
+    try:
+        import winsound
+        winsound.PlaySound(SQUEAK, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+    except Exception:
+        pass
 
 
 def update_hearts():
@@ -232,10 +264,10 @@ def update_hearts():
     keep = []
     for hp in state["hearts"]:
         age = now - hp["born"]
-        if age > 1.5:
+        if age > hp["ttl"]:
             canvas.delete(hp["id"])
             continue
-        canvas.coords(hp["id"], hp["x"] + math.sin(age * 7) * 9, hp["y"] - 30 * age)
+        canvas.coords(hp["id"], hp["x"] + math.sin(age * 7) * 8, hp["y"] - hp["rise"] * age)
         keep.append(hp)
     state["hearts"] = keep
 
@@ -265,13 +297,15 @@ def _log(tag):
 
 
 def do_pat():
-    """摸摸头：笑眼 + 爱心 + 蹦一下 + 说句话"""
+    """摸摸头：笑眼 + 弹一下 + 「吱吱」+ 冒一两个爱心/颜文字"""
     now = time.time()
     state["pat_until"] = now + 1.3
     state["pat_start"] = now
     state["wink_until"] = 0.0
-    spawn_hearts(random.randint(2, 3))
+    state["ear_until"] = now + 0.22          # 被摸时耳朵抖一下
+    play_squeak()
     show_bubble(random.choice(PAT_LINES), 2.8)
+    spawn_pop()                              # 气泡会把角色提到最上层，所以粒子最后加
     _log("pat")
 
 
@@ -446,7 +480,7 @@ def tick():
         state["next_night_talk"] = now + random.uniform(240, 600)
 
     _forced = os.environ.get("PET_DEBUG_STATE")
-    if _forced in STATE_ART:
+    if _forced in ("idle", "wink", "blink"):
         cur_state = _forced
     elif now < state["pat_until"]:
         cur_state = "blink"          # 被摸头 → 笑眼开心
@@ -467,28 +501,33 @@ def tick():
         except Exception:
             pass
 
-    # 帧：走动时更活泼；待在角落只轻轻晃（±1.5°，不左右乱跑）；困了就几乎不动
-    if state["sleeping"]:
-        idx = 2
-    else:
-        night_calm = night and now >= state["pat_until"] and now >= state["wink_until"]
-        if walking:
-            sway = math.sin(t * 4.5)
-            idx = 0 if sway > 0.85 else 1 if sway > 0.5 else 2 if sway > -0.5 else 3 if sway > -0.85 else 4
-        else:
-            speed = 1.4 if (night_calm or state["mode"] == "corner") else 1.8
-            sway = math.sin(t * speed)
-            step = int(round(sway * 1.6))
-            if night_calm and abs(sway) < 0.6:
-                step = 0
-            idx = max(1, min(3, 2 + step))
-    set_frame(cur_state, idx, state["face"])
+    # 小动作：全身不动，只甩尾巴 + 偶尔抖耳朵
+    if now >= state["next_ear"]:
+        state["ear_until"] = now + 0.20
+        state["next_ear"] = now + random.uniform(4.0, 9.0)
+    ei = 1 if now < state["ear_until"] else 0
 
-    # 摸头时蹦一下
+    happy = now < state["pat_until"]
+    if state["sleeping"]:
+        speed, amp = 0.7, 0.45
+    elif happy:
+        speed, amp = 3.4, 1.0          # 被摸时尾巴摇得快
+    elif night:
+        speed, amp = 1.0, 0.5          # 困了慢慢晃
+    elif walking:
+        speed, amp = 3.0, 1.0
+    else:
+        speed, amp = 1.7, 0.8
+    sway = math.sin(t * speed) * amp
+    # 4 个尾巴姿态：-6.5° / -2.2° / +2.2° / +6.5°
+    ti = 0 if sway < -0.55 else 1 if sway < 0.0 else 2 if sway < 0.55 else 3
+    set_frame(cur_state, ti, ei, state["face"])
+
+    # 被摸头时整只弹一下
     bounce = 0.0
     if now < state["pat_until"]:
         p = 1.0 - (state["pat_until"] - now) / 1.3
-        bounce = -7.0 * abs(math.sin(p * math.pi * 2.0))
+        bounce = -9.0 * abs(math.sin(p * math.pi * 2.0))
     canvas.coords(img_id, WIN_W // 2, IMAGE_Y + bounce)
 
     update_hearts()
