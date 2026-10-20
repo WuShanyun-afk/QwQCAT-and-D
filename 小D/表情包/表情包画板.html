@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小D 的表情包画板 🎨</title>
+<style>
+  :root{
+    --bg:#faf7fc; --card:#ffffff; --ink:#4c3a50; --muted:#8b83b5;
+    --line:#e8e1f0; --pink:#ffd6e6; --purple:#c4b5fd; --blue:#6ec6e2;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    background:linear-gradient(160deg,#fdf7fb,#f3f0fd 60%,#eef7fd);
+    color:var(--ink); min-height:100vh;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:12px 20px; background:#fff; border-bottom:1px solid var(--line);
+    box-shadow:0 2px 12px rgba(140,120,170,.08); position:sticky; top:0; z-index:5;
+  }
+  header h1{font-size:16.5px; margin:0; letter-spacing:.5px}
+  header .tip{font-size:12px; color:var(--muted)}
+  main{display:flex; gap:16px; padding:16px 20px 34px; align-items:flex-start; flex-wrap:wrap}
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:12px; box-shadow:0 6px 20px rgba(150,130,190,.08);
+  }
+  .toolbar{display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin-bottom:8px}
+  button{
+    font:inherit; font-size:13px; cursor:pointer; border-radius:10px;
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:6px 10px; transition:.15s;
+  }
+  button:hover{background:#f7f2fb; border-color:var(--purple)}
+  button.on{background:#f0e9ff; border-color:var(--purple); color:#5b3f86; font-weight:600}
+  .swatch{
+    width:22px; height:22px; border-radius:7px; border:2px solid #fff;
+    box-shadow:0 0 0 1px var(--line); cursor:pointer; padding:0;
+  }
+  .swatch.on{box-shadow:0 0 0 2px var(--purple)}
+
+  /* 表情切换 */
+  #tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px}
+  #tabs button{font-size:13px; padding:6px 12px; position:relative}
+  #tabs button.dirty::after{
+    content:""; width:5px; height:5px; border-radius:50%; background:#f0a6c0;
+    position:absolute; top:5px; right:5px;
+  }
+
+  #boardWrap{
+    background:repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+    border-radius:12px; border:1px solid var(--line); padding:5px;
+    width:min(72vw, 640px);
+  }
+  #board{display:block; width:100%; height:auto; border-radius:7px; cursor:crosshair; touch-action:none}
+
+  .legend{font-size:12px; color:var(--muted); margin-top:8px; line-height:1.7; max-width:640px}
+  .col{display:flex; flex-direction:column; gap:12px; max-width:300px}
+  .refs{display:flex; gap:8px}
+  .refs button{padding:3px; border-radius:10px; line-height:0}
+  .refs img{width:62px; height:62px; object-fit:contain; display:block;
+            background-image:repeating-conic-gradient(#f2edf8 0% 25%, #fff 0% 50%);
+            background-size:12px 12px; border-radius:8px}
+  .refs p{margin:4px 0 0; font-size:11px; color:var(--muted); text-align:center; line-height:1}
+  h3{margin:0 0 8px; font-size:13px; color:#6d5c8f; letter-spacing:.5px}
+  #pvw{
+    width:200px; height:200px; display:block; border-radius:12px; border:1px solid var(--line);
+    background:repeating-conic-gradient(#f2edf8 0% 25%, #fff 0% 50%) 50% / 14px 14px;
+  }
+  .hint{font-size:12px; color:var(--muted); line-height:1.75; margin:10px 0 0; max-width:260px}
+  input[type=range]{accent-color:#b9a6e8; height:24px}
+  footer{padding:0 22px 26px; font-size:12px; color:var(--muted); line-height:1.8}
+  .nm{display:inline-block; min-width:34px; font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎨 小D 的表情包画板</h1>
+  <span class="tip">选一个表情 → 底下垫着小D的淡影照着画 → 点「导出」</span>
+</header>
+
+<main>
+  <!-- 左：画板 -->
+  <section class="panel">
+    <div id="tabs"></div>
+
+    <div class="toolbar">
+      <button id="btnBrush" class="on" title="画笔（B）">🖌 画笔</button>
+      <button id="btnEraser" title="橡皮（E）">🧽 橡皮</button>
+      <button id="btnPick" title="吸管：点画布取色">💧 吸管</button>
+      <button id="btnUndo" title="撤销（Ctrl+Z）">↩ 撤销</button>
+      <button id="btnClear" title="清空这张">🗑 清空</button>
+      <span class="nm">粗细</span>
+      <input type="range" id="size" min="2" max="60" step="1" value="8" style="width:96px">
+      <span id="sizeVal" style="font-size:12px;color:var(--muted);width:22px">8</span>
+      <input type="color" id="colorInput" value="#28324e" style="width:36px;height:28px;border:none;background:none;cursor:pointer">
+    </div>
+
+    <div class="toolbar">
+      <span class="nm">淡影</span>
+      <input type="range" id="ghost" min="0" max="80" step="1" value="38" style="width:96px">
+      <button id="btnGhostTop" title="把淡影垫在上面，方便照着描边">👁 淡影在上</button>
+      <button id="btnGhostOff" class="on" title="显示/隐藏淡影">🫥 显示淡影</button>
+    </div>
+
+    <div class="toolbar" id="palette"></div>
+
+    <div id="boardWrap"><canvas id="board" width="1024" height="1024"></canvas></div>
+    <div class="legend">
+      快捷键：<b>B</b> 画笔 · <b>E</b> 橡皮 · <b>Ctrl+Z</b> 撤销 ｜ 建议把小D画在中间、占画面 70% 左右
+    </div>
+  </section>
+
+  <!-- 右：参考 + 预览 + 导出 -->
+  <section class="panel col">
+    <div>
+      <h3>小D 原来的三张表情</h3>
+      <div class="refs" id="refs"></div>
+    </div>
+    <div>
+      <h3>这张表情的样子</h3>
+      <canvas id="pvw" width="512" height="512"></canvas>
+    </div>
+    <div class="toolbar" style="margin:0">
+      <button id="btnExport">⬇ 导出这张 PNG</button>
+      <button id="btnAdd">➕ 加一个表情</button>
+    </div>
+    <p class="hint">
+      1. 导出的是透明底 1024×1024，存到「下载」文件夹<br>
+      2. 全部画完跟小D说一声，我就会自己把它们收进图鉴里<br>
+      3. 关掉这个页面草稿会丢，先导出比较稳
+    </p>
+  </section>
+</main>
+
+<footer>© 2026 WuShanyun-afk · 小D 的表情包画板 · 自家做的，不是外面的插件</footer>
+
+<script>
+(function(){
+  "use strict";
+  const N = 1024;
+  const board = document.getElementById('board');
+  const bctx = board.getContext('2d');
+  const pvw = document.getElementById('pvw');
+  const pctx = pvw.getContext('2d');
+
+  const GUIDE_SRC = {
+    '睁眼':   '../拆分图/成品-透明底/成品-睁眼-透明.png',
+    '单眼眨': '../拆分图/成品-透明底/成品-单眼眨-透明.png',
+    '笑眼闭眼': '../拆分图/成品-透明底/成品-笑眼闭眼-透明.png'
+  };
+
+  const PALETTE = [
+    ['藏青', '#28324e'], ['深蓝', '#4a6ec4'], ['蓝发', '#688ee6'], ['淡蓝', '#a8c6f2'],
+    ['肤色', '#ffdfcd'], ['肤色暗', '#f0c6b2'], ['白', '#ffffff'], ['浅灰', '#dde3ee'],
+    ['腮红', '#f8bac6'], ['嘴红', '#db7080'], ['紫', '#c4b5fd'], ['粉', '#ffd6e6'],
+    ['青', '#6ec6e2'], ['金', '#ffd76e'], ['灰', '#9aa3b8'], ['黑', '#1a1d26']
+  ];
+
+  // ---------- 表情列表 ----------
+  function newLayer(){
+    const c = document.createElement('canvas');
+    c.width = N; c.height = N;
+    return c;
+  }
+  const emotes = [
+    { name: '开心',   guide: '笑眼闭眼' },
+    { name: '困困',   guide: '笑眼闭眼' },
+    { name: '害羞',   guide: '单眼眨' },
+    { name: '抱抱',   guide: '睁眼' },
+    { name: '惊讶',   guide: '睁眼' }
+  ].map(o => Object.assign(o, { canvas: newLayer(), undo: [], touched: false }));
+
+  let cur = 0;
+  function layer(){ return emotes[cur].canvas; }
+  function lctx(){ return emotes[cur].canvas.getContext('2d'); }
+
+  // ---------- 参考图 ----------
+  const guides = {};
+  let guidesReady = 0;
+  Object.entries(GUIDE_SRC).forEach(([k, url]) => {
+    const img = new Image();
+    img.onload = () => { guidesReady++; render(); };
+    img.onerror = () => { guidesReady++; };
+    img.src = url;
+    guides[k] = img;
+  });
+
+  // ---------- 状态 ----------
+  let tool = 'brush';
+  let color = '#28324e';
+  let size = 8;
+  let ghostOn = true;
+  let ghostTop = false;
+  let ghostAlpha = 0.38;
+  let drawing = false, lastPt = null, lastUndo = 0;
+  const MAX_UNDO = 18;
+
+  // ---------- 渲染 ----------
+  function drawGhost(ctx, alpha){
+    const img = guides[emotes[cur].guide];
+    if (!img || !img.complete || !img.naturalWidth) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, N, N);
+    ctx.restore();
+  }
+
+  function render(){
+    bctx.clearRect(0, 0, N, N);
+    if (ghostOn && !ghostTop) drawGhost(bctx, ghostAlpha);
+    bctx.drawImage(layer(), 0, 0);
+    if (ghostOn && ghostTop) drawGhost(bctx, ghostAlpha * 0.6);
+
+    pctx.clearRect(0, 0, N, N);
+    if (ghostOn) drawGhost(pctx, ghostAlpha);
+    pctx.drawImage(layer(), 0, 0);
+    if (ghostOn && ghostTop) drawGhost(pctx, ghostAlpha * 0.6);
+
+    const t = document.querySelector('#tabs button.on');
+    if (t) t.classList.toggle('dirty', emotes[cur].touched);
+  }
+
+  // ---------- 图标 / 标签 ----------
+  const tabsEl = document.getElementById('tabs');
+  function buildTabs(){
+    tabsEl.innerHTML = '';
+    emotes.forEach((e, i) => {
+      const b = document.createElement('button');
+      b.textContent = e.name;
+      if (i === cur) b.classList.add('on');
+      if (e.touched) b.classList.add('dirty');
+      b.onclick = () => { cur = i; buildTabs(); render(); };
+      tabsEl.appendChild(b);
+    });
+  }
+
+  function addEmote(){
+    const name = prompt('新表情叫什么名字？（比如 委屈 / 生气 / 得意）');
+    if (!name) return;
+    emotes.push({ name: name.trim(), guide: emotes[cur].guide, canvas: newLayer(), undo: [], touched: false });
+    cur = emotes.length - 1;
+    buildTabs(); render();
+  }
+
+  // ---------- 参考缩略 ----------
+  const refsEl = document.getElementById('refs');
+  function buildRefs(){
+    refsEl.innerHTML = '';
+    Object.entries(GUIDE_SRC).forEach(([k, url]) => {
+      const b = document.createElement('button');
+      const img = document.createElement('img');
+      img.src = url; img.alt = k;
+      const p = document.createElement('p');
+      p.textContent = k;
+      b.appendChild(img); b.appendChild(p);
+      b.title = '把「' + k + '」垫在这张表情下面';
+      b.onclick = () => { emotes[cur].guide = k; render(); };
+      refsEl.appendChild(b);
+    });
+  }
+
+  // ---------- 调色板 ----------
+  const pal = document.getElementById('palette');
+  PALETTE.forEach(([name, hex]) => {
+    const b = document.createElement('button');
+    b.className = 'swatch';
+    b.style.background = hex;
+    b.title = name + ' ' + hex;
+    b.onclick = () => { color = hex; document.getElementById('colorInput').value = hex; setTool('brush'); };
+    pal.appendChild(b);
+  });
+
+  // ---------- 工具 ----------
+  const btns = {
+    brush: document.getElementById('btnBrush'),
+    eraser: document.getElementById('btnEraser'),
+    pick: document.getElementById('btnPick')
+  };
+  function setTool(t){
+    tool = t;
+    Object.entries(btns).forEach(([k, b]) => b.classList.toggle('on', k === t));
+    board.style.cursor = t === 'pick' ? 'copy' : t === 'eraser' ? 'cell' : 'crosshair';
+  }
+  btns.brush.onclick = () => setTool('brush');
+  btns.eraser.onclick = () => setTool('eraser');
+  btns.pick.onclick = () => setTool('pick');
+
+  function pos(e){
+    const r = board.getBoundingClientRect();
+    return [ (e.clientX - r.left) / r.width * N, (e.clientY - r.top) / r.height * N ];
+  }
+  function widthPx(){
+    const r = board.getBoundingClientRect();
+    return Math.max(1, size * (N / r.width));
+  }
+  function pushUndo(){
+    try {
+      const arr = emotes[cur].undo;
+      arr.push(layer().toDataURL('image/png'));
+      if (arr.length > MAX_UNDO) arr.shift();
+    } catch (err) {}
+  }
+  function stroke(a, b){
+    const ctx = lctx();
+    ctx.save();
+    ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = widthPx();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    if (a && b){ ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    else { ctx.arc(b[0], b[1], widthPx() / 2, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+    emotes[cur].touched = true;
+  }
+  function pickColor(p){
+    const d = lctx().getImageData(Math.floor(p[0]), Math.floor(p[1]), 1, 1).data;
+    if (d[3] > 8){
+      color = '#' + [d[0], d[1], d[2]].map(x => x.toString(16).padStart(2, '0')).join('');
+      document.getElementById('colorInput').value = color;
+    }
+  }
+
+  board.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const p = pos(e);
+    if (tool === 'pick'){ pickColor(p); return; }
+    pushUndo();
+    drawing = true; lastPt = null;
+    stroke(null, p);
+    lastPt = p;
+    render();
+    board.setPointerCapture(e.pointerId);
+  });
+  board.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = pos(e);
+    stroke(lastPt, p);
+    lastPt = p;
+    render();
+  });
+  board.addEventListener('pointerup', () => { drawing = false; lastPt = null; });
+  board.addEventListener('pointercancel', () => { drawing = false; lastPt = null; });
+
+  document.getElementById('btnUndo').onclick = () => {
+    const arr = emotes[cur].undo;
+    const d = arr.pop();
+    if (!d) return;
+    const img = new Image();
+    img.onload = () => {
+      const ctx = lctx();
+      ctx.clearRect(0, 0, N, N);
+      ctx.drawImage(img, 0, 0);
+      render();
+    };
+    img.src = d;
+  };
+  document.getElementById('btnClear').onclick = () => {
+    pushUndo();
+    lctx().clearRect(0, 0, N, N);
+    emotes[cur].touched = false;
+    render();
+  };
+  document.getElementById('colorInput').oninput = e => { color = e.target.value; setTool('brush'); };
+  document.getElementById('size').oninput = e => {
+    size = +e.target.value;
+    document.getElementById('sizeVal').textContent = size;
+  };
+  document.getElementById('ghost').oninput = e => {
+    ghostAlpha = +e.target.value / 100;
+    render();
+  };
+  document.getElementById('btnGhostTop').onclick = e => {
+    ghostTop = !ghostTop;
+    e.currentTarget.classList.toggle('on', ghostTop);
+    render();
+  };
+  document.getElementById('btnGhostOff').onclick = e => {
+    ghostOn = !ghostOn;
+    e.currentTarget.classList.toggle('on', ghostOn);
+    render();
+  };
+  document.getElementById('btnAdd').onclick = addEmote;
+
+  document.getElementById('btnExport').onclick = () => {
+    const out = document.createElement('canvas');
+    out.width = N; out.height = N;
+    out.getContext('2d').drawImage(layer(), 0, 0);
+    const a = document.createElement('a');
+    a.download = emotes[cur].name + '.png';
+    a.href = out.toDataURL('image/png');
+    a.click();
+  };
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
+      e.preventDefault();
+      document.getElementById('btnUndo').click();
+    } else if (e.key === 'b' || e.key === 'B') setTool('brush');
+    else if (e.key === 'e' || e.key === 'E') setTool('eraser');
+  });
+
+  // ---------- 启动 ----------
+  setTool('brush');
+  buildTabs();
+  buildRefs();
+  render();
+})();
+</script>
+</body>
+</html>
