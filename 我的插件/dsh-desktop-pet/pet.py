@@ -24,7 +24,7 @@ KEY = "#ff00ff"
 KEY_RGB = (255, 0, 255)
 
 WIN_W, WIN_H = 340, 430          # 窗口（上：气泡区，下：角色）
-BODY_H = 300                     # 角色显示高度
+BODY_H = 340                     # 角色显示高度
 TICK = 33                        # ~30fps
 
 try:
@@ -54,15 +54,15 @@ def cursor_pos():
 SW, SH = screen_size()
 TASKBAR = 70                      # 底部留一点给任务栏
 
-# ---------- 素材：妈妈画的 3 张成品帧 ----------
+# ---------- 素材：妈妈画的 3 张透明底成品帧 ----------
 # 三张 1280×1280 对齐的成品：睁眼 / 单眼眨 / 笑眼闭眼
+# 由 生成素材.py 从 小D\拆分图\成品-透明底 生成（已对齐裁切 + 底部渐隐）
 ART_DIR = os.path.join(APP, "assets")
 STATE_ART = {
     "idle": os.path.join(ART_DIR, "idle.png"),
     "wink": os.path.join(ART_DIR, "wink.png"),
     "blink": os.path.join(ART_DIR, "blink.png"),
 }
-CROP = (70, 5, 1215, 1245)      # 1280 画布里人物+装饰的范围
 MARGIN = 44                      # 旋转留白（不然 ±3° 会切掉发梢）
 
 # 为每张成品生成「多角度 × 左右翻转」的帧
@@ -80,7 +80,7 @@ def keyed(img):
 ANG = (-3.0, -1.5, 0.0, 1.5, 3.0)
 FRAMES = {}
 for _st, _path in STATE_ART.items():
-    _im = Image.open(_path).convert("RGBA").crop(CROP)
+    _im = Image.open(_path).convert("RGBA")
     _body = _im.resize((max(1, round(_im.width * BODY_H / _im.height)), BODY_H), Image.LANCZOS)
     _pad = Image.new("RGBA", (_body.width + MARGIN * 2, _body.height + MARGIN * 2), (0, 0, 0, 0))
     _pad.alpha_composite(_body, (MARGIN, MARGIN))
