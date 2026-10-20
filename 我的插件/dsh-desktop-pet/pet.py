@@ -72,7 +72,7 @@ TASKBAR = 70                      # 底部留一点给任务栏
 # 由 生成素材.py 预先渲好：assets\{idle,wink,blink}_{尾巴角}_{耳朵角}.png
 ART_DIR = os.path.join(APP, "assets")
 TAIL_N = 4          # 尾巴摇摆姿态数
-EAR_N = 2           # 耳朵：0=正常 1=抖一下
+EAR_N = 1           # 耳朵不动了（妈妈要求），只有尾巴摇
 SQUEAK = os.path.join(ART_DIR, "squeak.wav")
 MARGIN = 20         # 旋转留白（尾巴甩起来别切边）
 
@@ -302,7 +302,6 @@ def do_pat():
     state["pat_until"] = now + 1.3
     state["pat_start"] = now
     state["wink_until"] = 0.0
-    state["ear_until"] = now + 0.22          # 被摸时耳朵抖一下
     play_squeak()
     show_bubble(random.choice(PAT_LINES), 2.8)
     spawn_pop()                              # 气泡会把角色提到最上层，所以粒子最后加
@@ -501,11 +500,8 @@ def tick():
         except Exception:
             pass
 
-    # 小动作：全身不动，只甩尾巴 + 偶尔抖耳朵
-    if now >= state["next_ear"]:
-        state["ear_until"] = now + 0.20
-        state["next_ear"] = now + random.uniform(4.0, 9.0)
-    ei = 1 if now < state["ear_until"] else 0
+    # 小动作：全身不动、耳朵也不动，只有尾巴在摇
+    ei = 0
 
     happy = now < state["pat_until"]
     if state["sleeping"]:
