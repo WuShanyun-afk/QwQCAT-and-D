@@ -402,7 +402,7 @@ root.bind("<Leave>", _arrow_cursor)
 
 
 # ---------- 主循环 ----------
-def tick():
+def _tick():
     state["t"] += TICK / 1000.0
     t = state["t"]
 
@@ -527,7 +527,33 @@ def tick():
     canvas.coords(img_id, WIN_W // 2, IMAGE_Y + bounce)
 
     update_hearts()
-    root.after(TICK, tick)
+
+    # 每隔约 2 秒把窗口重新顶到最前面（有时候别的置顶窗口会把它压下去，
+    # 妈妈就会觉得「桌宠不见了」，其实它还在原地）
+    state["ticks"] = state.get("ticks", 0) + 1
+    if state["ticks"] % 40 == 0:
+        try:
+            root.attributes("-topmost", True)
+            root.lift()
+        except Exception:
+            pass
+
+
+def tick():
+    """主循环外面包一层 try：万一某帧出错，也只记一笔，不整个停掉。"""
+    try:
+        _tick()
+    except Exception:
+        try:
+            import traceback
+            with open(os.path.join(APP, "pet.log"), "a", encoding="utf-8") as _f:
+                _f.write("%s ERROR %s\n" % (
+                    time.strftime("%H:%M:%S"),
+                    traceback.format_exc().replace("\n", " | ")))
+        except Exception:
+            pass
+    finally:
+        root.after(TICK, tick)
 
 
 # 启动时先把 say.txt 现有内容记下来，不当成"新消息"念
