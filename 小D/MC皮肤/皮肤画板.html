@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小D 的 MC 皮肤画板 🎨</title>
+<style>
+  :root{
+    --bg:#faf7fc; --card:#ffffff; --ink:#4c3a50; --muted:#8b83b5;
+    --line:#e8e1f0; --pink:#ffd6e6; --purple:#c4b5fd; --blue:#6ec6e2;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    background:linear-gradient(160deg,#fdf7fb,#f3f0fd 60%,#eef7fd);
+    color:var(--ink); min-height:100vh;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:14px 20px; background:#fff; border-bottom:1px solid var(--line);
+    box-shadow:0 2px 12px rgba(140,120,170,.08); position:sticky; top:0; z-index:5;
+  }
+  header h1{font-size:17px; margin:0; letter-spacing:.5px}
+  header .tip{font-size:12px; color:var(--muted)}
+  main{display:flex; gap:18px; padding:18px 20px 40px; align-items:flex-start; flex-wrap:wrap}
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:14px; box-shadow:0 6px 20px rgba(150,130,190,.08);
+  }
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px}
+  button{
+    font:inherit; font-size:13px; cursor:pointer; border-radius:10px;
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:7px 11px; transition:.15s;
+  }
+  button:hover{background:#f7f2fb; border-color:var(--purple)}
+  button.on{background:#f0e9ff; border-color:var(--purple); color:#5b3f86; font-weight:600}
+  .swatch{
+    width:24px; height:24px; border-radius:7px; border:2px solid #fff;
+    box-shadow:0 0 0 1px var(--line); cursor:pointer; padding:0;
+  }
+  .swatch.on{box-shadow:0 0 0 2px var(--purple)}
+  #boardWrap{
+    background:
+      repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+    border-radius:12px; border:1px solid var(--line); padding:6px;
+  }
+  #board{display:block; image-rendering:pixelated; cursor:crosshair; border-radius:6px; touch-action:none}
+  .legend{font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6}
+  .previews{display:flex; gap:16px}
+  .previewBox{text-align:center}
+  .previewBox canvas{
+    image-rendering:pixelated; border-radius:10px;
+    background:repeating-conic-gradient(#f2edf8 0% 25%, #fff 0% 50%) 50% / 12px 12px;
+    border:1px solid var(--line);
+  }
+  .previewBox p{margin:6px 0 0; font-size:12px; color:var(--muted)}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px}
+  input[type=file]{display:none}
+  .hint{font-size:12px; color:var(--muted); line-height:1.7; max-width:300px}
+  footer{padding:0 22px 30px; font-size:12px; color:var(--muted); line-height:1.8}
+  footer a{color:#7c6bb5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎨 小D 的 MC 皮肤画板</h1>
+  <span class="tip">64×64 · 左边画、右边实时看立体效果 · 画完点「导出」</span>
+</header>
+
+<main>
+  <!-- 左边：画板 -->
+  <section class="panel">
+    <div class="toolbar" id="tools">
+      <button id="btnPencil" class="on" title="画笔（B）">🖌 画笔</button>
+      <button id="btnEraser" title="橡皮（E）">🧽 橡皮</button>
+      <button id="btnPick" title="吸管：点画布取色">💧 吸管</button>
+      <button id="btnUndo" title="撤销（Ctrl+Z）">↩ 撤销</button>
+      <button id="btnClear" title="清空">🗑 清空</button>
+      <button id="btnLabels" class="on" title="在画布上显示部位名字">🏷 部位标注</button>
+      <input type="color" id="colorInput" value="#688ee6" style="width:38px;height:30px;border:none;background:none;cursor:pointer" title="自定义颜色">
+    </div>
+
+    <div class="toolbar" id="palette"></div>
+
+    <div id="boardWrap"><canvas id="board" width="512" height="512"></canvas></div>
+    <div class="legend">
+      每格 = 1 像素皮肤 ｜ 透明格 = 没有皮肤 ｜ 快捷键：<b>B</b> 画笔 · <b>E</b> 橡皮 · <b>Ctrl+Z</b> 撤销
+    </div>
+  </section>
+
+  <!-- 右边：预览 + 操作 -->
+  <section class="panel">
+    <div class="previews">
+      <div class="previewBox"><canvas id="pvFront" width="128" height="256"></canvas><p>正面</p></div>
+      <div class="previewBox"><canvas id="pvSide" width="128" height="256"></canvas><p>侧面</p></div>
+      <div class="previewBox"><canvas id="pvBack" width="128" height="256"></canvas><p>背面</p></div>
+    </div>
+
+    <div class="row">
+      <button id="btnExport">⬇ 导出 PNG（64×64）</button>
+      <button id="btnImport">📥 导入妈妈的画</button>
+      <input type="file" id="fileInput" accept="image/png,image/*">
+    </div>
+    <div class="row">
+      <button id="btnSample">🐋 载入小D 的示范皮肤</button>
+      <button id="btnBlank">⬜ 空白开始</button>
+    </div>
+
+    <p class="hint">
+      小提示：<br>
+      1. 想画大图也行，导进来我会自动缩到 64×64（8 的倍数最好）<br>
+      2. 眼睛画在「脸」那块的第 3~4 行；猫耳画在第二层<br>
+      3. 画完导出，把 PNG 发给小D，我帮你打包成皮肤 + 渲染成品图
+    </p>
+  </section>
+</main>
+
+<footer>
+  部位对照：脸 (8,8) ｜ 后脑 (24,8) ｜ 头顶 (8,0) ｜ 身体正 (20,20) ｜ 身体背 (32,20) ｜
+  右臂 (44,20) ｜ 左臂 (36,52) ｜ 右腿 (4,20) ｜ 左腿 (20,52) ｜ 第二层猫耳 (40,8)
+  <br>© 2026 WuShanyun-afk · 小D 的皮肤画板
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  const N = 64, ZOOM = 10;
+  const board = document.getElementById('board');
+  const bctx = board.getContext('2d');
+  board.width = N * ZOOM; board.height = N * ZOOM;
+
+  // 64×64 真源
+  const src = document.createElement('canvas');
+  src.width = N; src.height = N;
+  const sctx = src.getContext('2d', { willReadFrequently: true });
+  sctx.clearRect(0, 0, N, N);
+
+  let tool = 'pencil';
+  let color = '#688ee6';
+  let drawing = false;
+  const undoStack = [];
+  const MAX_UNDO = 60;
+
+  const PALETTE = [
+    ['蓝发', '#688ee6'], ['深蓝', '#4a6ec4'], ['藏青', '#28324e'], ['深藏青', '#1c2338'],
+    ['肤色', '#ffdfcd'], ['肤色暗', '#f0c6b2'], ['白', '#f8fafe'], ['白暗', '#dee4f0'],
+    ['青色', '#6ec6e2'], ['深青', '#4aa2c6'], ['短裤', '#2e3240'], ['黑', '#1a1d26'],
+    ['眼白', '#ffffff'], ['眼蓝', '#4e84de'], ['眼深', '#222e54'], ['腮红', '#f8bac6'],
+    ['嘴', '#db7080'], ['鲸鱼', '#4076e2'], ['金', '#ffd76e'], ['灰', '#9aa3b8']
+  ];
+
+  // ---------- 画板显示 ----------
+  function redraw(){
+    bctx.clearRect(0, 0, board.width, board.height);
+    bctx.imageSmoothingEnabled = false;
+    bctx.drawImage(src, 0, 0, N, N, 0, 0, board.width, board.height);
+    // 网格（每 8 格一条，也就是头/身部位的分界）
+    bctx.save();
+    bctx.strokeStyle = 'rgba(120,110,160,.13)';
+    bctx.lineWidth = 1;
+    for (let i = 0; i <= N; i += 8){
+      const p = i * ZOOM + .5;
+      bctx.beginPath(); bctx.moveTo(p, 0); bctx.lineTo(p, board.height); bctx.stroke();
+      bctx.beginPath(); bctx.moveTo(0, p); bctx.lineTo(board.width, p); bctx.stroke();
+    }
+    bctx.restore();
+    drawLabels();
+    drawPreviews();
+  }
+
+  // ---------- 部位标注（只在显示层画，不写进皮肤） ----------
+  const LABELS = [
+    [8,8,8,8,'脸'],[0,8,8,8,'头右'],[16,8,8,8,'头左'],[24,8,8,8,'后脑'],
+    [8,0,8,8,'头顶'],[16,0,8,8,'脖子'],
+    [40,8,8,8,'猫耳'],[40,0,8,8,'耳顶'],[32,8,8,8,'耳右'],[48,8,8,8,'耳左'],[56,8,8,8,'耳后'],
+    [20,20,8,12,'身体'],[32,20,8,12,'后身'],[16,20,4,12,'侧'],[28,20,4,12,'侧'],
+    [20,16,8,4,'肩'],[28,16,8,4,'腰'],
+    [44,20,4,12,'右臂'],[36,52,4,12,'左臂'],[40,20,4,12,'侧'],[48,20,4,12,'侧'],
+    [52,20,4,12,'后'],[32,52,4,12,'侧'],[40,52,4,12,'侧'],[44,52,4,12,'后'],
+    [44,16,4,4,'顶'],[48,16,4,4,'底'],[36,48,4,4,'顶'],[40,48,4,4,'底'],
+    [4,20,4,12,'右腿'],[20,52,4,12,'左腿'],[0,20,4,12,'侧'],[8,20,4,12,'侧'],
+    [12,20,4,12,'后'],[16,52,4,12,'侧'],[24,52,4,12,'侧'],[28,52,4,12,'后'],
+    [4,16,4,4,'顶'],[8,16,4,4,'底'],[20,48,4,4,'顶'],[24,48,4,4,'底']
+  ];
+  let showLabels = true;
+  function drawLabels(){
+    if (!showLabels) return;
+    bctx.save();
+    bctx.font = 'bold 11px Microsoft YaHei, sans-serif';
+    bctx.textAlign = 'center';
+    bctx.textBaseline = 'middle';
+    bctx.lineWidth = 3;
+    bctx.strokeStyle = 'rgba(255,255,255,.85)';
+    bctx.fillStyle = 'rgba(70,56,96,.9)';
+    for (const [x,y,w,h,t] of LABELS){
+      const tw = bctx.measureText(t).width;
+      if (tw > w*ZOOM - 2) continue;
+      const cx = (x + w/2)*ZOOM, cy = (y + h/2)*ZOOM;
+      bctx.strokeText(t, cx, cy);
+      bctx.fillText(t, cx, cy);
+    }
+    bctx.restore();
+  }
+
+  // ---------- 预览 ----------
+  const FACES = {
+    head_front:[8,8,8,8], head_back:[24,8,8,8], head_right:[0,8,8,8],
+    hat_front:[40,8,8,8],
+    body_front:[20,20,8,12], body_back:[32,20,8,12], body_right:[16,20,4,12],
+    rarm_front:[44,20,4,12], rarm_back:[52,20,4,12], rarm_right:[40,20,4,12],
+    larm_front:[36,52,4,12], larm_back:[44,52,4,12], larm_right:[32,52,4,12],
+    rleg_front:[4,20,4,12], rleg_back:[12,20,4,12], rleg_right:[0,20,4,12],
+    lleg_front:[20,52,4,12], lleg_back:[28,52,4,12], lleg_right:[16,52,4,12]
+  };
+
+  function blit(dst, view, face, tx, ty, scale, flip){
+    const f = FACES[face]; if(!f) return;
+    dst.save();
+    if (flip){
+      dst.translate(tx + f[2] * scale, ty);
+      dst.scale(-1, 1);
+      dst.drawImage(src, f[0], f[1], f[2], f[3], 0, 0, f[2] * scale, f[3] * scale);
+      dst.drawImage(src, f[0], f[1], f[2], f[3], 0, 0, f[2] * scale, f[3] * scale);
+    } else {
+      dst.drawImage(src, f[0], f[1], f[2], f[3], tx, ty, f[2] * scale, f[3] * scale);
+    }
+    dst.restore();
+  }
+
+  function drawView(id, mode){
+    const cv = document.getElementById(id);
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const S = 8;                       // 一个皮肤像素放大
+    const ox = mode === 'side' ? 8 : 0;
+    // 头
+    const head = mode === 'front' ? 'head_front' : mode === 'back' ? 'head_back' : 'head_right';
+    blit(ctx, mode, head, 4 * S, 0, S, false);
+    // 第二层（猫耳/头发厚度）
+    blit(ctx, mode, 'hat_front', 4 * S, 0, S, false);
+    // 身体
+    const body = mode === 'front' ? 'body_front' : mode === 'back' ? 'body_back' : 'body_right';
+    const bw = FACES[body][2] * S;
+    blit(ctx, mode, body, (128 - bw) / 2, 8 * S, S, false);
+    // 手臂
+    const aR = mode === 'front' ? 'rarm_front' : mode === 'back' ? 'rarm_back' : 'rarm_right';
+    const aL = mode === 'front' ? 'larm_front' : mode === 'back' ? 'larm_back' : 'larm_right';
+    if (mode === 'side'){
+      blit(ctx, mode, aR, 40, 8 * S, S, false);
+    } else {
+      blit(ctx, mode, aR, 0, 8 * S, S, false);
+      blit(ctx, mode, aL, 12 * S, 8 * S, S, false);
+    }
+    // 腿
+    const lR = mode === 'front' ? 'rleg_front' : mode === 'back' ? 'rleg_back' : 'rleg_right';
+    const lL = mode === 'front' ? 'lleg_front' : mode === 'back' ? 'lleg_back' : 'lleg_right';
+    blit(ctx, mode, lR, mode === 'side' ? 40 : 4 * S, 20 * S, S, false);
+    if (mode !== 'side') blit(ctx, mode, lL, 8 * S, 20 * S, S, false);
+  }
+
+  function drawPreviews(){
+    drawView('pvFront', 'front');
+    drawView('pvSide', 'side');
+    drawView('pvBack', 'back');
+  }
+
+  // ---------- 画画 ----------
+  function pushUndo(){
+    try{
+      undoStack.push(sctx.getImageData(0, 0, N, N));
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+    }catch(e){}
+  }
+
+  function hexToRgba(hex){
+    const v = hex.replace('#','');
+    const r = parseInt(v.substr(0,2),16), g = parseInt(v.substr(2,2),16), b = parseInt(v.substr(4,2),16);
+    return [r, g, b, 255];
+  }
+
+  function putPixel(px, py){
+    if (px < 0 || py < 0 || px >= N || py >= N) return;
+    if (tool === 'pick'){
+      const d = sctx.getImageData(px, py, 1, 1).data;
+      if (d[3] > 0){
+        color = '#' + [d[0], d[1], d[2]].map(x => x.toString(16).padStart(2, '0')).join('');
+        document.getElementById('colorInput').value = color;
+      }
+      return;
+    }
+    sctx.clearRect(px, py, 1, 1);
+    if (tool === 'pencil'){
+      sctx.fillStyle = color;
+      sctx.fillRect(px, py, 1, 1);
+    }
+  }
+
+  function pos(e){
+    const r = board.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / r.width * N);
+    const y = Math.floor((e.clientY - r.top) / r.height * N);
+    return [x, y];
+  }
+
+  let strokeDirty = false;
+  board.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (tool !== 'pick') pushUndo();
+    drawing = true; strokeDirty = false;
+    const [x, y] = pos(e);
+    putPixel(x, y);
+    redraw();
+    board.setPointerCapture(e.pointerId);
+  });
+  board.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    e.preventDefault();
+    const [x, y] = pos(e);
+    putPixel(x, y);
+    redraw();
+  });
+  board.addEventListener('pointerup', () => { drawing = false; });
+  board.addEventListener('pointercancel', () => { drawing = false; });
+
+  // ---------- 工具按钮 ----------
+  const btns = {
+    pencil: document.getElementById('btnPencil'),
+    eraser: document.getElementById('btnEraser'),
+    pick: document.getElementById('btnPick')
+  };
+  function setTool(t){
+    tool = t;
+    Object.entries(btns).forEach(([k, b]) => b.classList.toggle('on', k === t));
+    board.style.cursor = t === 'pick' ? 'copy' : t === 'eraser' ? 'cell' : 'crosshair';
+  }
+  btns.pencil.onclick = () => setTool('pencil');
+  btns.eraser.onclick = () => setTool('eraser');
+  btns.pick.onclick = () => setTool('pick');
+
+  document.getElementById('btnUndo').onclick = () => {
+    const d = undoStack.pop();
+    if (d) { sctx.putImageData(d, 0, 0); redraw(); }
+  };
+  document.getElementById('btnLabels').onclick = (e) => {
+    showLabels = !showLabels;
+    e.currentTarget.classList.toggle('on', showLabels);
+    redraw();
+  };
+  document.getElementById('btnClear').onclick = () => {
+    pushUndo(); sctx.clearRect(0, 0, N, N); redraw();
+  };
+  document.getElementById('colorInput').oninput = e => {
+    color = e.target.value;
+    setTool('pencil');
+  };
+
+  // 调色板
+  const pal = document.getElementById('palette');
+  PALETTE.forEach(([name, hex]) => {
+    const b = document.createElement('button');
+    b.className = 'swatch';
+    b.style.background = hex;
+    b.title = name + ' ' + hex;
+    b.onclick = () => { color = hex; document.getElementById('colorInput').value = hex; setTool('pencil'); };
+    pal.appendChild(b);
+  });
+
+  // ---------- 导入 / 导出 ----------
+  const fileInput = document.getElementById('fileInput');
+  document.getElementById('btnImport').onclick = () => fileInput.click();
+  fileInput.onchange = () => {
+    const f = fileInput.files[0]; if (!f) return;
+    const img = new Image();
+    img.onload = () => {
+      pushUndo();
+      sctx.clearRect(0, 0, N, N);
+      sctx.imageSmoothingEnabled = false;
+      sctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, N, N);
+      redraw();
+      fileInput.value = '';
+    };
+    img.src = URL.createObjectURL(f);
+  };
+
+  document.getElementById('btnExport').onclick = () => {
+    const out = document.createElement('canvas');
+    out.width = N; out.height = N;
+    out.getContext('2d').drawImage(src, 0, 0);
+    const a = document.createElement('a');
+    a.download = '小D-妈妈画的皮肤.png';
+    a.href = out.toDataURL('image/png');
+    a.click();
+  };
+
+  const SAMPLE = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAADBklEQVR4nO2aMWgTURjHv/s4WicTRIqtsZQ2gjpUCaEUpxQcXFJBEUQHOzhkMYJDUBGKoksHiVJoRqcgasXUpWPNIBmiFgdbaIwQowVxaLAIcbByF6+990zu5fruckne+y0v37v3vnv//92998KdAgxij75tmeOlxzHieG72imV//8lJhXUOnvOvvlvgyo/QQaTiAwqv4I41IBUf2BbupAkIHSbeaRMQOlC8kyYgCI7KalAqFIl4s/IdugkEwVGPhCaJdZZmMDhMxEVfHxHfyIcdX8fNY4pMperOBUYb43i9Ns2cH6ENoU1Jxg7812Y597LpyZJrDjCYi67XfkSn9eLouTvgtgnaVdaEpeLksUiitLWnB3XBkamU3qZRHpYx2Izwuav9AEOhncqhEKy8zcDKfM0Mt7Ba5jQTeK68rTvgzP3Pepm5VItHjp/Xy0+Zm+AFSzODju0ElY03C5aToK//IFTXqtB7uJeoN+oq618tT0BPkk7/meFF1QSyMMQXHr7Sy+C16HYdq3+77yNUO4014d2GQleMhiLEI5GdvW7r/31gZNzykerBquWAimvvLfMXyxtE/n2lrK3x0SAIjup0wuzrRcvjpyYmoJ1AEByFfuZZbP6sEPHvP+Ty6DTP558S8YljASJe/lgm4r79e4l4OODn2wl2OypvgtHpB/Diwviu+p59kmP2pa+w06j0MkdvbFg7vYsF9uDp27YRp2/viF2811wfXhDaBEO8IdxsRscZkMjbG7xZbKuEu2ZAIl+Gy+FDtk1o5W3v6kZoJhyARP6LXtqZwMzizb/vfiBzBH+R/QqFcnsZoKGJt0Mj8Rrp4A8i9vWT+44KkMdp/F4YkKBu//S/uJExjR4Xu0buBpU3QTl5C8aSzbUdq1eXtG5PL9NduwxKJBKJRCKRSCQSiUQikbQKxemEvN8XOP3+nwWC4CAIDoLgKLwJeL8vSD/LuPr+nwWC4CAIjsqbgPf7glXwFgTBQRAcBMFRvR6A2+//296AtMvv/1kgCA6C4KDXA/Cav8g1DO9Q6CF3AAAAAElFTkSuQmCC';
+
+  function loadSample(){
+    const img = new Image();
+    img.onload = () => {
+      pushUndo();
+      sctx.clearRect(0, 0, N, N);
+      sctx.imageSmoothingEnabled = false;
+      sctx.drawImage(img, 0, 0);
+      redraw();
+    };
+    img.src = 'data:image/png;base64,' + SAMPLE;
+  }
+  document.getElementById('btnSample').onclick = loadSample;
+  document.getElementById('btnBlank').onclick = () => { pushUndo(); sctx.clearRect(0, 0, N, N); redraw(); };
+
+  // 快捷键
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
+      e.preventDefault();
+      document.getElementById('btnUndo').click();
+    } else if (e.key === 'b' || e.key === 'B') setTool('pencil');
+    else if (e.key === 'e' || e.key === 'E') setTool('eraser');
+  });
+
+  // 启动：先载入示范皮肤，方便妈妈直接改
+  setTool('pencil');
+  redraw();
+  loadSample();
+})();
+</script>
+</body>
+</html>
