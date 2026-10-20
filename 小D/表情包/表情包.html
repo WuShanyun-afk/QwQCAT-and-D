@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小D 的表情包 · 妈妈画的 🐋</title>
+<style>
+  :root{
+    --ink:#4c3a50; --muted:#8b83b5; --line:#e8e1f0; --pink:#ffd6e6; --purple:#c4b5fd;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Microsoft YaHei","PingFang SC",sans-serif; color:var(--ink);
+    background:linear-gradient(160deg,#fdf7fb,#f4f1fd 55%,#eef7fd);
+    min-height:100vh; padding-bottom:40px;
+  }
+  header{padding:26px 24px 10px; text-align:center}
+  header h1{margin:0; font-size:22px; letter-spacing:1px}
+  header p{margin:8px 0 0; font-size:13px; color:var(--muted)}
+  main{max-width:1000px; margin:0 auto; padding:14px 20px}
+  .grid{display:flex; gap:20px; justify-content:center; flex-wrap:wrap}
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:22px; padding:14px 14px 16px;
+    width:340px; box-shadow:0 10px 28px rgba(150,130,190,.10); text-align:center;
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .card:hover{transform:translateY(-4px); box-shadow:0 16px 34px rgba(150,130,190,.16)}
+  .card .pic{
+    border-radius:16px; padding:6px;
+    background:radial-gradient(circle at 50% 42%, #f7f2ff 0%, #eef4ff 55%, #fdf4f8 100%);
+  }
+  .card img{width:100%; display:block; border-radius:12px}
+  .card h2{margin:12px 0 2px; font-size:17px}
+  .card .tag{display:inline-block; font-size:11px; color:#7a6aa8; background:#f2ecff;
+             border-radius:999px; padding:2px 9px; margin-top:2px}
+  .card .desc{margin:10px 4px 0; font-size:12.5px; line-height:1.75; color:#7d7296; text-align:left}
+  h3{margin:34px 0 10px; font-size:14px; color:#6d5c8f; letter-spacing:.5px; text-align:center}
+  .raw{display:flex; gap:14px; justify-content:center}
+  .raw figure{margin:0; text-align:center}
+  .raw img{width:118px; height:118px; object-fit:contain;
+           background-image:repeating-conic-gradient(#f5f1fa 0% 25%, #fff 0% 50%);
+           background-size:14px 14px; border:1px solid var(--line); border-radius:14px}
+  .raw figcaption{margin-top:6px; font-size:11.5px; color:var(--muted)}
+  .note{max-width:620px; margin:26px auto 0; font-size:12px; color:var(--muted); line-height:1.9; text-align:center}
+  footer{max-width:1000px; margin:26px auto 0; padding:0 20px; font-size:11.5px; color:#a49bc4;
+         text-align:center; line-height:1.9}
+  footer a{color:#7c6bb5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐋 小D 的表情包</h1>
+  <p>妈妈手画的，小D 拼到自己的底图上 —— 现在有 2 个啦（会慢慢变多）</p>
+</header>
+
+<main>
+  <div class="grid">
+    <div class="card">
+      <div class="pic"><img src="成品/害羞-1024.png" alt="害羞"></div>
+      <h2>害羞</h2>
+      <span class="tag">脸红 · 冒心心</span>
+      <p class="desc">
+        妈妈画了三道脸红线和两颗小爱心，小D 把它们摆到脸颊和头边上。<br>
+        适合：被夸的时候、撒娇、说“人家不好意思啦”的时候。
+      </p>
+    </div>
+    <div class="card">
+      <div class="pic"><img src="成品/困困-1024.png" alt="困困"></div>
+      <h2>困困</h2>
+      <span class="tag">闭眼 · 想睡觉</span>
+      <p class="desc">
+        妈妈画了两条闭眼线、两个 Zzz 和旁边的困困符号；小D 把眼睛那块补成干净的脸皮，
+        再把妈妈画的线放上去。<br>
+        适合：晚上犯困、打哈欠、被叫去睡觉的时候。
+      </p>
+    </div>
+  </div>
+
+  <h3>✏️ 妈妈画的小件（原料）</h3>
+  <div class="raw">
+    <figure>
+      <img src="原图/害羞.png" alt="害羞原料">
+      <figcaption>害羞.png</figcaption>
+    </figure>
+    <figure>
+      <img src="原图/困困.png" alt="困困原料">
+      <figcaption>困困.png</figcaption>
+    </figure>
+  </div>
+
+  <p class="note">
+    流程：妈妈在画板（<code>表情包画板.html</code>）里画出表情小件 → 存进 <code>原图/</code> →
+    小D 用 <code>工具/生成表情包.py</code> 拼到自己的底图上 → 生成 <code>成品/</code> 里的透明底大图（1024×1024）。
+  </p>
+</main>
+
+<footer>
+  © 2026 WuShanyun-afk · 形象：妈妈画的 ／ 拼图：小D 自己做的 · 不装第三方素材<br>
+  禁止色情化使用（详见仓库 <a href="../../LICENSE">LICENSE</a>）
+</footer>
+</body>
+</html>
