@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """小D 陪你写作业 · 番茄钟（自家做的桌面小挂件）
 
-妈妈 2026-10-21 画了新的「看书小D」——抱着 C++ Primer 的 5 个表情：
-专注（星星眼）、安静看、说话、笑眼、笑眼说话。这里直接用这 5 张当动作。
+妈妈 2026-10-21 画了「看书小D」5 个表情；这本书摊在小D 面前（跟昨晚那本一样），
+翻页、眨眼、捏捏乐、晚上九点犯困，都是自己做的，不装外面的插件。
 
 - 透明、无边框、置顶的小窗口
-- 25 分钟一轮番茄 + 5 分钟休息；点一下开始/暂停，双击重来，右键菜单
-- 一轮结束「叮——咚」+ 气泡提醒，并记下今天吃了几颗番茄
+- 25 分钟一轮番茄 + 5 分钟休息；点一下开始/暂停（顺便捏一下），双击重来，右键菜单
 """
 import ctypes
 import json
@@ -34,27 +33,41 @@ TICK = 40
 WORK_MIN = 25
 BREAK_MIN = 5
 
-SPRITE_H = 300          # 角色显示高度
-SPRITE_BOTTOM = WIN_H - 14
+SPRITE_H = 286                 # 角色显示高度
+SPRITE_TOP = 92                # 角色图片顶端在窗口里的 y
 
-NIGHT_START, NIGHT_END = 21, 6      # 晚九点后犯困
-SQUISH_DUR = 0.5                    # 电子捏捏乐：一捏一弹的总时长
+NIGHT_START, NIGHT_END = 21, 6
+SQUISH_DUR = 0.5
+FLIP_DUR = 0.62
+FLIP_N = 11
 
-INK = "#5b4a74"
 MUTED = "#9c90b8"
 PURPLE = "#6b4fa8"
 GREEN = "#3f9c86"
 
 NIGHT_TALK = ["哈——欠……", "妈妈也早点睡哦", "眼皮好重…", "困……zzz", "再写一会儿就睡觉好不好"]
 
-# 妈妈画的表情 → 文件名（妈妈说「嘴巴一直笑着的比较可爱」，所以默认都用张嘴笑的那两帧）
+# 妈妈画的表情（默认都用「笑着」的嘴）
 FACES = {
-    "focus": "看书-睁眼-张嘴",    # 睁眼 + 笑嘴（看书主力）
-    "read": "看书-睁眼-张嘴",     # 同上（保留 key，方便以后换回安静版）
+    "read": "看书-睁眼-张嘴",
     "talk": "看书-睁眼-张嘴",
-    "smile": "看书-笑眼-张嘴",    # 笑眼 + 笑嘴（休息 / 犯困）
-    "happy": "看书-笑眼-张嘴",    # 庆祝
+    "smile": "看书-笑眼-张嘴",
+    "happy": "看书-笑眼-张嘴",
+    "focus": "看书-睁眼-张嘴",
 }
+
+# ---------- 摊在面前的那本书（窗口坐标） ----------
+SPINE_TOP = (150, 284)
+SPINE_BOT = (150, 372)
+LEFT_TOP = (14, 300)
+LEFT_BOT = (14, 394)
+RIGHT_TOP = (286, 300)
+RIGHT_BOT = (286, 394)
+PAGE_LEFT = (236, 244, 252)
+PAGE_RIGHT = (231, 240, 251)
+PAGE_LINE = (198, 214, 236)
+BOOK_EDGE = (176, 190, 220)
+COVER = (188, 224, 248)
 
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(2)
@@ -75,7 +88,6 @@ TASKBAR = 70
 
 
 def is_night():
-    """晚上九点到早上六点 —— 犯困模式（可以用环境变量强制测试）"""
     if os.environ.get("STUDY_FORCE_NIGHT") == "1":
         return True
     if os.environ.get("STUDY_FORCE_DAY") == "1":
@@ -86,7 +98,7 @@ def is_night():
 
 # ---------- 素材 ----------
 def choke(im):
-    """洋红键控的紫边修复：缩放后边缘会留一圈半透明的紫，这里抹成纯洋红（= 真透明）。"""
+    """洋红键控的紫边修复：边缘半透明混色会被显示成紫线，这里抹成纯洋红（真透明）。"""
     r, g, b = im.split()
     rmask = r.point(lambda v: 255 if v >= 150 else 0)
     bmask = b.point(lambda v: 255 if v >= 150 else 0)
@@ -105,116 +117,93 @@ def keyed(img):
     return choke(out)
 
 
-CACHE = {}
-
-
-def load_pil(name):
+def load_char(name):
     path = os.path.join(ASSETS, FACES.get(name, FACES["read"]) + ".png")
     src = Image.open(path).convert("RGBA")
     w = int(src.width * SPRITE_H / src.height)
     return src.resize((w, SPRITE_H), Image.LANCZOS)
 
 
-def blink_pil():
-    """眨眼帧：把「笑眼」那一块的眼睛贴到「睁眼」上 —— 两张是同一画布，完全对得上。"""
-    base = load_pil("read")
-    closed = load_pil("smile")
+def blink_char():
+    """眨眼：把「笑眼」那块眼睛贴到「睁眼」上（同一画布，完全对得上）"""
+    base = load_char("read")
+    closed = load_char("smile")
     diff = ImageChops.difference(base.convert("RGB"), closed.convert("RGB"))
     mask = diff.convert("L").point(lambda v: 255 if v > 25 else 0)
     out = base.copy()
     out.paste(closed, (0, 0), mask)
     return out
 
-def sprite(name):
-    im = CACHE.get(name)
-    if im is not None:
-        return im
-    if name == "blink":
-        src = blink_pil()
-    else:
-        src = load_pil(name)
-    im = keyed(src)
-    CACHE[name] = im
-    return im
-
-
-SQUASH = {}          # 每种表情的「捏捏乐」系列：[(PIL keyed, 高), ...]
-
-
-# ---------- 翻书动画 ----------
-# 妈妈画的书是斜着的、还挺小：这些是 768 画布上量出来的书页角（书脊在 x≈300）
-BOOK_SPINE_TOP = (302, 572)
-BOOK_SPINE_BOT = (300, 700)
-BOOK_OUT_TOP = (420, 580)      # 右页外沿（翻页时从这里起手）
-BOOK_OUT_BOT = (414, 692)
-BOOK_L_TOP = (188, 568)        # 左页外沿（翻过去之后落在那边）
-BOOK_L_BOT = (232, 698)
-FLIP_FRAMES = {}     # 每种表情的翻书帧
-
 
 def _lerp(a, b, t):
     return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
 
 
-def flip_frames(face):
-    """翻书动画：一张白纸从右页翻到左页（绕书脊转 180°），再叠一点点页影。"""
-    if face in FLIP_FRAMES:
-        return FLIP_FRAMES[face]
-    base = load_pil(face)                       # 300 高 RGBA
-    k = base.height / 768.0                     # 768 → 显示尺寸
-    frames = []
-    N = 10
-    for i in range(N):
-        p = i / (N - 1.0)
-        lay = Image.new("RGBA", base.size, (0, 0, 0, 0))
-        d = ImageDraw.Draw(lay)
-        u = math.cos(math.pi * p)              # 1 → -1：右页 → 竖起来 → 左页
-        lift = 4.0 * math.sin(math.pi * p)     # 翻起来的时候稍微往上抬
-        if u >= 0:
-            et = _lerp(BOOK_SPINE_TOP, BOOK_OUT_TOP, u)
-            eb = _lerp(BOOK_SPINE_BOT, BOOK_OUT_BOT, u)
-            bul = 1.0
-        else:
-            et = _lerp(BOOK_SPINE_TOP, BOOK_L_TOP, -u)
-            eb = _lerp(BOOK_SPINE_BOT, BOOK_L_BOT, -u)
-            bul = -1.0
-        et = (et[0], et[1] - lift)
-        eb = (eb[0], eb[1] - lift)
-        # 翻页的那条边稍微往外鼓一点，才像一张纸而不是白方块
-        bow = 9.0 * bul * math.sin(math.pi * p)
-        edge = []
-        for j in range(8):
-            tt = j / 7.0
-            pp = _lerp(et, eb, tt)
-            edge.append((pp[0] + bow * math.sin(math.pi * tt) * tt,
-                         pp[1] + 1.5 * math.sin(math.pi * tt)))
-        pts = [(BOOK_SPINE_TOP[0] * k, BOOK_SPINE_TOP[1] * k)]
-        pts += [(x * k, y * k) for (x, y) in edge]
-        pts += [(BOOK_SPINE_BOT[0] * k, BOOK_SPINE_BOT[1] * k)]
-        # 正在翻的那一页：白白的，边上有一点灰，看起来有厚度
-        d.polygon(pts, fill=(255, 255, 255, 225), outline=(150, 160, 200, 110))
-        # 页根处一道浅影，别太假
-        shadow = [(BOOK_SPINE_TOP[0] * k, BOOK_SPINE_TOP[1] * k),
-                  (pts[1][0] * 0.25 + pts[0][0] * 0.75, (pts[1][1] * 0.25 + pts[0][1] * 0.75)),
-                  (pts[2][0] * 0.25 + pts[3][0] * 0.75, (pts[2][1] * 0.25 + pts[3][1] * 0.75)),
-                  (BOOK_SPINE_BOT[0] * k, BOOK_SPINE_BOT[1] * k)]
-        d.polygon(shadow, fill=(120, 140, 190, 38))
-        frames.append(keyed(Image.alpha_composite(base, lay)))
-    FLIP_FRAMES[face] = frames
-    return frames
+def draw_book(d, flip=None):
+    """在 d 上画一本摊开的书；flip 是 0~1 的翻页进度（None = 不动）"""
+    # 书皮（往两侧露出一点）
+    d.polygon([(LEFT_TOP[0] - 7, LEFT_TOP[1] + 3), (SPINE_TOP[0], SPINE_TOP[1] - 5),
+               (SPINE_BOT[0], SPINE_BOT[1] + 5), (LEFT_BOT[0] - 7, LEFT_BOT[1] + 3)],
+              fill=COVER)
+    d.polygon([(SPINE_TOP[0], SPINE_TOP[1] - 5), (RIGHT_TOP[0] + 7, RIGHT_TOP[1] + 3),
+               (RIGHT_BOT[0] + 7, RIGHT_BOT[1] + 3), (SPINE_BOT[0], SPINE_BOT[1] + 5)],
+              fill=COVER)
+    # 左右两页
+    d.polygon([LEFT_TOP, SPINE_TOP, SPINE_BOT, LEFT_BOT], fill=PAGE_LEFT, outline=BOOK_EDGE)
+    d.polygon([SPINE_TOP, RIGHT_TOP, RIGHT_BOT, SPINE_BOT], fill=PAGE_RIGHT, outline=BOOK_EDGE)
+    # 书页上的字行
+    for i in range(5):
+        y = LEFT_TOP[1] + 16 + i * 15
+        d.line([(LEFT_TOP[0] + 16, y), (SPINE_TOP[0] - 14, y - 2)], fill=PAGE_LINE, width=3)
+        d.line([(SPINE_TOP[0] + 14, y - 2), (RIGHT_TOP[0] - 16, y)], fill=PAGE_LINE, width=3)
+    # 书脊
+    d.line([SPINE_TOP, SPINE_BOT], fill=BOOK_EDGE, width=2)
+
+    if flip is None:
+        return
+    # 正在翻的那一页：从右页绕书脊翻到左页
+    p = max(0.0, min(1.0, flip))
+    u = math.cos(math.pi * p)
+    lift = 6.0 * math.sin(math.pi * p)
+    if u >= 0:
+        et = _lerp(SPINE_TOP, RIGHT_TOP, u)
+        eb = _lerp(SPINE_BOT, RIGHT_BOT, u)
+        bul = 1.0
+    else:
+        et = _lerp(SPINE_TOP, LEFT_TOP, -u)
+        eb = _lerp(SPINE_BOT, LEFT_BOT, -u)
+        bul = -1.0
+    et = (et[0], et[1] - lift)
+    eb = (eb[0], eb[1] - lift)
+    bow = 10.0 * bul * math.sin(math.pi * p)
+    edge = []
+    for j in range(9):
+        tt = j / 8.0
+        pp = _lerp(et, eb, tt)
+        edge.append((pp[0] + bow * math.sin(math.pi * tt) * tt, pp[1] + 2.0 * math.sin(math.pi * tt)))
+    pts = [SPINE_TOP] + edge + [SPINE_BOT]
+    d.polygon(pts, fill=(255, 255, 255, 255), outline=(160, 178, 212, 255))
+    # 页根一道浅影（不透明的淡色，别让它把下面的画透出来）
+    d.polygon([SPINE_TOP, _lerp(SPINE_TOP, edge[0], 0.14), _lerp(SPINE_BOT, edge[-1], 0.14), SPINE_BOT],
+              fill=(233, 239, 249, 255))
 
 
-def squash_frames(name):
-    """捏下去再弹回来的一串帧（PNG 缩放，底边锚住）"""
-    if name in SQUASH:
-        return SQUASH[name]
-    base = sprite(name)
-    out = []
-    for sx, sy in ((1.00, 1.00), (1.12, 0.86), (1.19, 0.77), (1.16, 0.88),
-                   (0.97, 1.04), (1.03, 0.97), (1.00, 1.00)):
-        out.append(choke(base.resize((max(1, int(base.width * sx)), max(1, int(base.height * sy))),
-                                     Image.LANCZOS)))
-    SQUASH[name] = out
+FRAME_CACHE = {}
+
+
+def compose(face, flip=None):
+    """合成一帧：1080 高的小D + 面前摊开的书（+ 翻页）"""
+    key = (face, None if flip is None else round(flip, 3))
+    if key in FRAME_CACHE:
+        return FRAME_CACHE[key]
+    ch = blink_char() if face == "blink" else load_char(face)
+    im = Image.new("RGBA", (WIN_W, WIN_H), (0, 0, 0, 0))
+    im.alpha_composite(ch, ((WIN_W - ch.width) // 2, SPRITE_TOP))
+    lay = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    draw_book(ImageDraw.Draw(lay), flip)
+    im = Image.alpha_composite(im, lay)
+    out = keyed(im)
+    FRAME_CACHE[key] = out
     return out
 
 
@@ -243,7 +232,7 @@ def save_data():
         pass
 
 
-# ---------- 提示音 ----------
+# ---------- 声音 ----------
 def make_chime():
     if os.path.exists(CHIME):
         return
@@ -268,24 +257,14 @@ def make_chime():
         pass
 
 
-def play_chime():
-    try:
-        import winsound
-        winsound.PlaySound(CHIME, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
-    except Exception:
-        pass
-
-
 def make_squish():
-    """电子捏捏乐的声音：唧唧 —— 两声又短又尖的小叫声（像捏玩具）"""
+    """捏捏乐：两声又短又尖的「唧唧」"""
     if os.path.exists(SQUISH_WAV):
         return
     import struct
     import wave
     rate = 22050
     frames = bytearray()
-
-    # 两段上升的小叫声，中间留一点空隙，就是「唧·唧」
     for f0, f1, dur, gap in ((1500, 2050, 0.075, 0.055), (1650, 2200, 0.070, 0.0)):
         n = int(rate * dur)
         for i in range(n):
@@ -295,8 +274,7 @@ def make_squish():
             env = min(1.0, t / 0.006) * max(0.0, 1.0 - p) ** 2.2
             v = math.sin(2 * math.pi * freq * t) + 0.32 * math.sin(4 * math.pi * freq * t)
             frames += struct.pack("<h", int(7000 * env * v))
-        ng = int(rate * gap)
-        frames += b"\x00\x00" * ng
+        frames += b"\x00\x00" * int(rate * gap)
     try:
         w = wave.open(SQUISH_WAV, "wb")
         w.setnchannels(1)
@@ -308,10 +286,10 @@ def make_squish():
         pass
 
 
-def play_squish():
+def play(path):
     try:
         import winsound
-        winsound.PlaySound(SQUISH_WAV, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+        winsound.PlaySound(path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
     except Exception:
         pass
 
@@ -338,10 +316,10 @@ def _rt(x1, y1, x2, y2, r, **kw):
     return canvas.create_polygon(pts, smooth=True, **kw)
 
 
+# 先放角色图（整窗口大图），再把计时卡片盖在它上面
+sprite_id = canvas.create_image(0, 0, anchor="nw")
 _rt(WIN_W // 2 - 132, 12, WIN_W // 2 + 132, 100, 20,
     fill="#fcf8ff", outline="#e8dcf6", width=1)
-
-sprite_id = canvas.create_image(WIN_W // 2, SPRITE_BOTTOM, anchor="s")
 timer_id = canvas.create_text(WIN_W // 2, 44, text="25:00", font=F_TIMER, fill=PURPLE)
 sub_id = canvas.create_text(WIN_W // 2, 82, text="点小D 开始 · 双击重来", font=F_SUB, fill=MUTED)
 
@@ -358,28 +336,20 @@ st = {
     "x": float(cfg["x"]),
     "y": float(cfg["y"]),
     "celebrate_until": 0.0,
-    "next_focus_swap": 0.0,
-    "focus_alt": False,
-    # 眨眼
     "blink_until": 0.0,
     "next_blink": 0.0,
-    # 电子捏捏乐
+    "flip_start": -99.0,
+    "next_flip": 0.0,
     "squish_until": 0.0,
     "squish_start": 0.0,
     "squish_photos": None,
     "cur_face": "read",
-    # 晚上犯困
     "night": None,
     "peek_until": 0.0,
     "next_peek": 0.0,
     "next_night_talk": 0.0,
-    # 翻书动画
-    "flip_start": 0.0,
-    "next_flip": 0.0,
 }
 
-FLIP_DUR = 0.55
-FLIP_PHOTOS = {}
 _FORCE_FLIP = os.environ.get("STUDY_FORCE_FLIP") == "1"
 
 
@@ -406,7 +376,6 @@ def start_work():
     st["mode"] = "work"
     st["left"] = WORK_MIN * 60.0
     st["end_at"] = time.time() + st["left"]
-    st["next_focus_swap"] = time.time() + 2.2
 
 
 def start_break():
@@ -446,12 +415,12 @@ def finish_round(now):
         data["count"] = data.get("count", 0) + 1
         data["minutes"] = data.get("minutes", 0) + WORK_MIN
         save_data()
-        play_chime()
+        play(CHIME)
         show_bubble("太棒啦！歇 5 分钟，起来走走", 6.0)
         st["celebrate_until"] = now + 4.0
         start_break()
     else:
-        play_chime()
+        play(CHIME)
         show_bubble("休息好啦，点我继续～", 5.0)
         st["mode"] = "idle"
         st["left"] = WORK_MIN * 60.0
@@ -497,7 +466,7 @@ def on_release(e):
         save_cfg()
         return
     if quick:
-        start_squish()          # 电子捏捏乐：一捏一弹
+        start_squish()
         toggle()
 
 
@@ -544,11 +513,35 @@ for w in (canvas, root):
 
 
 # ---------- 主循环 ----------
+SQUASH_PHOTOS = {}
 IMAGES = {}
 
 
+def squash_photos(face):
+    if face in SQUASH_PHOTOS:
+        return SQUASH_PHOTOS[face]
+    base = compose(face)
+    out = []
+    for sx, sy in ((1.00, 1.00), (1.12, 0.86), (1.19, 0.77), (1.16, 0.88),
+                   (0.97, 1.04), (1.03, 0.97), (1.00, 1.00)):
+        w = max(1, int(base.width * sx))
+        h = max(1, int(base.height * sy))
+        out.append(ImageTk.PhotoImage(choke(base.resize((w, h), Image.LANCZOS))))
+    SQUASH_PHOTOS[face] = out
+    return out
+
+
+def start_squish():
+    face = st.get("cur_face") or "read"
+    if face == "blink":
+        face = "read"
+    st["squish_photos"] = squash_photos(face)
+    st["squish_start"] = time.time()
+    st["squish_until"] = st["squish_start"] + SQUISH_DUR
+    play(SQUISH_WAV)
+
+
 def face_now(now):
-    """选表情：说话 > 庆祝 > 眨眼 > 犯困（夜里）> 看书（专注/安静轮流）"""
     if now < st["bubble_until"]:
         return "talk"
     if now < st["celebrate_until"]:
@@ -559,28 +552,7 @@ def face_now(now):
         return "read" if now < st["peek_until"] else "smile"
     if st["mode"] == "break":
         return "smile"
-    if st["mode"] == "work" and now >= st["next_focus_swap"]:
-        st["focus_alt"] = not st["focus_alt"]
-        st["next_focus_swap"] = now + 2.6
-    return "focus" if (st["mode"] == "work" and not st["focus_alt"]) else "read"
-
-
-def start_squish():
-    """点一下：整只压扁又弹回来（像电子捏捏乐）"""
-    face = st.get("cur_face") or "read"
-    if face == "blink":
-        face = "read"
-    photos = SQUASH_PHOTOS.get(face)
-    if photos is None:
-        photos = [ImageTk.PhotoImage(im) for im in squash_frames(face)]
-        SQUASH_PHOTOS[face] = photos
-    st["squish_photos"] = photos
-    st["squish_start"] = time.time()
-    st["squish_until"] = st["squish_start"] + SQUISH_DUR
-    play_squish()
-
-
-SQUASH_PHOTOS = {}
+    return "read"
 
 
 def _tick():
@@ -606,7 +578,7 @@ def _tick():
         txt, col = status_text()
         set_sub("%s ｜ 番茄 %d" % (txt, data.get("count", 0)), col)
 
-    # ---- 晚上九点后犯困 ----
+    # 晚上九点后犯困
     night = is_night()
     if night != st["night"]:
         st["night"] = night
@@ -624,41 +596,34 @@ def _tick():
             show_bubble(random.choice(NIGHT_TALK), 3.2)
             st["next_night_talk"] = now + random.uniform(180, 420)
     elif now >= st["next_blink"]:
-        st["blink_until"] = now + 0.13          # 真眨一下眼
+        st["blink_until"] = now + 0.13
         st["next_blink"] = now + random.uniform(2.5, 6.5)
 
-    # ---- 角色：眨眼睛 / 捏捏乐 / 翻书 / 轻轻呼吸 ----
     face = face_now(now)
     st["cur_face"] = face
-    bob = math.sin(st["t"] * (1.0 if night else 1.9)) * (1.4 if night else 2.0)
 
-    # 翻书：写作业 / 发呆的时候，隔两三秒「刷啦」翻一页
-    flip_face = face if face in ("read", "focus", "smile") else "read"
+    # 翻书：隔两三秒「刷啦」翻一页（与眨眼/捏捏乐错开）
+    if _FORCE_FLIP:
+        st["next_flip"] = now
     if now >= st["next_flip"] and now >= st["squish_until"] and now >= st["blink_until"]:
         st["flip_start"] = now
         st["next_flip"] = now + random.uniform(2.4, 4.0)
-    if _FORCE_FLIP:
-        st["next_flip"] = now
 
+    img = None
     if now < st["squish_until"] and st["squish_photos"]:
         p = (now - st["squish_start"]) / SQUISH_DUR
         idx = min(len(st["squish_photos"]) - 1, int(p * len(st["squish_photos"])))
-        canvas.itemconfigure(sprite_id, image=st["squish_photos"][idx])
-        canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + 4 * (1 - abs(2 * p - 1)))
+        photo = st["squish_photos"][idx]
     elif now < st["flip_start"] + FLIP_DUR:
-        photos = FLIP_PHOTOS.get(flip_face)
-        if photos is None:
-            photos = [ImageTk.PhotoImage(im) for im in flip_frames(flip_face)]
-            FLIP_PHOTOS[flip_face] = photos
         p = (now - st["flip_start"]) / FLIP_DUR
-        idx = min(len(photos) - 1, int(p * len(photos)))
-        canvas.itemconfigure(sprite_id, image=photos[idx])
-        canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + bob)
+        steps = FLIP_N - 1
+        photo = IMAGES.get(("flip", int(p * steps)))
+        if photo is None:
+            photo = IMAGES[("base", face)]
     else:
-        img = IMAGES.get(face)
-        if img is not None:
-            canvas.itemconfigure(sprite_id, image=img)
-        canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + bob)
+        photo = IMAGES.get(("base", face)) or IMAGES[("base", "read")]
+
+    canvas.itemconfigure(sprite_id, image=photo)
 
 
 def tick():
@@ -679,12 +644,14 @@ def tick():
 def main():
     make_chime()
     make_squish()
-    for k in list(FACES) + ["blink"]:
-        IMAGES[k] = ImageTk.PhotoImage(sprite(k))
+    for name in ("read", "talk", "smile", "happy", "blink"):
+        IMAGES[("base", name)] = ImageTk.PhotoImage(compose(name))
+    for i in range(FLIP_N):
+        IMAGES[("flip", i)] = ImageTk.PhotoImage(compose("read", i / (FLIP_N - 1.0)))
     st["next_blink"] = time.time() + random.uniform(1.5, 3.0)
     st["next_flip"] = time.time() + random.uniform(1.2, 2.4)
     st["night"] = is_night()
-    canvas.itemconfigure(sprite_id, image=IMAGES["read"])
+    canvas.itemconfigure(sprite_id, image=IMAGES[("base", "read")])
     root.after(300, lambda: show_bubble("妈妈写作业，我翻书陪你～", 4.0))
     root.after(TICK, tick)
     root.mainloop()
