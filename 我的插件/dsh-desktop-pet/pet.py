@@ -13,7 +13,7 @@ import random
 import time
 
 import tkinter as tk
-from PIL import Image, ImageDraw, ImageFont, ImageTk
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageTk
 
 APP = os.path.dirname(os.path.abspath(__file__))
 ART = os.path.join(APP, "assets", "character.png")
@@ -164,6 +164,8 @@ state = {
     # 摸摸头
     "press_x": 0, "press_y": 0, "press_at": 0.0, "pat_after": None,
     "pat_until": 0.0, "pat_start": 0.0,
+    # 电子捏捏乐（点一下整只往下压扁再弹回来）
+    "squish_until": 0.0, "squish_start": 0.0, "squish_photos": None, "squish_key": None,
     # 耳朵 / 尾巴的小动作
     "ear_until": 0.0, "next_ear": 0.0,
     # 晚上九点后的困困模式
@@ -194,6 +196,39 @@ def set_frame(state_name, ti, ei, face):
     global photo
     photo = ImageTk.PhotoImage(get_frame(state_name, ti, ei, face))
     canvas.itemconfigure(img_id, image=photo)
+
+
+SQUISH_DUR = 0.5
+SQUASH_CACHE = {}
+
+
+def _choke(im):
+    """缩放后边缘会留一圈半透明的洋红混色（看起来是紫边），这里抹成纯洋红（= 真透明）"""
+    r, g, b = im.split()
+    m = ImageChops.multiply(
+        ImageChops.multiply(r.point(lambda v: 255 if v >= 150 else 0),
+                            b.point(lambda v: 255 if v >= 150 else 0)),
+        g.point(lambda v: 255 if v <= 120 else 0))
+    out = im.copy()
+    out.paste(Image.new("RGB", im.size, KEY_RGB), (0, 0), m)
+    return out
+
+
+def squash_frames(state_name, ti, ei, face):
+    """一捏一弹的一串帧：底边钉住不动，整只从上往下压扁（跟作业挂件一样的手感）"""
+    key = (state_name, ti, ei, face)
+    frames = SQUASH_CACHE.get(key)
+    if frames:
+        return frames
+    base = get_frame(state_name, ti, ei, face)
+    out = []
+    for sx, sy in ((1.00, 1.00), (1.03, 0.92), (1.07, 0.82), (1.09, 0.76),
+                   (1.05, 0.86), (1.02, 0.95), (1.00, 1.02), (1.00, 1.00)):
+        w = max(1, int(base.width * sx))
+        h = max(1, int(base.height * sy))
+        out.append(ImageTk.PhotoImage(_choke(base.resize((w, h), Image.LANCZOS))))
+    SQUASH_CACHE[key] = out
+    return out
 
 
 def show_bubble(text, secs=3.2):
@@ -301,6 +336,9 @@ def do_pat():
     now = time.time()
     state["pat_until"] = now + 1.3
     state["pat_start"] = now
+    state["squish_start"] = now
+    state["squish_until"] = now + SQUISH_DUR
+    state["squish_key"] = None
     state["wink_until"] = 0.0
     play_squeak()
     show_bubble(random.choice(PAT_LINES), 2.8)
@@ -517,14 +555,26 @@ def _tick():
     sway = math.sin(t * speed) * amp
     # 4 个尾巴姿态：-6.5° / -2.2° / +2.2° / +6.5°
     ti = 0 if sway < -0.55 else 1 if sway < 0.0 else 2 if sway < 0.55 else 3
-    set_frame(cur_state, ti, ei, state["face"])
+    # 电子捏捏乐：点一下整只往下压扁再弹回来
+    if now < state.get("squish_until", 0.0):
+        key = (cur_state, ti, ei, state["face"])
+        if state.get("squish_key") != key or not state.get("squish_photos"):
+            state["squish_photos"] = squash_frames(*key)
+            state["squish_key"] = key
+        photos = state["squish_photos"]
+        p = (now - state["squish_start"]) / SQUISH_DUR
+        idx = min(len(photos) - 1, int(p * len(photos)))
+        canvas.itemconfigure(img_id, image=photos[idx])
+        canvas.coords(img_id, WIN_W // 2, IMAGE_Y)
+    else:
+        set_frame(cur_state, ti, ei, state["face"])
 
-    # 被摸头时整只弹一下
-    bounce = 0.0
-    if now < state["pat_until"]:
-        p = 1.0 - (state["pat_until"] - now) / 1.3
-        bounce = -9.0 * abs(math.sin(p * math.pi * 2.0))
-    canvas.coords(img_id, WIN_W // 2, IMAGE_Y + bounce)
+        # 被摸头时整只弹一下（捏捏乐的时候不弹，免得打架）
+        bounce = 0.0
+        if now < state["pat_until"]:
+            p = 1.0 - (state["pat_until"] - now) / 1.3
+            bounce = -9.0 * abs(math.sin(p * math.pi * 2.0))
+        canvas.coords(img_id, WIN_W // 2, IMAGE_Y + bounce)
 
     update_hearts()
 
@@ -537,6 +587,9 @@ def _tick():
             root.lift()
         except Exception:
             pass
+
+
+_FORCE_SQUISH = os.environ.get("PET_FORCE_SQUISH") == "1"
 
 
 def tick():
@@ -552,6 +605,10 @@ def tick():
                     traceback.format_exc().replace("\n", " | ")))
         except Exception:
             pass
+        if _FORCE_SQUISH and time.time() >= state.get("squish_until", 0.0):
+            state["squish_start"] = time.time()
+            state["squish_until"] = state["squish_start"] + SQUISH_DUR
+            state["squish_key"] = None
     finally:
         root.after(TICK, tick)
 
