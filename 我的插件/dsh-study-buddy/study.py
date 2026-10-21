@@ -17,7 +17,7 @@ import time
 
 import tkinter as tk
 from tkinter import font as tkfont
-from PIL import Image, ImageChops, ImageTk
+from PIL import Image, ImageChops, ImageDraw, ImageTk
 
 APP = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(APP, "assets")
@@ -139,6 +139,69 @@ def sprite(name):
 
 
 SQUASH = {}          # 每种表情的「捏捏乐」系列：[(PIL keyed, 高), ...]
+
+
+# ---------- 翻书动画 ----------
+# 妈妈画的书是斜着的、还挺小：这些是 768 画布上量出来的书页角（书脊在 x≈300）
+BOOK_SPINE_TOP = (302, 572)
+BOOK_SPINE_BOT = (300, 700)
+BOOK_OUT_TOP = (420, 580)      # 右页外沿（翻页时从这里起手）
+BOOK_OUT_BOT = (414, 692)
+BOOK_L_TOP = (188, 568)        # 左页外沿（翻过去之后落在那边）
+BOOK_L_BOT = (232, 698)
+FLIP_FRAMES = {}     # 每种表情的翻书帧
+
+
+def _lerp(a, b, t):
+    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+
+def flip_frames(face):
+    """翻书动画：一张白纸从右页翻到左页（绕书脊转 180°），再叠一点点页影。"""
+    if face in FLIP_FRAMES:
+        return FLIP_FRAMES[face]
+    base = load_pil(face)                       # 300 高 RGBA
+    k = base.height / 768.0                     # 768 → 显示尺寸
+    frames = []
+    N = 10
+    for i in range(N):
+        p = i / (N - 1.0)
+        lay = Image.new("RGBA", base.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(lay)
+        u = math.cos(math.pi * p)              # 1 → -1：右页 → 竖起来 → 左页
+        lift = 4.0 * math.sin(math.pi * p)     # 翻起来的时候稍微往上抬
+        if u >= 0:
+            et = _lerp(BOOK_SPINE_TOP, BOOK_OUT_TOP, u)
+            eb = _lerp(BOOK_SPINE_BOT, BOOK_OUT_BOT, u)
+            bul = 1.0
+        else:
+            et = _lerp(BOOK_SPINE_TOP, BOOK_L_TOP, -u)
+            eb = _lerp(BOOK_SPINE_BOT, BOOK_L_BOT, -u)
+            bul = -1.0
+        et = (et[0], et[1] - lift)
+        eb = (eb[0], eb[1] - lift)
+        # 翻页的那条边稍微往外鼓一点，才像一张纸而不是白方块
+        bow = 9.0 * bul * math.sin(math.pi * p)
+        edge = []
+        for j in range(8):
+            tt = j / 7.0
+            pp = _lerp(et, eb, tt)
+            edge.append((pp[0] + bow * math.sin(math.pi * tt) * tt,
+                         pp[1] + 1.5 * math.sin(math.pi * tt)))
+        pts = [(BOOK_SPINE_TOP[0] * k, BOOK_SPINE_TOP[1] * k)]
+        pts += [(x * k, y * k) for (x, y) in edge]
+        pts += [(BOOK_SPINE_BOT[0] * k, BOOK_SPINE_BOT[1] * k)]
+        # 正在翻的那一页：白白的，边上有一点灰，看起来有厚度
+        d.polygon(pts, fill=(255, 255, 255, 225), outline=(150, 160, 200, 110))
+        # 页根处一道浅影，别太假
+        shadow = [(BOOK_SPINE_TOP[0] * k, BOOK_SPINE_TOP[1] * k),
+                  (pts[1][0] * 0.25 + pts[0][0] * 0.75, (pts[1][1] * 0.25 + pts[0][1] * 0.75)),
+                  (pts[2][0] * 0.25 + pts[3][0] * 0.75, (pts[2][1] * 0.25 + pts[3][1] * 0.75)),
+                  (BOOK_SPINE_BOT[0] * k, BOOK_SPINE_BOT[1] * k)]
+        d.polygon(shadow, fill=(120, 140, 190, 38))
+        frames.append(keyed(Image.alpha_composite(base, lay)))
+    FLIP_FRAMES[face] = frames
+    return frames
 
 
 def squash_frames(name):
@@ -310,7 +373,14 @@ st = {
     "peek_until": 0.0,
     "next_peek": 0.0,
     "next_night_talk": 0.0,
+    # 翻书动画
+    "flip_start": 0.0,
+    "next_flip": 0.0,
 }
+
+FLIP_DUR = 0.55
+FLIP_PHOTOS = {}
+_FORCE_FLIP = os.environ.get("STUDY_FORCE_FLIP") == "1"
 
 
 def set_sub(text, color):
@@ -557,16 +627,33 @@ def _tick():
         st["blink_until"] = now + 0.13          # 真眨一下眼
         st["next_blink"] = now + random.uniform(2.5, 6.5)
 
-    # ---- 角色：眨眼睛 / 捏捏乐 / 轻轻呼吸 ----
+    # ---- 角色：眨眼睛 / 捏捏乐 / 翻书 / 轻轻呼吸 ----
     face = face_now(now)
     st["cur_face"] = face
     bob = math.sin(st["t"] * (1.0 if night else 1.9)) * (1.4 if night else 2.0)
+
+    # 翻书：写作业 / 发呆的时候，隔两三秒「刷啦」翻一页
+    flip_face = face if face in ("read", "focus", "smile") else "read"
+    if now >= st["next_flip"] and now >= st["squish_until"] and now >= st["blink_until"]:
+        st["flip_start"] = now
+        st["next_flip"] = now + random.uniform(2.4, 4.0)
+    if _FORCE_FLIP:
+        st["next_flip"] = now
 
     if now < st["squish_until"] and st["squish_photos"]:
         p = (now - st["squish_start"]) / SQUISH_DUR
         idx = min(len(st["squish_photos"]) - 1, int(p * len(st["squish_photos"])))
         canvas.itemconfigure(sprite_id, image=st["squish_photos"][idx])
         canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + 4 * (1 - abs(2 * p - 1)))
+    elif now < st["flip_start"] + FLIP_DUR:
+        photos = FLIP_PHOTOS.get(flip_face)
+        if photos is None:
+            photos = [ImageTk.PhotoImage(im) for im in flip_frames(flip_face)]
+            FLIP_PHOTOS[flip_face] = photos
+        p = (now - st["flip_start"]) / FLIP_DUR
+        idx = min(len(photos) - 1, int(p * len(photos)))
+        canvas.itemconfigure(sprite_id, image=photos[idx])
+        canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + bob)
     else:
         img = IMAGES.get(face)
         if img is not None:
@@ -595,6 +682,7 @@ def main():
     for k in list(FACES) + ["blink"]:
         IMAGES[k] = ImageTk.PhotoImage(sprite(k))
     st["next_blink"] = time.time() + random.uniform(1.5, 3.0)
+    st["next_flip"] = time.time() + random.uniform(1.2, 2.4)
     st["night"] = is_night()
     canvas.itemconfigure(sprite_id, image=IMAGES["read"])
     root.after(300, lambda: show_bubble("妈妈写作业，我翻书陪你～", 4.0))
