@@ -28,13 +28,13 @@ SQUISH_WAV = os.path.join(APP, "squish.wav")
 KEY = "#ff00ff"
 KEY_RGB = (255, 0, 255)
 
-WIN_W, WIN_H = 300, 412
+WIN_W, WIN_H = 300, 452
 TICK = 40
 WORK_MIN = 25
 BREAK_MIN = 5
 
-SPRITE_H = 286                 # 角色显示高度
-SPRITE_TOP = 92                # 角色图片顶端在窗口里的 y
+SPRITE_H = 300                 # 角色显示高度
+SPRITE_TOP = 94                # 角色图片顶端在窗口里的 y
 
 NIGHT_START, NIGHT_END = 21, 6
 SQUISH_DUR = 0.5
@@ -56,13 +56,13 @@ FACES = {
     "focus": "看书-睁眼-张嘴",
 }
 
-# ---------- 摊在面前的那本书（窗口坐标） ----------
-SPINE_TOP = (150, 284)
-SPINE_BOT = (150, 372)
-LEFT_TOP = (14, 300)
-LEFT_BOT = (14, 394)
-RIGHT_TOP = (286, 300)
-RIGHT_BOT = (286, 394)
+# ---------- 摊在面前的那本书（窗口坐标，小一点，就在她怀里那本的下边） ----------
+SPINE_TOP = (150, 372)
+SPINE_BOT = (150, 436)
+LEFT_TOP = (78, 384)
+LEFT_BOT = (78, 450)
+RIGHT_TOP = (222, 384)
+RIGHT_BOT = (222, 450)
 PAGE_LEFT = (236, 244, 252)
 PAGE_RIGHT = (231, 240, 251)
 PAGE_LINE = (198, 214, 236)
@@ -152,10 +152,10 @@ def draw_book(d, flip=None):
     d.polygon([LEFT_TOP, SPINE_TOP, SPINE_BOT, LEFT_BOT], fill=PAGE_LEFT, outline=BOOK_EDGE)
     d.polygon([SPINE_TOP, RIGHT_TOP, RIGHT_BOT, SPINE_BOT], fill=PAGE_RIGHT, outline=BOOK_EDGE)
     # 书页上的字行
-    for i in range(5):
-        y = LEFT_TOP[1] + 16 + i * 15
-        d.line([(LEFT_TOP[0] + 16, y), (SPINE_TOP[0] - 14, y - 2)], fill=PAGE_LINE, width=3)
-        d.line([(SPINE_TOP[0] + 14, y - 2), (RIGHT_TOP[0] - 16, y)], fill=PAGE_LINE, width=3)
+    for i in range(3):
+        y = LEFT_TOP[1] + 13 + i * 14
+        d.line([(LEFT_TOP[0] + 12, y), (SPINE_TOP[0] - 10, y - 2)], fill=PAGE_LINE, width=2)
+        d.line([(SPINE_TOP[0] + 10, y - 2), (RIGHT_TOP[0] - 12, y)], fill=PAGE_LINE, width=2)
     # 书脊
     d.line([SPINE_TOP, SPINE_BOT], fill=BOOK_EDGE, width=2)
 
@@ -164,7 +164,7 @@ def draw_book(d, flip=None):
     # 正在翻的那一页：从右页绕书脊翻到左页
     p = max(0.0, min(1.0, flip))
     u = math.cos(math.pi * p)
-    lift = 6.0 * math.sin(math.pi * p)
+    lift = 4.0 * math.sin(math.pi * p)
     if u >= 0:
         et = _lerp(SPINE_TOP, RIGHT_TOP, u)
         eb = _lerp(SPINE_BOT, RIGHT_BOT, u)
@@ -175,7 +175,7 @@ def draw_book(d, flip=None):
         bul = -1.0
     et = (et[0], et[1] - lift)
     eb = (eb[0], eb[1] - lift)
-    bow = 10.0 * bul * math.sin(math.pi * p)
+    bow = 6.0 * bul * math.sin(math.pi * p)
     edge = []
     for j in range(9):
         tt = j / 8.0
