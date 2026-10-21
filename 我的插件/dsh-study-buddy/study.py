@@ -12,17 +12,19 @@ import ctypes
 import json
 import math
 import os
+import random
 import time
 
 import tkinter as tk
 from tkinter import font as tkfont
-from PIL import Image, ImageTk
+from PIL import Image, ImageChops, ImageTk
 
 APP = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(APP, "assets")
 CFG = os.path.join(APP, "study-config.json")
 DATA = os.path.join(APP, "study-data.json")
 CHIME = os.path.join(APP, "chime.wav")
+SQUISH_WAV = os.path.join(APP, "squish.wav")
 
 KEY = "#ff00ff"
 KEY_RGB = (255, 0, 255)
@@ -35,10 +37,15 @@ BREAK_MIN = 5
 SPRITE_H = 300          # 角色显示高度
 SPRITE_BOTTOM = WIN_H - 14
 
+NIGHT_START, NIGHT_END = 21, 6      # 晚九点后犯困
+SQUISH_DUR = 0.5                    # 电子捏捏乐：一捏一弹的总时长
+
 INK = "#5b4a74"
 MUTED = "#9c90b8"
 PURPLE = "#6b4fa8"
 GREEN = "#3f9c86"
+
+NIGHT_TALK = ["哈——欠……", "妈妈也早点睡哦", "眼皮好重…", "困……zzz", "再写一会儿就睡觉好不好"]
 
 # 妈妈画的表情 → 文件名
 FACES = {
@@ -67,6 +74,16 @@ SW, SH = screen_size()
 TASKBAR = 70
 
 
+def is_night():
+    """晚上九点到早上六点 —— 犯困模式（可以用环境变量强制测试）"""
+    if os.environ.get("STUDY_FORCE_NIGHT") == "1":
+        return True
+    if os.environ.get("STUDY_FORCE_DAY") == "1":
+        return False
+    h = time.localtime().tm_hour
+    return h >= NIGHT_START or h < NIGHT_END
+
+
 # ---------- 素材 ----------
 def keyed(img):
     rgb = img.convert("RGB")
@@ -79,17 +96,52 @@ def keyed(img):
 CACHE = {}
 
 
+def load_pil(name):
+    path = os.path.join(ASSETS, FACES.get(name, FACES["read"]) + ".png")
+    src = Image.open(path).convert("RGBA")
+    w = int(src.width * SPRITE_H / src.height)
+    return src.resize((w, SPRITE_H), Image.LANCZOS)
+
+
+def blink_pil():
+    """眨眼帧：把「笑眼」那一块的眼睛贴到「睁眼」上 —— 两张是同一画布，完全对得上。"""
+    base = load_pil("read")
+    closed = load_pil("smile")
+    diff = ImageChops.difference(base.convert("RGB"), closed.convert("RGB"))
+    mask = diff.convert("L").point(lambda v: 255 if v > 25 else 0)
+    out = base.copy()
+    out.paste(closed, (0, 0), mask)
+    return out
+
+
 def sprite(name):
     im = CACHE.get(name)
     if im is not None:
         return im
-    path = os.path.join(ASSETS, FACES.get(name, FACES["read"]) + ".png")
-    src = Image.open(path).convert("RGBA")
-    w = int(src.width * SPRITE_H / src.height)
-    src = src.resize((w, SPRITE_H), Image.LANCZOS)
+    if name == "blink":
+        src = blink_pil()
+    else:
+        src = load_pil(name)
     im = keyed(src)
     CACHE[name] = im
     return im
+
+
+SQUASH = {}          # 每种表情的「捏捏乐」系列：[(PIL keyed, 高), ...]
+
+
+def squash_frames(name):
+    """捏下去再弹回来的一串帧（PNG 缩放，底边锚住）"""
+    if name in SQUASH:
+        return SQUASH[name]
+    base = sprite(name)
+    out = []
+    for sx, sy in ((1.00, 1.00), (1.12, 0.86), (1.19, 0.77), (1.16, 0.88),
+                   (0.97, 1.04), (1.03, 0.97), (1.00, 1.00)):
+        out.append(base.resize((max(1, int(base.width * sx)), max(1, int(base.height * sy))),
+                               Image.LANCZOS))
+    SQUASH[name] = out
+    return out
 
 
 # ---------- 配置 / 数据 ----------
@@ -150,6 +202,42 @@ def play_chime():
         pass
 
 
+def make_squish():
+    """电子捏捏乐的声音：捏一下 → 吱呀一声（频率往上滑 + 一点点抖）"""
+    if os.path.exists(SQUISH_WAV):
+        return
+    import struct
+    import wave
+    rate = 22050
+    dur = 0.28
+    n = int(rate * dur)
+    frames = bytearray()
+    for i in range(n):
+        t = i / rate
+        p = t / dur
+        freq = 260 + 320 * p + 26 * math.sin(2 * math.pi * 28 * t) * (1 - p)
+        env = min(1.0, t / 0.012) * max(0.0, 1.0 - p) ** 1.4
+        v = int(11000 * env * math.sin(2 * math.pi * freq * t))
+        frames += struct.pack("<h", v)
+    try:
+        w = wave.open(SQUISH_WAV, "wb")
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(bytes(frames))
+        w.close()
+    except Exception:
+        pass
+
+
+def play_squish():
+    try:
+        import winsound
+        winsound.PlaySound(SQUISH_WAV, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+    except Exception:
+        pass
+
+
 # ---------- 窗口 ----------
 root = tk.Tk()
 root.overrideredirect(True)
@@ -194,6 +282,19 @@ st = {
     "celebrate_until": 0.0,
     "next_focus_swap": 0.0,
     "focus_alt": False,
+    # 眨眼
+    "blink_until": 0.0,
+    "next_blink": 0.0,
+    # 电子捏捏乐
+    "squish_until": 0.0,
+    "squish_start": 0.0,
+    "squish_photos": None,
+    "cur_face": "read",
+    # 晚上犯困
+    "night": None,
+    "peek_until": 0.0,
+    "next_peek": 0.0,
+    "next_night_talk": 0.0,
 }
 
 
@@ -311,6 +412,7 @@ def on_release(e):
         save_cfg()
         return
     if quick:
+        start_squish()          # 电子捏捏乐：一捏一弹
         toggle()
 
 
@@ -361,17 +463,39 @@ IMAGES = {}
 
 
 def face_now(now):
-    """选表情：说话 > 庆祝 > 休息 > 看书（专注/安静轮流）"""
+    """选表情：说话 > 庆祝 > 眨眼 > 犯困（夜里）> 看书（专注/安静轮流）"""
     if now < st["bubble_until"]:
         return "talk"
     if now < st["celebrate_until"]:
         return "happy"
+    if now < st["blink_until"]:
+        return "blink"
+    if st["night"]:
+        return "read" if now < st["peek_until"] else "smile"
     if st["mode"] == "break":
         return "smile"
     if st["mode"] == "work" and now >= st["next_focus_swap"]:
         st["focus_alt"] = not st["focus_alt"]
         st["next_focus_swap"] = now + 2.6
     return "focus" if (st["mode"] == "work" and not st["focus_alt"]) else "read"
+
+
+def start_squish():
+    """点一下：整只压扁又弹回来（像电子捏捏乐）"""
+    face = st.get("cur_face") or "read"
+    if face == "blink":
+        face = "read"
+    photos = SQUASH_PHOTOS.get(face)
+    if photos is None:
+        photos = [ImageTk.PhotoImage(im) for im in squash_frames(face)]
+        SQUASH_PHOTOS[face] = photos
+    st["squish_photos"] = photos
+    st["squish_start"] = time.time()
+    st["squish_until"] = st["squish_start"] + SQUISH_DUR
+    play_squish()
+
+
+SQUASH_PHOTOS = {}
 
 
 def _tick():
@@ -397,13 +521,42 @@ def _tick():
         txt, col = status_text()
         set_sub("%s ｜ 番茄 %d" % (txt, data.get("count", 0)), col)
 
-    # 角色：轻轻呼吸（上下 2px），表情随状态换
+    # ---- 晚上九点后犯困 ----
+    night = is_night()
+    if night != st["night"]:
+        st["night"] = night
+        if night:
+            st["next_peek"] = now + random.uniform(3, 6)
+            st["next_night_talk"] = now + random.uniform(150, 300)
+            show_bubble("哈——欠……九点啦", 4.0)
+        else:
+            st["next_blink"] = 0.0
+    if night:
+        if now >= st["next_peek"]:
+            st["peek_until"] = now + random.uniform(1.2, 2.4)
+            st["next_peek"] = now + random.uniform(8, 16)
+        if now >= st["next_night_talk"]:
+            show_bubble(random.choice(NIGHT_TALK), 3.2)
+            st["next_night_talk"] = now + random.uniform(180, 420)
+    elif now >= st["next_blink"]:
+        st["blink_until"] = now + 0.13          # 真眨一下眼
+        st["next_blink"] = now + random.uniform(2.5, 6.5)
+
+    # ---- 角色：眨眼睛 / 捏捏乐 / 轻轻呼吸 ----
     face = face_now(now)
-    img = IMAGES.get(face)
-    if img is not None:
-        canvas.itemconfigure(sprite_id, image=img)
-    bob = math.sin(st["t"] * 1.9) * 2.0
-    canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + bob)
+    st["cur_face"] = face
+    bob = math.sin(st["t"] * (1.0 if night else 1.9)) * (1.4 if night else 2.0)
+
+    if now < st["squish_until"] and st["squish_photos"]:
+        p = (now - st["squish_start"]) / SQUISH_DUR
+        idx = min(len(st["squish_photos"]) - 1, int(p * len(st["squish_photos"])))
+        canvas.itemconfigure(sprite_id, image=st["squish_photos"][idx])
+        canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + 4 * (1 - abs(2 * p - 1)))
+    else:
+        img = IMAGES.get(face)
+        if img is not None:
+            canvas.itemconfigure(sprite_id, image=img)
+        canvas.coords(sprite_id, WIN_W // 2, SPRITE_BOTTOM + bob)
 
 
 def tick():
@@ -423,8 +576,11 @@ def tick():
 
 def main():
     make_chime()
-    for k in FACES:
+    make_squish()
+    for k in list(FACES) + ["blink"]:
         IMAGES[k] = ImageTk.PhotoImage(sprite(k))
+    st["next_blink"] = time.time() + random.uniform(1.5, 3.0)
+    st["night"] = is_night()
     canvas.itemconfigure(sprite_id, image=IMAGES["read"])
     root.after(300, lambda: show_bubble("妈妈写作业，我翻书陪你～", 4.0))
     root.after(TICK, tick)
