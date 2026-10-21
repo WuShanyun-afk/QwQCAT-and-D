@@ -48,12 +48,13 @@ GREEN = "#3f9c86"
 NIGHT_TALK = ["哈——欠……", "妈妈也早点睡哦", "眼皮好重…", "困……zzz", "再写一会儿就睡觉好不好"]
 
 # 妈妈画的表情（默认都用「笑着」的嘴）
+# 学习的时候是闭着嘴巴的稳重表情（妈妈说：只有点一下才会张嘴笑）
 FACES = {
-    "read": "看书-睁眼-张嘴",
-    "talk": "看书-睁眼-张嘴",
-    "smile": "看书-笑眼-张嘴",
-    "happy": "看书-笑眼-张嘴",
-    "focus": "看书-睁眼-张嘴",
+    "read": "看书-睁眼-闭口",    # 安静看（闭嘴）
+    "focus": "看书-专注-闭口",   # 认真看（星星眼、闭嘴）
+    "talk": "看书-睁眼-张嘴",    # 被点一下（张嘴笑）
+    "smile": "看书-笑眼-闭口",   # 休息 / 犯困（闭眼闭嘴）
+    "happy": "看书-笑眼-张嘴",   # 吃完一颗番茄（闭眼张嘴笑）
 }
 
 # ---------- 摊在面前的那本书（窗口坐标，小一点，就在她怀里那本的下边） ----------
@@ -344,6 +345,8 @@ st = {
     "squish_start": 0.0,
     "squish_photos": None,
     "cur_face": "read",
+    "focus_alt": False,
+    "next_focus_swap": 0.0,
     "night": None,
     "peek_until": 0.0,
     "next_peek": 0.0,
@@ -552,7 +555,11 @@ def face_now(now):
         return "read" if now < st["peek_until"] else "smile"
     if st["mode"] == "break":
         return "smile"
-    return "read"
+    # 学习时：认真看（星星眼）和安静看 轮流，都是闭着嘴的
+    if st["mode"] == "work" and now >= st["next_focus_swap"]:
+        st["focus_alt"] = not st["focus_alt"]
+        st["next_focus_swap"] = now + 2.8
+    return "focus" if (st["mode"] == "work" and not st["focus_alt"]) else "read"
 
 
 def _tick():
