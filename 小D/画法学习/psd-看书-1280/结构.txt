@@ -1,0 +1,51 @@
+PSD: 小D-看书-1280.psd
+尺寸: (1280, 1280)  图层数: 48
+
+01. 图层 1 | bbox=(690, 1075, 1017, 1257) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+02. 尾巴 | bbox=(764, 1106, 1022, 1262) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+03. 腿 | bbox=(462, 1131, 790, 1280) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+04. 图层 2 | bbox=(0, 0, 0, 0) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+05. 图层 3 | bbox=(420, 147, 955, 679) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+06. 图层 4 | bbox=(250, 92, 1080, 714) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+07. 图层 5 | bbox=(456, 1042, 810, 1198) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+08. 图层 6 | bbox=(311, 649, 915, 1115) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+09. 图层 7 | bbox=(372, 657, 913, 1114) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+10. 图层 8 | bbox=(392, 724, 891, 1190) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+11. 图层 9 | bbox=(317, 626, 873, 1078) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+12. 图层 10 | bbox=(692, 757, 802, 865) | 可见=True | 不透明度=255 | 混合=BlendMode.LINEAR_DODGE
+13. 图层 11 | bbox=(334, 747, 831, 1106) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+14. 图层 12 | bbox=(308, 632, 913, 1194) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+15. 图层 13 | bbox=(263, 703, 637, 1008) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+16. 数据流 | bbox=(44, 694, 1105, 1204) | 可见=True | 不透明度=255 | 混合=BlendMode.LINEAR_DODGE
+17. 图层 14 | bbox=(186, 513, 741, 1071) | 可见=True | 不透明度=189 | 混合=BlendMode.LINEAR_DODGE
+18. 手 | bbox=(313, 886, 545, 1026) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+19. 图层 15 | bbox=(767, 45, 972, 251) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+20. 图层 16 | bbox=(368, 52, 562, 241) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+21. 图层 17 | bbox=(464, 319, 838, 679) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+22. 图层 18 | bbox=(439, 336, 820, 659) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+23. 脸 | bbox=(464, 560, 842, 679) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+24. 嘴 | bbox=(620, 580, 683, 639) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+25. 眼睛【闭眼】 | bbox=(467, 471, 829, 533) | 可见=False | 不透明度=255 | 混合=BlendMode.NORMAL
+26. 图层 19 | bbox=(457, 479, 827, 554) | 可见=True | 不透明度=120 | 混合=BlendMode.NORMAL
+27. 图层 20 | bbox=(0, 0, 0, 0) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+28. 图层 21 | bbox=(460, 427, 809, 580) | 可见=False | 不透明度=255 | 混合=BlendMode.NORMAL
+29. 图层 22 | bbox=(150, 127, 1280, 1142) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+30. 图层 23 | bbox=(278, 215, 440, 415) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+31. 图层 24 | bbox=(500, 448, 789, 580) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+32. 图层 25 | bbox=(499, 454, 793, 558) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+33. 图层 26 | bbox=(519, 534, 773, 578) | 可见=True | 不透明度=79 | 混合=BlendMode.LINEAR_DODGE
+34. 图层 27 | bbox=(533, 483, 774, 577) | 可见=True | 不透明度=56 | 混合=BlendMode.LINEAR_DODGE
+35. 图层 28 | bbox=(514, 462, 790, 565) | 可见=True | 不透明度=255 | 混合=BlendMode.LINEAR_DODGE
+36. 图层 29 | bbox=(305, 149, 957, 693) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+37. 眼球【wink】 | bbox=(497, 463, 597, 580) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+38. 眼睛【wink】 | bbox=(460, 432, 809, 553) | 可见=False | 不透明度=255 | 混合=BlendMode.NORMAL
+39. 图层 30 | bbox=(462, 441, 815, 569) | 可见=True | 不透明度=120 | 混合=BlendMode.NORMAL
+40. 双眼皮【wink】 | bbox=(496, 427, 742, 501) | 可见=False | 不透明度=255 | 混合=BlendMode.NORMAL
+41. 图层 31 | bbox=(0, 0, 0, 0) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+42. 眼球，睁眼 | bbox=(497, 463, 793, 580) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+43. 线稿【睁眼】 | bbox=(458, 431, 831, 550) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+44. 图层 32 | bbox=(454, 423, 824, 575) | 可见=True | 不透明度=120 | 混合=BlendMode.NORMAL
+45. 双眼皮【正常】 | bbox=(494, 424, 804, 451) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+46. 眉毛【正常】 | bbox=(504, 362, 755, 391) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+47. 图层 33 | bbox=(775, 229, 963, 369) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+48. 图层 34 | bbox=(13, 825, 350, 1276) | 可见=False | 不透明度=255 | 混合=BlendMode.NORMAL

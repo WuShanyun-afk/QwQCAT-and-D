@@ -1,0 +1,39 @@
+PSD: 小D-人设三视图.psd
+尺寸: (2278, 1280)  图层数: 36
+
+01. 图层 1 | bbox=(771, 291, 894, 428) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+02. 图层 2 | bbox=(241, 649, 2023, 1080) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+03. 图层 3 | bbox=(234, 769, 2020, 1096) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+04. 图层 4 | bbox=(215, 179, 2118, 1095) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+05. 图层 5 | bbox=(305, 683, 2115, 1013) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+06. 图层 6 | bbox=(218, 692, 2067, 1019) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+07. 图层 7 | bbox=(1793, 826, 1980, 979) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+08. 图层 8 | bbox=(433, 940, 2011, 1136) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+09. 图层 9 | bbox=(421, 955, 2002, 1160) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+10. 图层 10 | bbox=(151, 336, 2116, 1212) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+11. 图层 11 | bbox=(197, 371, 1292, 690) | 可见=True | 不透明度=99 | 混合=BlendMode.NORMAL
+12. 图层 12 | bbox=(262, 371, 2139, 1244) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+13. 图层 13 | bbox=(206, 491, 1269, 603) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+14. 图层 14 | bbox=(200, 540, 1249, 623) | 可见=True | 不透明度=54 | 混合=BlendMode.LINEAR_DODGE
+15. 图层 15 | bbox=(79, 63, 2224, 729) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+16. 图层 16 | bbox=(833, 115, 913, 269) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+17. 图层 17 | bbox=(103, 40, 1958, 770) | 可见=True | 不透明度=255 | 混合=BlendMode.MULTIPLY
+18. 图层 18 | bbox=(192, 42, 2183, 764) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+19. 图层 19 | bbox=(224, 777, 2096, 1046) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+20. 图层 20 | bbox=(212, 669, 2123, 1129) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+21. 图层 21 | bbox=(145, 489, 1395, 712) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+22. 图层 22 | bbox=(182, 489, 2118, 1220) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+23. 图层 23 | bbox=(965, 515, 1254, 541) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+24. 图层 24 | bbox=(1143, 495, 2020, 1143) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+25. 图层 25 | bbox=(0, 0, 0, 0) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+26. 图层 26 | bbox=(169, 397, 1232, 481) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+27. 图层 27 | bbox=(191, 472, 1313, 583) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+28. 图层 28 | bbox=(211, 463, 1340, 613) | 可见=True | 不透明度=107 | 混合=BlendMode.NORMAL
+29. 图层 29 | bbox=(81, 63, 2224, 729) | 可见=True | 不透明度=150 | 混合=BlendMode.NORMAL
+30. 图层 30 | bbox=(78, 56, 2252, 738) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+31. 图层 31 | bbox=(769, 256, 899, 430) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+32. 图层 32 | bbox=(1235, 280, 1435, 426) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+33. 图层 33 | bbox=(247, 262, 449, 412) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+34. 图层 34 | bbox=(1234, 278, 1436, 428) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+35. 图层 35 | bbox=(209, 514, 1271, 594) | 可见=True | 不透明度=255 | 混合=BlendMode.NORMAL
+36. 图层 36 | bbox=(184, 381, 1292, 762) | 可见=True | 不透明度=71 | 混合=BlendMode.OVERLAY
