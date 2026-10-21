@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小D 的临摹练习 · 头像</title>
+<style>
+  html, body { margin: 0; background: #faf7fd; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<!-- 临摹练习：照妈妈 PSD 的分层顺序画
+     1 底色块 → 2 刘海 → 3 衣服 → 4 脸（腮红/阴影） → 5 五官 → 6 高光 → 7 线稿 → 8 小配件 -->
+<svg id="art" width="1024" height="1024" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hairBlue" x1="0" y1="0" x2="0.25" y2="1">
+      <stop offset="0%" stop-color="#8aa4f7"/>
+      <stop offset="100%" stop-color="#5a7de0"/>
+    </linearGradient>
+    <linearGradient id="hairDark" x1="0" y1="0" x2="0.25" y2="1">
+      <stop offset="0%" stop-color="#3b4466"/>
+      <stop offset="100%" stop-color="#202840"/>
+    </linearGradient>
+    <linearGradient id="bangsBlue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9ab2ff"/>
+      <stop offset="100%" stop-color="#5f82e6"/>
+    </linearGradient>
+    <linearGradient id="bangsDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#48527a"/>
+      <stop offset="100%" stop-color="#242c46"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="42%" cy="34%" r="74%">
+      <stop offset="0%" stop-color="#a8caff"/>
+      <stop offset="52%" stop-color="#5f8ae6"/>
+      <stop offset="100%" stop-color="#2a468e"/>
+    </radialGradient>
+    <radialGradient id="blush" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff9db8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ff9db8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="hoodie" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e6ecf8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== 1 底色块：后发 / 猫耳 / 脸 / 身体 ===== -->
+  <g id="l1">
+    <path d="M148 476 C148 424 196 400 256 400 C316 400 364 424 364 476 L364 512 L148 512 Z" fill="url(#hoodie)"/>
+    <path d="M92 296 C92 190 160 122 256 122 C352 122 420 190 420 296 C420 396 374 452 332 464 L318 356 L194 356 L180 464 C138 452 92 396 92 296 Z" fill="url(#hairBlue)"/>
+    <path d="M256 122 C352 122 420 190 420 296 C420 396 374 452 332 464 L318 356 L256 356 Z" fill="url(#hairDark)"/>
+    <path d="M112 232 C96 180 108 136 142 106 C172 136 188 178 184 220 Z" fill="url(#hairBlue)"/>
+    <path d="M400 232 C416 180 404 136 370 106 C340 136 324 178 328 220 Z" fill="url(#hairDark)"/>
+    <path d="M126 292 C126 214 180 172 256 172 C332 172 386 214 386 292 C386 360 330 410 256 410 C182 410 126 360 126 292 Z" fill="#ffe7d8"/>
+  </g>
+
+  <!-- ===== 2 刘海（前发，盖在额头上） ===== -->
+  <g id="l2">
+    <path d="M118 268 C118 202 158 170 256 170 C354 170 394 202 394 268
+             C372 232 344 216 312 218 C318 240 316 262 306 282
+             C296 252 280 232 262 220 C260 248 252 272 238 292
+             C226 266 216 242 212 220 C186 228 164 244 150 268 Z"
+          fill="url(#bangsBlue)"/>
+    <path d="M256 170 C354 170 394 202 394 268 C372 232 344 216 312 218 C318 240 316 262 306 282
+             C296 252 280 232 262 220 L256 170 Z" fill="url(#bangsDark)"/>
+  </g>
+
+  <!-- ===== 3 衣服：连帽衫领口 / 深色内衬 / 蓝围巾 ===== -->
+  <g id="l3">
+    <path d="M224 410 C230 442 240 456 256 456 C272 456 282 442 288 410 L268 402 C264 426 260 434 256 434 C252 434 248 426 244 402 Z" fill="url(#hoodie)"/>
+    <path d="M232 420 C238 446 246 456 256 456 C266 456 274 446 280 420 C266 432 246 432 232 420 Z" fill="#e9c9bb" opacity="0.55"/>
+    <path d="M178 430 C198 468 224 486 256 486 C288 486 314 468 334 430 L340 512 L172 512 Z" fill="#4a6ec4" opacity="0.92"/>
+    <path d="M232 486 l12 18 l12 -18 l12 18" fill="none" stroke="#33549f" stroke-width="3.5" stroke-linejoin="round" opacity="0.5"/>
+  </g>
+
+  <!-- ===== 4 脸：腮红底色 / 阴影 ===== -->
+  <g id="l4">
+    <ellipse cx="166" cy="330" rx="32" ry="20" fill="#ffc0ae" opacity="0.28"/>
+    <ellipse cx="346" cy="330" rx="32" ry="20" fill="#ffc0ae" opacity="0.28"/>
+    <path d="M300 402 C320 396 340 384 352 368" fill="none" stroke="#f0c8b6" stroke-width="10" stroke-linecap="round" opacity="0.35"/>
+  </g>
+
+  <!-- ===== 5 五官：眼睛 / 双眼皮 / 眉毛 / 鼻子 / 嘴 ===== -->
+  <g id="l5">
+    <g>
+      <ellipse cx="192" cy="300" rx="44" ry="50" fill="#2a2f4a"/>
+      <ellipse cx="192" cy="304" rx="38" ry="44" fill="url(#iris)"/>
+      <ellipse cx="192" cy="310" rx="18" ry="22" fill="#1d2440"/>
+      <ellipse cx="176" cy="284" rx="13" ry="10" fill="#ffffff" opacity="0.95"/>
+      <circle cx="208" cy="326" r="6.5" fill="#ffffff" opacity="0.7"/>
+      <path d="M150 276 q42 -20 84 0" fill="none" stroke="#2a2f4a" stroke-width="9" stroke-linecap="round"/>
+    </g>
+    <g>
+      <ellipse cx="320" cy="300" rx="44" ry="50" fill="#2a2f4a"/>
+      <ellipse cx="320" cy="304" rx="38" ry="44" fill="url(#iris)"/>
+      <ellipse cx="320" cy="310" rx="18" ry="22" fill="#1d2440"/>
+      <ellipse cx="304" cy="284" rx="13" ry="10" fill="#ffffff" opacity="0.95"/>
+      <circle cx="336" cy="326" r="6.5" fill="#ffffff" opacity="0.7"/>
+      <path d="M278 276 q42 -20 84 0" fill="none" stroke="#2a2f4a" stroke-width="9" stroke-linecap="round"/>
+    </g>
+    <path d="M152 270 q40 -20 78 -6" fill="none" stroke="#cf93a0" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+    <path d="M282 264 q38 -14 78 6" fill="none" stroke="#cf93a0" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+    <path d="M158 240 q34 -14 66 -4" fill="none" stroke="#b98a9e" stroke-width="6.5" stroke-linecap="round" opacity="0.7"/>
+    <path d="M288 236 q32 -10 66 4" fill="none" stroke="#b98a9e" stroke-width="6.5" stroke-linecap="round" opacity="0.7"/>
+    <ellipse cx="256" cy="356" rx="4.5" ry="3.2" fill="#f0b2a4"/>
+    <path d="M240 374 q16 16 32 0" fill="none" stroke="#c05a6c" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M247 379 q9 9 18 0" fill="#ff8fa4" opacity="0.65"/>
+  </g>
+
+  <!-- ===== 6 高光 / 发光（screen 混合 = Linear Dodge 的感觉） ===== -->
+  <g id="l6">
+    <g style="mix-blend-mode: screen">
+      <path d="M164 220 q48 -32 104 -22 q-54 8 -104 22 Z" fill="url(#shine)" opacity="0.55"/>
+      <path d="M352 250 q24 22 28 62 q-16 -38 -28 -62 Z" fill="url(#shine)" opacity="0.45"/>
+      <ellipse cx="192" cy="332" rx="15" ry="8" fill="#c6ffff" opacity="0.5"/>
+      <ellipse cx="320" cy="332" rx="15" ry="8" fill="#c6ffff" opacity="0.5"/>
+      <path d="M200 300 l9 -7 M312 300 l9 -7" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <ellipse cx="162" cy="330" rx="44" ry="28" fill="url(#blush)"/>
+    <ellipse cx="350" cy="330" rx="44" ry="28" fill="url(#blush)"/>
+  </g>
+
+  <!-- ===== 7 线稿 ===== -->
+  <g id="l7" fill="none" stroke="#2a2646" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M92 296 C92 190 160 122 256 122 C352 122 420 190 420 296 C420 396 374 452 332 464"/>
+    <path d="M112 232 C96 180 108 136 142 106 C172 136 188 178 184 220"/>
+    <path d="M400 232 C416 180 404 136 370 106 C340 136 324 178 328 220"/>
+  </g>
+
+  <g id="l7b" fill="none" stroke="#2a2646" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+    <path d="M118 268 C118 202 158 170 256 170 C354 170 394 202 394 268
+             C372 232 344 216 312 218 C318 240 316 262 306 282
+             C296 252 280 232 262 220 C260 248 252 272 238 292
+             C226 266 216 242 212 220 C186 228 164 244 150 268 Z"/>
+  </g>
+
+  <!-- ===== 8 小配件：猫耳内侧 / 鲸鱼发夹 / 辫子 ===== -->
+  <g id="l8">
+    <path d="M140 198 C140 172 146 152 152 136 C164 154 170 178 170 200 Z" fill="#ffd8e2" opacity="0.95"/>
+    <path d="M372 198 C372 172 366 152 360 136 C348 154 342 178 342 200 Z" fill="#ffd8e2" opacity="0.95"/>
+    <path d="M144 192 C144 174 148 160 152 150 C158 162 162 178 162 194 Z" fill="#ffe9ef" opacity="0.65"/>
+    <path d="M368 192 C368 174 364 160 360 150 C354 162 350 178 350 194 Z" fill="#ffe9ef" opacity="0.65"/>
+    <!-- 编织辫子（左侧） -->
+    <path d="M128 250 q-16 46 0 92 q12 -8 14 -18 q-10 -32 -2 -68 Z" fill="url(#hairBlue)"/>
+    <path d="M128 250 q-16 46 0 92" fill="none" stroke="#2a2646" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+    <path d="M132 258 q10 6 12 14 M130 280 q10 6 12 14 M130 302 q10 6 12 14" stroke="#3f5fb8" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <!-- 鲸鱼发夹 -->
+    <g transform="translate(300 206) scale(0.62) rotate(-10)">
+      <path d="M0 18 C10 0 26 -6 40 2 C56 12 66 34 64 50 C52 44 40 44 30 50 C22 56 12 48 10 38 C6 28 2 24 -2 22 Z" fill="#4f7ce8"/>
+      <path d="M8 24 C18 14 32 12 42 20 C52 28 56 38 54 46 C44 40 32 40 22 46 C16 42 12 32 8 24 Z" fill="#eaf3ff" opacity="0.9"/>
+      <circle cx="18" cy="24" r="3.2" fill="#2a2646"/>
+      <path d="M64 50 q10 6 6 16 q-10 -2 -14 -10 Z" fill="#4f7ce8"/>
+    </g>
+  </g>
+</svg>
+
+<script>
+  (function () {
+    var m = location.hash.match(/#(\d+)/);
+    var n = m ? parseInt(m[1], 10) : 99;
+    for (var i = 1; i <= 8; i++) {
+      var g = document.getElementById('l' + i);
+      if (g) g.style.display = (i <= n) ? '' : 'none';
+    }
+  })();
+</script>
+</body>
+</html>
