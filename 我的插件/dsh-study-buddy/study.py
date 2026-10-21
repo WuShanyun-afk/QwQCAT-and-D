@@ -47,13 +47,13 @@ GREEN = "#3f9c86"
 
 NIGHT_TALK = ["哈——欠……", "妈妈也早点睡哦", "眼皮好重…", "困……zzz", "再写一会儿就睡觉好不好"]
 
-# 妈妈画的表情 → 文件名
+# 妈妈画的表情 → 文件名（妈妈说「嘴巴一直笑着的比较可爱」，所以默认都用张嘴笑的那两帧）
 FACES = {
-    "focus": "看书-专注-闭口",    # 专注看书（星星眼）
-    "read": "看书-睁眼-闭口",     # 安静看
-    "talk": "看书-睁眼-张嘴",     # 说话
-    "smile": "看书-笑眼-闭口",    # 笑眼
-    "happy": "看书-笑眼-张嘴",    # 笑眼说话
+    "focus": "看书-睁眼-张嘴",    # 睁眼 + 笑嘴（看书主力）
+    "read": "看书-睁眼-张嘴",     # 同上（保留 key，方便以后换回安静版）
+    "talk": "看书-睁眼-张嘴",
+    "smile": "看书-笑眼-张嘴",    # 笑眼 + 笑嘴（休息 / 犯困）
+    "happy": "看书-笑眼-张嘴",    # 庆祝
 }
 
 try:
@@ -85,12 +85,24 @@ def is_night():
 
 
 # ---------- 素材 ----------
+def choke(im):
+    """洋红键控的紫边修复：缩放后边缘会留一圈半透明的紫，这里抹成纯洋红（= 真透明）。"""
+    r, g, b = im.split()
+    rmask = r.point(lambda v: 255 if v >= 150 else 0)
+    bmask = b.point(lambda v: 255 if v >= 150 else 0)
+    gmask = g.point(lambda v: 255 if v <= 120 else 0)
+    m = ImageChops.multiply(ImageChops.multiply(rmask, bmask), gmask)
+    out = im.copy()
+    out.paste(Image.new("RGB", im.size, KEY_RGB), (0, 0), m)
+    return out
+
+
 def keyed(img):
     rgb = img.convert("RGB")
-    a = img.split()[3].point(lambda v: 255 if v >= 60 else 0)
+    a = img.split()[3].point(lambda v: 255 if v >= 110 else 0)
     out = Image.new("RGB", img.size, KEY_RGB)
     out.paste(rgb, (0, 0), a)
-    return out
+    return choke(out)
 
 
 CACHE = {}
@@ -112,7 +124,6 @@ def blink_pil():
     out = base.copy()
     out.paste(closed, (0, 0), mask)
     return out
-
 
 def sprite(name):
     im = CACHE.get(name)
@@ -138,8 +149,8 @@ def squash_frames(name):
     out = []
     for sx, sy in ((1.00, 1.00), (1.12, 0.86), (1.19, 0.77), (1.16, 0.88),
                    (0.97, 1.04), (1.03, 0.97), (1.00, 1.00)):
-        out.append(base.resize((max(1, int(base.width * sx)), max(1, int(base.height * sy))),
-                               Image.LANCZOS))
+        out.append(choke(base.resize((max(1, int(base.width * sx)), max(1, int(base.height * sy))),
+                                     Image.LANCZOS)))
     SQUASH[name] = out
     return out
 
@@ -203,22 +214,26 @@ def play_chime():
 
 
 def make_squish():
-    """电子捏捏乐的声音：捏一下 → 吱呀一声（频率往上滑 + 一点点抖）"""
+    """电子捏捏乐的声音：唧唧 —— 两声又短又尖的小叫声（像捏玩具）"""
     if os.path.exists(SQUISH_WAV):
         return
     import struct
     import wave
     rate = 22050
-    dur = 0.28
-    n = int(rate * dur)
     frames = bytearray()
-    for i in range(n):
-        t = i / rate
-        p = t / dur
-        freq = 260 + 320 * p + 26 * math.sin(2 * math.pi * 28 * t) * (1 - p)
-        env = min(1.0, t / 0.012) * max(0.0, 1.0 - p) ** 1.4
-        v = int(11000 * env * math.sin(2 * math.pi * freq * t))
-        frames += struct.pack("<h", v)
+
+    # 两段上升的小叫声，中间留一点空隙，就是「唧·唧」
+    for f0, f1, dur, gap in ((1500, 2050, 0.075, 0.055), (1650, 2200, 0.070, 0.0)):
+        n = int(rate * dur)
+        for i in range(n):
+            t = i / rate
+            p = t / dur
+            freq = f0 + (f1 - f0) * p
+            env = min(1.0, t / 0.006) * max(0.0, 1.0 - p) ** 2.2
+            v = math.sin(2 * math.pi * freq * t) + 0.32 * math.sin(4 * math.pi * freq * t)
+            frames += struct.pack("<h", int(7000 * env * v))
+        ng = int(rate * gap)
+        frames += b"\x00\x00" * ng
     try:
         w = wave.open(SQUISH_WAV, "wb")
         w.setnchannels(1)
