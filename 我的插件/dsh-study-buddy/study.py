@@ -521,15 +521,20 @@ IMAGES = {}
 
 
 def squash_photos(face):
+    """电子捏捏乐：整只被从上往下按扁（底边不动，身体往下挤），再弹回来"""
     if face in SQUASH_PHOTOS:
         return SQUASH_PHOTOS[face]
     base = compose(face)
     out = []
-    for sx, sy in ((1.00, 1.00), (1.12, 0.86), (1.19, 0.77), (1.16, 0.88),
-                   (0.97, 1.04), (1.03, 0.97), (1.00, 1.00)):
+    for sx, sy in ((1.00, 1.00), (1.03, 0.92), (1.07, 0.82), (1.09, 0.76),
+                   (1.05, 0.86), (1.02, 0.95), (1.00, 1.02), (1.00, 1.00)):
         w = max(1, int(base.width * sx))
         h = max(1, int(base.height * sy))
-        out.append(ImageTk.PhotoImage(choke(base.resize((w, h), Image.LANCZOS))))
+        squeezed = base.resize((w, h), Image.LANCZOS)
+        frame = Image.new("RGB", (WIN_W, WIN_H), KEY_RGB)
+        # 底边钉住不动 → 看起来就是被往下压扁
+        frame.paste(squeezed, ((WIN_W - w) // 2, WIN_H - h))
+        out.append(ImageTk.PhotoImage(choke(frame)))
     SQUASH_PHOTOS[face] = out
     return out
 
@@ -603,8 +608,8 @@ def _tick():
             show_bubble(random.choice(NIGHT_TALK), 3.2)
             st["next_night_talk"] = now + random.uniform(180, 420)
     elif now >= st["next_blink"]:
-        st["blink_until"] = now + 0.13
-        st["next_blink"] = now + random.uniform(2.5, 6.5)
+        st["blink_until"] = now + 0.16
+        st["next_blink"] = now + random.uniform(1.8, 4.2)
 
     face = face_now(now)
     st["cur_face"] = face
@@ -616,11 +621,14 @@ def _tick():
         st["flip_start"] = now
         st["next_flip"] = now + random.uniform(2.4, 4.0)
 
+    # 眨眼优先于翻书：这样翻书的时候也不会漏掉眨眼（不然妈妈会觉得它不眨眼了）
     img = None
     if now < st["squish_until"] and st["squish_photos"]:
         p = (now - st["squish_start"]) / SQUISH_DUR
         idx = min(len(st["squish_photos"]) - 1, int(p * len(st["squish_photos"])))
         photo = st["squish_photos"][idx]
+    elif now < st["blink_until"]:
+        photo = IMAGES.get(("base", "blink")) or IMAGES[("base", "read")]
     elif now < st["flip_start"] + FLIP_DUR:
         p = (now - st["flip_start"]) / FLIP_DUR
         steps = FLIP_N - 1
