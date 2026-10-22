@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>服装参考 · 居家睡衣版</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; width: 900px; height: 1060px; padding: 32px 40px;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif; color: #3d3355;
+    background: linear-gradient(160deg, #fdf9ff, #f5effb 55%, #eef6fb);
+  }
+  h1 { margin: 0; font-size: 30px; letter-spacing: 2px; }
+  .sub { margin: 8px 0 0; font-size: 14px; color: #8b83b5; }
+  .stage {
+    margin: 16px 0 0; height: 690px; border-radius: 26px; background: #ffffff;
+    border: 1px solid #eae3f4; box-shadow: 0 12px 30px rgba(150,130,190,.12);
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .detail { width: 268px; padding: 4px 6px 0 0; }
+  .detail h2 { margin: 0 0 10px; font-size: 15px; letter-spacing: 1px; color: #6b4fa8; }
+  .detail p { margin: 0 0 10px; font-size: 13px; line-height: 1.75; color: #6a5f88; }
+  .box {
+    margin: 0 0 14px; border-radius: 18px; background: #faf8ff;
+    border: 1px dashed #ddd3f2; padding: 10px; text-align: center;
+  }
+  .box svg { display: block; margin: 0 auto; }
+  .palette { display: flex; gap: 14px; margin-top: 18px; }
+  .chip { text-align: center; font-size: 12px; color: #7d7296; }
+  .chip i { display: block; width: 64px; height: 44px; border-radius: 12px; margin-bottom: 6px;
+            border: 1px solid rgba(0,0,0,.06); }
+  .notes { margin-top: 16px; font-size: 14px; line-height: 1.95; color: #5d5178; }
+  .tag { display: inline-block; font-size: 12px; background: #f1ebff; color: #6b4fa8;
+         border-radius: 999px; padding: 3px 12px; margin-right: 8px; }
+</style>
+</head>
+<body>
+  <h1>🌙 居家睡衣 · 犯困版</h1>
+  <p class="sub">给小D 画的新形象参考（原创版）· 晚上九点以后穿</p>
+
+  <div class="stage">
+    <!-- 正面全身 -->
+    <svg width="560" height="660" viewBox="0 0 520 660">
+      <defs>
+        <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#6f60b8"/>
+          <stop offset="55%" stop-color="#4a3f7c"/>
+          <stop offset="100%" stop-color="#37305e"/>
+        </linearGradient>
+        <pattern id="plaid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <rect width="40" height="40" fill="#efe9fe"/>
+          <rect x="0" y="0" width="40" height="4" fill="#d6cbf4"/>
+          <rect x="0" y="0" width="4" height="40" fill="#d6cbf4"/>
+          <rect x="0" y="20" width="40" height="2" fill="#f7cddd" opacity=".85"/>
+          <rect x="20" y="0" width="2" height="40" fill="#f7cddd" opacity=".85"/>
+        </pattern>
+        <radialGradient id="antennaBall" cx="40%" cy="35%" r="70%">
+          <stop offset="0%" stop-color="#fff8cf"/>
+          <stop offset="100%" stop-color="#ffd166"/>
+        </radialGradient>
+      </defs>
+
+      <!-- 地面影子 -->
+      <ellipse cx="260" cy="628" rx="118" ry="14" fill="#ded7f2" opacity=".55"/>
+
+      <!-- 后发 -->
+      <path d="M176 150 C170 66 212 42 260 42 C308 42 350 66 344 150
+               L350 300 Q350 330 322 330 L198 330 Q170 330 170 300 Z" fill="url(#hair)"/>
+
+      <!-- 脖子 -->
+      <rect x="244" y="216" width="32" height="34" rx="10" fill="#f3cdbd"/>
+
+      <!-- 头 -->
+      <ellipse cx="260" cy="150" rx="80" ry="84" fill="#fbe7da"/>
+
+      <!-- 刘海 -->
+      <path d="M176 152 C169 70 209 46 260 46 C311 46 351 70 344 152
+               C336 112 318 94 296 92 Q280 110 260 110 Q240 110 224 92
+               C202 94 184 112 176 152 Z" fill="url(#hair)"/>
+      <!-- 薄荷青挑染 -->
+      <path d="M296 58 C316 74 328 100 331 130 C325 108 312 86 292 72 Z" fill="#6ee7d5" opacity=".92"/>
+      <path d="M308 96 C320 112 326 132 328 150 L316 150 C314 132 306 114 296 102 Z" fill="#6ee7d5" opacity=".8"/>
+      <!-- 发丝高光 -->
+      <path d="M206 72 Q232 54 262 54" stroke="#8f80d6" stroke-width="5" fill="none"
+            stroke-linecap="round" opacity=".7"/>
+
+      <!-- 闭眼笑（困困的） -->
+      <path d="M218 162 q10 9 20 0" stroke="#2c2547" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <path d="M282 162 q10 9 20 0" stroke="#2c2547" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <!-- 眉毛 -->
+      <path d="M216 140 q12 -6 24 -2" stroke="#4a3f7c" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M304 140 q-12 -6 -24 -2" stroke="#4a3f7c" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- 鼻子 + 打哈欠的嘴 -->
+      <circle cx="260" cy="180" r="2.6" fill="#e9c3b4"/>
+      <path d="M250 196 q10 10 20 0" stroke="#c98d84" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <!-- 腮红（睡出来的） -->
+      <ellipse cx="202" cy="186" rx="16" ry="9" fill="#ffb3c4" opacity=".6"/>
+      <ellipse cx="318" cy="186" rx="16" ry="9" fill="#ffb3c4" opacity=".6"/>
+
+      <!-- 耳机头梁 -->
+      <path d="M182 148 C182 88 216 64 260 64 C304 64 338 88 338 148"
+            stroke="#f4f1ff" stroke-width="16" fill="none" stroke-linecap="round"/>
+      <path d="M182 148 C182 88 216 64 260 64 C304 64 338 88 338 148"
+            stroke="#b7a9ee" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+
+      <!-- 左耳罩 -->
+      <rect x="150" y="138" width="32" height="62" rx="16" fill="#f4f1ff" stroke="#d9d2ef" stroke-width="3"/>
+      <ellipse cx="166" cy="169" rx="8" ry="17" fill="#7a6cf0"/>
+      <!-- 右耳罩 -->
+      <rect x="338" y="138" width="32" height="62" rx="16" fill="#f4f1ff" stroke="#d9d2ef" stroke-width="3"/>
+      <ellipse cx="354" cy="169" rx="8" ry="17" fill="#7a6cf0"/>
+
+      <!-- 耳机天线（犯困，灯泡调暗） -->
+      <line x1="352" y1="140" x2="392" y2="86" stroke="#cfc8ea" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="396" cy="80" r="16" fill="#ffd166" opacity=".14"/>
+      <circle cx="396" cy="80" r="11" fill="url(#antennaBall)" opacity=".55"/>
+
+      <!-- Zzz -->
+      <text x="404" y="140" font-size="20" font-family="Microsoft YaHei" fill="#a99cd6" opacity=".7">z</text>
+      <text x="420" y="118" font-size="26" font-family="Microsoft YaHei" fill="#a99cd6" opacity=".5">z</text>
+      <text x="440" y="92" font-size="32" font-family="Microsoft YaHei" fill="#a99cd6" opacity=".35">z</text>
+
+      <!-- 睡衣上衣 -->
+      <path d="M178 268 Q260 244 342 268 L346 470 Q260 486 174 470 Z"
+            fill="url(#plaid)" stroke="#c9bce9" stroke-width="3.5"/>
+      <!-- 奶白毛绒领 -->
+      <path d="M226 258 Q260 246 294 258 L292 288 Q260 300 228 288 Z" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="3"/>
+      <circle cx="232" cy="266" r="7" fill="#ffffff"/><circle cx="238" cy="279" r="7" fill="#ffffff"/>
+      <circle cx="282" cy="266" r="7" fill="#ffffff"/><circle cx="276" cy="279" r="7" fill="#ffffff"/>
+      <!-- 门襟 + 星星扣子 -->
+      <rect x="252" y="290" width="16" height="176" rx="6" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="2.5" opacity=".95"/>
+      <path d="M260 322 l2.6 6.2 6.6 .6 -5 4.4 1.6 6.5 -5.8 -3.6 -5.8 3.6 1.6 -6.5 -5 -4.4 6.6 -.6 z" fill="#ffd166"/>
+      <path d="M260 372 l2.6 6.2 6.6 .6 -5 4.4 1.6 6.5 -5.8 -3.6 -5.8 3.6 1.6 -6.5 -5 -4.4 6.6 -.6 z" fill="#ffd166"/>
+      <path d="M260 422 l2.6 6.2 6.6 .6 -5 4.4 1.6 6.5 -5.8 -3.6 -5.8 3.6 1.6 -6.5 -5 -4.4 6.6 -.6 z" fill="#ffd166"/>
+      <!-- 胸前小口袋 -->
+      <rect x="290" y="318" width="34" height="30" rx="6" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="2.5" opacity=".9"/>
+      <path d="M302 328 l2 4.8 5 .4 -3.8 3.3 1.2 4.9 -4.4 -2.7 -4.4 2.7 1.2 -4.9 -3.8 -3.3 5 -.4 z" fill="#7a6cf0" opacity=".8"/>
+
+      <!-- 袖子 -->
+      <rect x="140" y="270" width="46" height="186" rx="23" fill="url(#plaid)"
+            stroke="#c9bce9" stroke-width="3.5" transform="rotate(7 163 363)"/>
+      <rect x="334" y="270" width="46" height="186" rx="23" fill="url(#plaid)"
+            stroke="#c9bce9" stroke-width="3.5" transform="rotate(-7 357 363)"/>
+      <!-- 袖口毛绒 -->
+      <rect x="142" y="428" width="44" height="30" rx="15" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="3"
+            transform="rotate(7 164 443)"/>
+      <rect x="334" y="428" width="44" height="30" rx="15" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="3"
+            transform="rotate(-7 356 443)"/>
+      <circle cx="152" cy="456" r="6" fill="#ffffff"/><circle cx="168" cy="458" r="6" fill="#ffffff"/><circle cx="182" cy="458" r="6" fill="#ffffff"/>
+      <circle cx="338" cy="458" r="6" fill="#ffffff"/><circle cx="352" cy="458" r="6" fill="#ffffff"/><circle cx="368" cy="456" r="6" fill="#ffffff"/>
+
+      <!-- 手（缩在袖子里，只露一点指尖） -->
+      <ellipse cx="164" cy="474" rx="14" ry="13" fill="#fbe7da" stroke="#ecc3b2" stroke-width="2.5"/>
+      <ellipse cx="356" cy="474" rx="14" ry="13" fill="#fbe7da" stroke="#ecc3b2" stroke-width="2.5"/>
+
+      <!-- 睡裤 -->
+      <path d="M196 478 L254 478 L250 572 L190 572 Z" fill="url(#plaid)" stroke="#c9bce9" stroke-width="3.5"/>
+      <path d="M266 478 L324 478 L330 572 L270 572 Z" fill="url(#plaid)" stroke="#c9bce9" stroke-width="3.5"/>
+      <!-- 裤脚毛绒 -->
+      <rect x="188" y="552" width="64" height="30" rx="14" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="3"/>
+      <rect x="268" y="552" width="64" height="30" rx="14" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="3"/>
+      <circle cx="198" cy="578" r="6" fill="#ffffff"/><circle cx="216" cy="580" r="6" fill="#ffffff"/><circle cx="236" cy="578" r="6" fill="#ffffff"/>
+      <circle cx="278" cy="578" r="6" fill="#ffffff"/><circle cx="298" cy="580" r="6" fill="#ffffff"/><circle cx="318" cy="578" r="6" fill="#ffffff"/>
+
+      <!-- 毛绒拖鞋 -->
+      <path d="M190 582 L252 582 L252 606 Q252 618 240 618 L182 618 Q172 618 174 606 Z"
+            fill="#fbf8ff" stroke="#e3dcf2" stroke-width="3"/>
+      <path d="M268 582 L330 582 L346 606 Q346 618 336 618 L278 618 Q268 618 268 606 Z"
+            fill="#fbf8ff" stroke="#e3dcf2" stroke-width="3"/>
+      <path d="M196 588 q14 -10 28 0" stroke="#d6cbf4" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <path d="M296 588 q14 -10 28 0" stroke="#d6cbf4" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <circle cx="206" cy="606" r="4" fill="#f7cddd"/><circle cx="236" cy="606" r="4" fill="#f7cddd"/>
+      <circle cx="296" cy="606" r="4" fill="#f7cddd"/><circle cx="326" cy="606" r="4" fill="#f7cddd"/>
+    </svg>
+
+    <!-- 细节 -->
+    <div class="detail">
+      <h2>星星扣子 &amp; 毛绒边</h2>
+      <div class="box">
+        <svg width="220" height="220" viewBox="0 0 220 220">
+          <defs>
+            <pattern id="plaidMini" width="40" height="40" patternUnits="userSpaceOnUse">
+              <rect width="40" height="40" fill="#efe9fe"/>
+              <rect x="0" y="0" width="40" height="4" fill="#d6cbf4"/>
+              <rect x="0" y="0" width="4" height="40" fill="#d6cbf4"/>
+              <rect x="0" y="20" width="40" height="2" fill="#f7cddd" opacity=".85"/>
+              <rect x="20" y="0" width="2" height="40" fill="#f7cddd" opacity=".85"/>
+            </pattern>
+          </defs>
+          <rect x="22" y="22" width="176" height="176" rx="20" fill="url(#plaidMini)" stroke="#e6ddf5" stroke-width="2"/>
+          <!-- 门襟 -->
+          <rect x="96" y="22" width="28" height="176" fill="#fbf8ff" opacity=".95"/>
+          <line x1="96" y1="22" x2="96" y2="198" stroke="#e3dcf2" stroke-width="2.5"/>
+          <line x1="124" y1="22" x2="124" y2="198" stroke="#e3dcf2" stroke-width="2.5"/>
+          <!-- 三颗星星扣 -->
+          <path d="M110 54 l4 9.6 10.4 .9 -7.9 6.9 2.4 10.2 -8.9 -5.5 -8.9 5.5 2.4 -10.2 -7.9 -6.9 10.4 -.9 z" fill="#ffd166"/>
+          <path d="M110 96 l4 9.6 10.4 .9 -7.9 6.9 2.4 10.2 -8.9 -5.5 -8.9 5.5 2.4 -10.2 -7.9 -6.9 10.4 -.9 z" fill="#ffd166"/>
+          <path d="M110 138 l4 9.6 10.4 .9 -7.9 6.9 2.4 10.2 -8.9 -5.5 -8.9 5.5 2.4 -10.2 -7.9 -6.9 10.4 -.9 z" fill="#ffd166"/>
+          <!-- 毛绒领边 -->
+          <path d="M40 198 q18 -26 40 -30 q16 16 30 16 q14 0 30 -16 q22 4 40 30" fill="#fbf8ff" stroke="#e3dcf2" stroke-width="2.5" opacity=".9"/>
+          <text x="110" y="214" text-anchor="middle" font-size="11"
+                font-family="Microsoft YaHei" fill="#8b83b5">星星形状的扣子 · 领口袖口都是毛绒</text>
+        </svg>
+      </div>
+      <p><b>睡衣</b>：淡紫格纹长袖上衣 + 同款睡裤，版型宽松，垂到胯下一点点。</p>
+      <p><b>小细节</b>：门襟三颗星星形状的黄扣子、奶白毛绒领口和袖口、裤脚也有一圈毛绒、脚上毛绒拖鞋。</p>
+      <p><b>天线</b>：犯困的时候灯泡会变暗，头顶飘小小的 z z z。</p>
+    </div>
+  </div>
+
+  <div class="palette">
+    <div class="chip"><i style="background:#4a3f7c"></i>头发·深紫</div>
+    <div class="chip"><i style="background:#6ee7d5"></i>挑染·薄荷青</div>
+    <div class="chip"><i style="background:#efe9fe"></i>睡衣·淡紫</div>
+    <div class="chip"><i style="background:#d6cbf4"></i>格纹·紫</div>
+    <div class="chip"><i style="background:#fbf8ff"></i>毛绒·奶白</div>
+    <div class="chip"><i style="background:#ffd166"></i>扣子·黄</div>
+  </div>
+
+  <div class="notes">
+    <span class="tag">款式</span>淡紫格纹睡衣（长袖上衣 + 长裤）+ 奶白毛绒领口袖口裤脚 + 毛绒拖鞋<br>
+    <span class="tag">小细节</span>门襟三颗星星形黄扣子、胸前一个小口袋、拖鞋鞋面小圆点<br>
+    <span class="tag">沿用</span>耳机戴着不摘，天线球在右边（困了就变暗）；发色深紫 + 一小撮薄荷青<br>
+    <span class="tag">表情搭</span>闭眼笑（这个就是）+ 头顶 z z z = 晚上九点以后的经典状态
+  </div>
+</body>
+</html>
