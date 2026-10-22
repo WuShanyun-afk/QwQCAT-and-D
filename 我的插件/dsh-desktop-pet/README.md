@@ -108,3 +108,7 @@
 ## 开机自启
 
 已写进注册表 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 的 `XiaoD-Pet`，登录后自动启动。
+
+## 形象临时切换（2026-10-22）
+
+旧拟人形象下架后，素材先用 `assets/idle_*`（紫色小机器人，从 `旧形象-小机器人-会眨眼.png` 抽的睁眼/闭眼帧）顶着，妈妈画好新形象再换回来。
