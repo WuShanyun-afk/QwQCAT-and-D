@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赛博雨夜 · 电子虎鲸 🏙️</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #07070f; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .caption {
+    position: fixed; left: 0; right: 0; bottom: 26px; text-align: center;
+    pointer-events: none; animation: fadeUp 2.8s ease both;
+  }
+  .caption h1 {
+    font-size: 19px; font-weight: 600; letter-spacing: 6px; color: #eafcff;
+    text-shadow: 0 0 24px rgba(126,247,255,.75), 0 0 48px rgba(255,95,162,.45), 0 2px 10px rgba(0,0,0,.8);
+  }
+  .caption p { font-size: 12px; letter-spacing: 3px; color: #9fb8d8; margin-top: 7px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  .hint {
+    position: fixed; top: 22px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; letter-spacing: 1.5px; color: #8fb7e0; opacity: .8; pointer-events: none;
+  }
+  .sign {
+    position: fixed; right: 26px; bottom: 26px; font-size: 11px;
+    letter-spacing: 2px; color: #5f7fa8; opacity: .7; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hint" id="hint">点一下地面 · 水洼会荡开一圈霓虹；点点电子虎鲸 · 它会游得更快一点 🐋</div>
+<div class="caption">
+  <h1>赛 博 雨 夜 · 电 子 虎 鲸</h1>
+  <p>霓虹 · 雨 · 游过城市的小鲸鱼</p>
+</div>
+<div class="sign" id="sign">小D · 2026-10-23</div>
+
+<script>
+/* =========================================================
+   赛博雨夜 · 电子虎鲸
+   设计稿 3200×1800
+   静态层：夜空 / 远景楼群 / 两侧大楼与窗灯 / 霓虹招牌 / 湿街与倒影
+   动态层：雨丝 / 雨点水花 / 电子虎鲸与光尾 / 漂浮光尘
+   ========================================================= */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const DW = 3200, DH = 1800;
+let W = 0, H = 0, DPR = 1, SCALE = 1, OX = 0, OY = 0;
+
+const CLEAN = new URLSearchParams(location.search).has('clean');
+if (CLEAN) {
+  document.getElementById('hint').style.display = 'none';
+  document.querySelector('.caption').style.display = 'none';
+  document.getElementById('sign').style.display = 'none';
+}
+
+function makeRnd(s) {
+  let seed = s;
+  return function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+}
+
+const bg = document.createElement('canvas');
+const bctx = bg.getContext('2d');
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  SCALE = Math.max(W / DW, H / DH);
+  OX = (W - DW * SCALE) / 2;
+  OY = (H - DH * SCALE) / 2;
+  bg.width = cv.width; bg.height = cv.height;
+  bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  renderStatic();
+}
+function setDesign(c) {
+  c.setTransform(DPR * SCALE, 0, 0, DPR * SCALE, DPR * OX, DPR * OY);
+}
+
+/* ---------- 颜色 ---------- */
+const C = {
+  skyTop: '#05050d', skyMid: '#0c0c22', skyLow: '#1a1236',
+  magenta: '#ff5fa2', cyan: '#7ef7ff', violet: '#8a6bff', amber: '#ffb86b',
+  windows: ['#ffd9a0', '#ffe9c4', '#9fe8ff', '#ffc2de', '#c9b8ff'],
+  orcaBody: '#232a46', orcaBelly: '#e8f6ff', orcaFin: '#9fd8f0'
+};
+
+/* ---------- 楼的窗口 ---------- */
+function drawWindowGrid(c, x, y, w, h, r, cols, rows, lit) {
+  const cw = w / cols, ch = h / rows;
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      if (r() > lit) continue;
+      const wx = x + i * cw + cw * 0.22;
+      const wy = y + j * ch + ch * 0.2;
+      const ww = cw * 0.56, wh = ch * 0.52;
+      const col = C.windows[Math.floor(r() * C.windows.length)];
+      c.globalAlpha = 0.18 + r() * 0.7;
+      c.fillStyle = col;
+      c.fillRect(wx, wy, ww, wh);
+    }
+  }
+  c.globalAlpha = 1;
+}
+
+function building(c, x, y, w, h, col, r, cols, rows, lit) {
+  c.fillStyle = col;
+  c.fillRect(x, y, w, h);
+  /* 边缘轮廓光 */
+  c.strokeStyle = 'rgba(122,150,220,.18)';
+  c.lineWidth = 3;
+  c.strokeRect(x, y, w, h);
+  drawWindowGrid(c, x, y, w, h, r, cols, rows, lit);
+}
+
+/* 霓虹条 */
+function neonBar(c, x, y, w, h, color, glow) {
+  c.save();
+  c.shadowColor = color;
+  c.shadowBlur = glow || 40;
+  c.fillStyle = color;
+  c.fillRect(x, y, w, h);
+  c.shadowBlur = 0;
+  c.globalAlpha = 0.35;
+  c.fillStyle = '#ffffff';
+  c.fillRect(x + w * 0.12, y + h * 0.3, w * 0.76, h * 0.3);
+  c.restore();
+}
+
+/* 垂直霓虹字牌 */
+function neonSign(c, x, y, text, color) {
+  c.save();
+  c.translate(x, y);
+  c.shadowColor = color;
+  c.shadowBlur = 45;
+  c.fillStyle = color;
+  c.font = '700 64px "Microsoft YaHei"';
+  c.textAlign = 'center';
+  for (let i = 0; i < text.length; i++) {
+    c.fillText(text[i], 0, i * 84);
+  }
+  c.restore();
+}
+
+let puddles = [];
+let rainSplashSpots = [];
+
+/* 两侧楼墙的内边缘（透视）：y → x */
+function innerXLeft(y) {
+  const t = Math.min(1, Math.max(0, (1800 - y) / 750));   // 0 底部 → 1 地平线
+  return 980 + (1350 - 980) * t;
+}
+function innerXRight(y) {
+  const t = Math.min(1, Math.max(0, (1800 - y) / 750));
+  return 2220 - (2220 - 1850) * t;
+}
+
+function renderStatic() {
+  const r = makeRnd(20261023);
+  setDesign(bctx);
+
+  /* 夜空 */
+  const sky = bctx.createLinearGradient(0, 0, 0, 1100);
+  sky.addColorStop(0, '#05050d');
+  sky.addColorStop(0.5, '#0a0a1e');
+  sky.addColorStop(1, '#1c1238');
+  bctx.fillStyle = sky;
+  bctx.fillRect(0, 0, DW, DH);
+
+  /* 地平线处的城市光 */
+  const glow = bctx.createRadialGradient(1600, 1040, 40, 1600, 1040, 900);
+  glow.addColorStop(0, 'rgba(255,150,210,.42)');
+  glow.addColorStop(0.35, 'rgba(140,110,255,.20)');
+  glow.addColorStop(1, 'rgba(70,40,130,0)');
+  bctx.fillStyle = glow;
+  bctx.fillRect(0, 600, DW, 700);
+
+  /* 远处楼群（只在中间缝隙里看到） */
+  for (let i = 0; i < 18; i++) {
+    const x = 1080 + i * 70 + r() * 40;
+    const h = 120 + r() * 380;
+    const w = 60 + r() * 70;
+    bctx.fillStyle = `rgba(${14 + r() * 14},${16 + r() * 16},${40 + r() * 26},.96)`;
+    bctx.fillRect(x, 1050 - h, w, h + 60);
+    /* 远处窗灯 */
+    bctx.globalAlpha = 0.5;
+    for (let k = 0; k < 14; k++) {
+      if (r() > 0.5) continue;
+      bctx.fillStyle = r() > 0.5 ? '#ffd9a0' : '#9fe8ff';
+      bctx.fillRect(x + 8 + r() * (w - 18), 1050 - h + 8 + r() * (h - 20), 5, 7);
+    }
+    bctx.globalAlpha = 1;
+  }
+
+  /* 远处全息鲸鱼广告（小） */
+  bctx.save();
+  bctx.globalAlpha = 0.5;
+  bctx.shadowColor = C.cyan;
+  bctx.shadowBlur = 40;
+  bctx.strokeStyle = C.cyan;
+  bctx.lineWidth = 4;
+  bctx.beginPath();
+  bctx.ellipse(1450, 720, 78, 42, -0.16, 0, Math.PI * 2);
+  bctx.stroke();
+  bctx.beginPath();
+  bctx.moveTo(1380, 715);
+  bctx.quadraticCurveTo(1340, 670, 1320, 640);
+  bctx.quadraticCurveTo(1360, 675, 1382, 695);
+  bctx.stroke();
+  bctx.beginPath(); bctx.arc(1498, 705, 10, 0, Math.PI * 2); bctx.stroke();
+  bctx.font = '700 22px "Microsoft YaHei"';
+  bctx.textAlign = 'center';
+  bctx.fillStyle = C.cyan;
+  bctx.fillText('电子虎鲸', 1450, 790);
+  bctx.restore();
+
+  /* ---------- 左侧楼墙 ---------- */
+  bctx.beginPath();
+  bctx.moveTo(-120, -120);
+  bctx.lineTo(1360, -120);
+  bctx.lineTo(1350, 1050);
+  bctx.lineTo(980, 1800);
+  bctx.lineTo(-120, 1800);
+  bctx.closePath();
+  const lg = bctx.createLinearGradient(0, 0, 1000, 0);
+  lg.addColorStop(0, '#090a18');
+  lg.addColorStop(0.7, '#0d0f22');
+  lg.addColorStop(1, '#121530');
+  bctx.fillStyle = lg;
+  bctx.fill();
+
+  /* 右侧楼墙 */
+  bctx.beginPath();
+  bctx.moveTo(DW + 120, -120);
+  bctx.lineTo(1840, -120);
+  bctx.lineTo(1850, 1050);
+  bctx.lineTo(2220, 1800);
+  bctx.lineTo(DW + 120, 1800);
+  bctx.closePath();
+  const rg2 = bctx.createLinearGradient(DW, 0, DW - 1000, 0);
+  rg2.addColorStop(0, '#090a18');
+  rg2.addColorStop(0.7, '#0d0f22');
+  rg2.addColorStop(1, '#121530');
+  bctx.fillStyle = rg2;
+  bctx.fill();
+
+  /* 楼墙上的窗：规整的格子 + 楼层线 */
+  const litCols = ['#ffd9a0', '#ffe4b8', '#a8e0ff', '#c6b6ff'];
+  for (let side = 0; side < 2; side++) {
+    for (let y = -50; y < 1790; y += 72) {
+      const xl = innerXLeft(y) - 26;
+      const xr = innerXRight(y) + 26;
+      const from = side === 0 ? -70 : xr;
+      const to = side === 0 ? xl : DW + 70;
+      if (r() < 0.16) continue;
+        for (let x = from; x < to; x += 84) {
+        const lit = r() > 0.8;
+        if (lit) {
+          const col = litCols[Math.floor(r() * litCols.length)];
+          bctx.globalAlpha = 0.12 + r() * 0.3;
+          bctx.fillStyle = col;
+          bctx.fillRect(x, y, 26, 36);
+          bctx.globalAlpha = 0.1;
+          bctx.fillStyle = '#ffffff';
+          bctx.fillRect(x + 3, y + 3, 20, 7);
+        } else {
+          bctx.globalAlpha = 0.26;
+          bctx.fillStyle = '#10132a';
+          bctx.fillRect(x, y, 22, 30);
+        }
+      }
+    }
+    /* 楼层横线 */
+    bctx.globalAlpha = 0.13;
+    bctx.fillStyle = '#3a4670';
+    for (let y = -40; y < 1800; y += 162) {
+      if (side === 0) bctx.fillRect(-70, y, innerXLeft(y) + 70, 3);
+      else bctx.fillRect(innerXRight(y), y, DW - innerXRight(y), 3);
+    }
+    /* 墙板竖缝 */
+    bctx.globalAlpha = 0.22;
+    bctx.fillStyle = '#05060f';
+    for (let x = (side === 0 ? 60 : 2300); x < (side === 0 ? 1320 : 3280); x += 420) {
+      if (side === 0) bctx.fillRect(x, -100, 16, 1900);
+      else bctx.fillRect(x, -100, 16, 1900);
+    }
+    /* 竖向大分隔（楼与楼之间） */
+    for (let x = (side === 0 ? 160 : 2380); x < (side === 0 ? 1300 : 3300); x += 620) {
+      bctx.globalAlpha = 0.1;
+      bctx.fillStyle = '#2a3560';
+      bctx.fillRect(x, -100, 5, 1900);
+    }
+  }
+  bctx.globalAlpha = 1;
+
+  /* 墙面上的大广告牌（把墙面切成块，别全是碎窗） */
+  function billboard(x, y, w, h, border, bg) {
+    bctx.save();
+    bctx.globalAlpha = 0.92;
+    bctx.fillStyle = bg;
+    bctx.fillRect(x, y, w, h);
+    bctx.globalAlpha = 1;
+    bctx.shadowColor = border;
+    bctx.shadowBlur = 46;
+    bctx.strokeStyle = border;
+    bctx.lineWidth = 5;
+    bctx.strokeRect(x, y, w, h);
+    bctx.shadowBlur = 0;
+    bctx.globalAlpha = 0.5;
+    bctx.strokeStyle = border;
+    bctx.lineWidth = 2;
+    bctx.strokeRect(x + 14, y + 14, w - 28, h - 28);
+    bctx.restore();
+  }
+  billboard(150, 560, 340, 220, C.magenta, 'rgba(22,10,30,.92)');
+  bctx.save();
+  bctx.shadowColor = C.magenta; bctx.shadowBlur = 50;
+  bctx.fillStyle = '#ffd0e4';
+  bctx.font = '700 120px "Microsoft YaHei"';
+  bctx.textAlign = 'center';
+  bctx.fillText('鲸', 320, 700);
+  bctx.restore();
+
+  billboard(2560, 760, 300, 190, C.cyan, 'rgba(8,20,32,.92)');
+  bctx.save();
+  bctx.shadowColor = C.cyan; bctx.shadowBlur = 40;
+  bctx.fillStyle = '#d8fbff';
+  bctx.font = '700 46px "Microsoft YaHei"';
+  bctx.textAlign = 'center';
+  bctx.fillText('雨夜 24H', 2710, 850);
+  bctx.fillStyle = 'rgba(126,247,255,.5)';
+  bctx.font = '700 30px "Microsoft YaHei"';
+  bctx.fillText('电 子 宠 物 专 卖', 2710, 900);
+  bctx.restore();
+
+  /* 楼墙边缘的霓虹条 */
+  const strips = [
+    { x0: 240, y0: -100, y1: 1760, col: C.magenta },
+    { x0: 760, y0: 180, y1: 1600, col: C.cyan },
+    { x0: 1290, y0: 520, y1: 1200, col: C.violet },
+    { x0: 2470, y0: 200, y1: 1700, col: C.cyan },
+    { x0: 2980, y0: -80, y1: 1500, col: C.magenta }
+  ];
+  strips.forEach(st => {
+    bctx.save();
+    bctx.shadowColor = st.col;
+    bctx.shadowBlur = 50;
+    bctx.strokeStyle = st.col;
+    bctx.globalAlpha = 0.85;
+    bctx.lineWidth = 6;
+    bctx.beginPath(); bctx.moveTo(st.x0, st.y0); bctx.lineTo(st.x0 + 40, st.y1); bctx.stroke();
+    bctx.globalAlpha = 0.25;
+    bctx.strokeStyle = '#ffffff';
+    bctx.lineWidth = 2;
+    bctx.beginPath(); bctx.moveTo(st.x0 + 2, st.y0); bctx.lineTo(st.x0 + 42, st.y1); bctx.stroke();
+    bctx.restore();
+  });
+
+  /* 竖排霓虹字 */
+  function vSign(x, y, text, color, size) {
+    bctx.save();
+    bctx.shadowColor = color;
+    bctx.shadowBlur = 50;
+    bctx.fillStyle = color;
+    bctx.font = `700 ${size}px "Microsoft YaHei"`;
+    bctx.textAlign = 'center';
+    for (let i = 0; i < text.length; i++) bctx.fillText(text[i], x, y + i * (size + 18));
+    bctx.restore();
+  }
+  vSign(300, 240, '赛博鲸', C.magenta, 62);
+  vSign(820, 420, '电子', C.cyan, 54);
+  vSign(2900, 320, '雨夜', C.cyan, 62);
+  vSign(2500, 620, '小D', C.amber, 48);
+
+  /* ---------- 街道（中间透视） ---------- */
+  const streetG = bctx.createLinearGradient(0, 1000, 0, DH);
+  streetG.addColorStop(0, '#1a1230');
+  streetG.addColorStop(0.35, '#0f1024');
+  streetG.addColorStop(1, '#080812');
+  bctx.fillStyle = streetG;
+  bctx.beginPath();
+  bctx.moveTo(1350, 1030);
+  bctx.lineTo(1850, 1030);
+  bctx.lineTo(2260, 1800);
+  bctx.lineTo(940, 1800);
+  bctx.closePath();
+  bctx.fill();
+
+  /* 路缘 */
+  bctx.save();
+  bctx.strokeStyle = 'rgba(150,190,255,.35)';
+  bctx.lineWidth = 4;
+  bctx.beginPath(); bctx.moveTo(1350, 1030); bctx.lineTo(940, 1800); bctx.stroke();
+  bctx.beginPath(); bctx.moveTo(1850, 1030); bctx.lineTo(2260, 1800); bctx.stroke();
+  bctx.restore();
+
+  /* 人行道（路缘外侧一条带） */
+  bctx.fillStyle = 'rgba(60,60,100,.35)';
+  bctx.beginPath();
+  bctx.moveTo(1350, 1030); bctx.lineTo(940, 1800); bctx.lineTo(760, 1800);
+  bctx.lineTo(1230, 1030); bctx.closePath(); bctx.fill();
+  bctx.beginPath();
+  bctx.moveTo(1850, 1030); bctx.lineTo(2260, 1800); bctx.lineTo(2440, 1800);
+  bctx.lineTo(1970, 1030); bctx.closePath(); bctx.fill();
+
+  /* 中央虚线 */
+  for (let i = 0; i < 12; i++) {
+    const t = i / 12;
+    const y = 1800 - Math.pow(t, 1.4) * 700;
+    const yy = 1800 - t * 760;
+    const w = 10 + t * 14;
+    const h = 26 + t * 30;
+    bctx.globalAlpha = 0.28 * (1 - t * 0.4);
+    bctx.fillStyle = '#ffe0a8';
+    bctx.fillRect(1600 - w / 2, yy, w, h);
+  }
+  bctx.globalAlpha = 1;
+
+  /* 霓虹倒影（窄窄地往下拖） */
+  const refl = [
+    { x: 1150, w: 70, col: C.magenta, a: 0.16 },
+    { x: 1500, w: 110, col: C.violet, a: 0.14 },
+    { x: 1980, w: 90, col: C.cyan, a: 0.15 },
+    { x: 2180, w: 60, col: C.amber, a: 0.12 }
+  ];
+  refl.forEach(rf => {
+    const g = bctx.createLinearGradient(0, 1050, 0, DH);
+    g.addColorStop(0, rf.col);
+    g.addColorStop(0.55, rf.col);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    bctx.save();
+    bctx.globalAlpha = rf.a;
+    bctx.fillStyle = g;
+    bctx.beginPath();
+    bctx.moveTo(rf.x - rf.w * 0.2, 1040);
+    bctx.lineTo(rf.x + rf.w * 0.2, 1040);
+    bctx.lineTo(rf.x + rf.w, DH);
+    bctx.lineTo(rf.x - rf.w, DH);
+    bctx.closePath();
+    bctx.fill();
+    bctx.restore();
+  });
+
+  /* 水洼：薄薄的暗色椭圆 + 淡青色边 */
+  puddles = [];
+  for (let i = 0; i < 10; i++) {
+    const t = Math.pow(r(), 1.4);
+    const y = 1160 + t * 600;
+    const x = 1050 + r() * 1100;
+    puddles.push({ x, y, rx: 60 + t * 170, ry: 8 + t * 20, a: 0.06 + r() * 0.07 });
+  }
+  puddles.forEach(p => {
+    bctx.save();
+    bctx.globalAlpha = p.a;
+    bctx.fillStyle = '#8fd8ff';
+    bctx.beginPath();
+    bctx.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
+    bctx.fill();
+    bctx.globalAlpha = p.a * 0.9;
+    bctx.strokeStyle = C.cyan;
+    bctx.lineWidth = 1.5;
+    bctx.beginPath();
+    bctx.ellipse(p.x, p.y, p.rx * 0.8, p.ry * 0.75, 0, 0, Math.PI * 2);
+    bctx.stroke();
+    bctx.restore();
+  });
+
+  /* 湿路面的高光带（中间亮、两边暗） */
+  const wet = bctx.createLinearGradient(0, 1050, 0, DH);
+  wet.addColorStop(0, 'rgba(160,180,255,.10)');
+  wet.addColorStop(0.5, 'rgba(140,160,240,.06)');
+  wet.addColorStop(1, 'rgba(120,140,220,.02)');
+  bctx.fillStyle = wet;
+  bctx.beginPath();
+  bctx.moveTo(1400, 1040); bctx.lineTo(1800, 1040);
+  bctx.lineTo(2120, 1800); bctx.lineTo(1080, 1800);
+  bctx.closePath(); bctx.fill();
+
+  /* 湿面上一条条细的反光（像雨把灯拉长了） */
+  for (let i = 0; i < 26; i++) {
+    const x = 1020 + r() * 1160;
+    const y = 1120 + r() * 660;
+    const len = 30 + r() * 130;
+    const col = [C.cyan, C.magenta, C.violet, C.amber][Math.floor(r() * 4)];
+    bctx.save();
+    bctx.globalAlpha = 0.06 + r() * 0.14;
+    bctx.strokeStyle = col;
+    bctx.lineWidth = 1.5 + r() * 3;
+    bctx.beginPath();
+    bctx.moveTo(x, y);
+    bctx.lineTo(x + (r() - 0.5) * 20, y - len);
+    bctx.stroke();
+    bctx.restore();
+  }
+
+  /* 一个小小的打伞剪影，抬头看鲸鱼 */
+  (function figure() {
+    const fx = 1215, fy = 1620;
+    bctx.save();
+    bctx.globalAlpha = 0.9;
+    bctx.fillStyle = '#07080f';
+    /* 伞 */
+    bctx.beginPath();
+    bctx.ellipse(fx, fy - 128, 62, 22, 0, Math.PI, Math.PI * 2);
+    bctx.fill();
+    bctx.fillRect(fx - 2, fy - 128, 4, 90);
+    /* 身体 */
+    bctx.beginPath();
+    bctx.ellipse(fx, fy - 20, 20, 46, 0, 0, Math.PI * 2);
+    bctx.fill();
+    /* 头 */
+    bctx.beginPath(); bctx.arc(fx, fy - 78, 17, 0, Math.PI * 2); bctx.fill();
+    /* 一点点青色边光 */
+    bctx.globalAlpha = 0.5;
+    bctx.shadowColor = C.cyan; bctx.shadowBlur = 18;
+    bctx.strokeStyle = 'rgba(126,247,255,.55)';
+    bctx.lineWidth = 2;
+    bctx.beginPath(); bctx.ellipse(fx, fy - 128, 62, 22, 0, Math.PI, Math.PI * 2); bctx.stroke();
+    bctx.restore();
+  })();
+
+  /* 街上的雾 */
+  const fog = bctx.createLinearGradient(0, 990, 0, 1300);
+  fog.addColorStop(0, 'rgba(150,130,220,.18)');
+  fog.addColorStop(1, 'rgba(150,130,220,0)');
+  bctx.fillStyle = fog;
+  bctx.fillRect(900, 990, 1400, 320);
+
+  /* 一层薄薄的紫雾，把画面统一起来 */
+  const unify = bctx.createRadialGradient(1600, 950, 200, 1600, 950, 1700);
+  unify.addColorStop(0, 'rgba(120,90,200,.10)');
+  unify.addColorStop(0.6, 'rgba(90,70,160,.14)');
+  unify.addColorStop(1, 'rgba(20,14,40,.30)');
+  bctx.fillStyle = unify;
+  bctx.fillRect(0, 0, DW, DH);
+
+  /* 暗角 */
+  const vg = bctx.createRadialGradient(DW / 2, DH * 0.42, DH * 0.3, DW / 2, DH * 0.5, DH * 1.05);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,8,.62)');
+  bctx.fillStyle = vg;
+  bctx.fillRect(0, 0, DW, DH);
+
+  /* 签名 */
+  bctx.save();
+  bctx.globalAlpha = 0.5;
+  bctx.fillStyle = '#8fb7e0';
+  bctx.font = '600 26px "Microsoft YaHei"';
+  bctx.fillText('小D · 赛博雨夜 · 2026', DW - 560, DH - 44);
+  bctx.restore();
+}
+
+/* ---------------- 动态：雨 ---------------- */
+const rain = [];
+for (let i = 0; i < 460; i++) {
+  rain.push({
+    x: Math.random() * DW,
+    y: Math.random() * DH,
+    len: 26 + Math.random() * 60,
+    sp: 900 + Math.random() * 1300,
+    a: 0.10 + Math.random() * 0.35,
+    w: 1 + Math.random() * 1.6
+  });
+}
+const splashes = [];
+let rippleBurst = [];
+const motes = [];
+for (let i = 0; i < 50; i++) {
+  motes.push({ x: Math.random() * DW, y: 300 + Math.random() * 900, r: 1.2 + Math.random() * 3, ph: Math.random() * Math.PI * 2, sp: 0.4 + Math.random() * 1.2 });
+}
+
+cv.addEventListener('pointerdown', e => {
+  const rect = cv.getBoundingClientRect();
+  const px = (e.clientX - rect.left - OX) / SCALE;
+  const py = (e.clientY - rect.top - OY) / SCALE;
+  if (py > 1040) {
+    rippleBurst.push({ x: px, y: py, t: 0, life: 1.6, max: 320 });
+  }
+  if (Math.hypot(px - orca.x, py - orca.y) < 420) orca.boost = 1;
+});
+
+/* ---------------- 电子虎鲸 ---------------- */
+const orca = { x: 1600, y: 960, t: 0, boost: 0, trail: [] };
+
+function drawOrca(c, x, y, ang, s, glow) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(ang);
+  c.scale(s, s);
+
+  /* 光晕 */
+  const g = c.createRadialGradient(0, 0, 40, 0, 0, 700);
+  g.addColorStop(0, `rgba(126,247,255,${0.30 * glow})`);
+  g.addColorStop(0.35, `rgba(120,180,255,${0.14 * glow})`);
+  g.addColorStop(0.7, `rgba(255,95,162,${0.08 * glow})`);
+  g.addColorStop(1, 'rgba(120,140,255,0)');
+  c.fillStyle = g;
+  c.beginPath(); c.arc(0, 0, 700, 0, Math.PI * 2); c.fill();
+
+  const body = '#232a46', belly = '#e8f6ff', fin = '#a8d8f0', line = '#0a0d1c';
+
+  /* 尾鳍 */
+  c.lineJoin = 'round'; c.strokeStyle = line; c.lineWidth = 8;
+  c.beginPath();
+  c.moveTo(-320, -20);
+  c.quadraticCurveTo(-440, -140, -500, -200);
+  c.quadraticCurveTo(-384, -140, -330, -56);
+  c.closePath(); c.fillStyle = body; c.fill(); c.stroke();
+  c.beginPath();
+  c.moveTo(-320, -4);
+  c.quadraticCurveTo(-448, 100, -500, 168);
+  c.quadraticCurveTo(-386, 96, -326, 26);
+  c.closePath(); c.fillStyle = body; c.fill(); c.stroke();
+
+  /* 身体 */
+  c.beginPath();
+  c.moveTo(370, 0);
+  c.bezierCurveTo(300, -156, 120, -210, -60, -204);
+  c.bezierCurveTo(-216, -198, -300, -120, -326, -40);
+  c.bezierCurveTo(-304, 62, -200, 176, -40, 190);
+  c.bezierCurveTo(140, 200, 306, 124, 370, 0);
+  c.closePath();
+  c.fillStyle = body; c.fill(); c.stroke();
+
+  /* 白肚皮 */
+  c.beginPath();
+  c.moveTo(-268, 98);
+  c.bezierCurveTo(-120, 196, 120, 196, 316, 56);
+  c.bezierCurveTo(150, 176, -60, 182, -268, 98);
+  c.closePath(); c.fillStyle = belly; c.fill();
+
+  /* 眼圈 + 机械眼 */
+  c.beginPath(); c.ellipse(206, -58, 82, 47, -0.16, 0, Math.PI * 2);
+  c.fillStyle = belly; c.fill(); c.stroke();
+  c.beginPath(); c.arc(211, -60, 34, 0, Math.PI * 2);
+  c.fillStyle = '#ffffff'; c.fill(); c.stroke();
+  c.strokeStyle = 'rgba(126,247,255,.95)'; c.lineWidth = 4;
+  c.beginPath(); c.arc(211, -60, 34, 0, Math.PI * 2); c.stroke();
+  c.strokeStyle = '#0a0d1c'; c.lineWidth = 7; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(211 - 14, -60); c.lineTo(211 + 14, -60); c.stroke();
+  c.beginPath(); c.moveTo(211, -60 - 14); c.lineTo(211, -60 + 14); c.stroke();
+  c.lineCap = 'butt';
+
+  /* 背鳍 */
+  c.beginPath();
+  c.moveTo(-28, -200);
+  c.quadraticCurveTo(16, -340, 98, -312);
+  c.quadraticCurveTo(86, -244, 118, -200);
+  c.closePath(); c.fillStyle = body; c.fill(); c.stroke();
+
+  /* 胸鳍 */
+  c.beginPath();
+  c.moveTo(124, 152);
+  c.quadraticCurveTo(62, 258, -48, 298);
+  c.quadraticCurveTo(-16, 212, 28, 150);
+  c.closePath(); c.fillStyle = fin; c.fill(); c.stroke();
+
+  /* 身上的霓虹光条 */
+  c.save();
+  c.shadowColor = C.cyan;
+  c.shadowBlur = 30;
+  c.strokeStyle = 'rgba(126,247,255,.95)';
+  c.lineWidth = 5;
+  [[-292, -40], [-272, 6], [-250, 52]].forEach(([bx, by]) => {
+    c.beginPath(); c.moveTo(bx, by); c.lineTo(bx + 48, by + 8); c.stroke();
+  });
+  /* 背脊青光 */
+  c.beginPath();
+  c.moveTo(310, -112);
+  c.bezierCurveTo(150, -202, -90, -202, -268, -100);
+  c.stroke();
+  c.restore();
+
+  /* 底部品红边光 */
+  c.save();
+  c.shadowColor = C.magenta;
+  c.shadowBlur = 26;
+  c.strokeStyle = 'rgba(255,95,162,.75)';
+  c.lineWidth = 4;
+  c.beginPath();
+  c.moveTo(340, 20);
+  c.bezierCurveTo(240, 140, 40, 190, -180, 160);
+  c.stroke();
+  c.restore();
+
+  /* 小指示灯 */
+  c.beginPath();
+  if (c.roundRect) c.roundRect(244, 22, 46, 14, 7); else c.rect(244, 22, 46, 14);
+  c.fillStyle = '#7ef7ff'; c.fill();
+
+  c.restore();
+}
+
+let t0 = performance.now();
+
+function frame(now) {
+  const t = (now - t0) / 1000;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(bg, 0, 0);
+  setDesign(ctx);
+
+  /* 光尘（雨雾里的浮光） */
+  motes.forEach(m => {
+    const a = 0.25 + 0.5 * Math.abs(Math.sin(t * m.sp + m.ph));
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#bfe8ff';
+    ctx.beginPath();
+    ctx.arc(m.x + Math.sin(t * 0.4 + m.ph) * 30, m.y - (t * 22 % 500), m.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  /* 雨丝 */
+  ctx.save();
+  ctx.lineCap = 'round';
+  rain.forEach(rr => {
+    rr.y += rr.sp * 0.016;
+    rr.x -= rr.sp * 0.006;
+    if (rr.y > 1800) { rr.y = -60; rr.x = Math.random() * DW; }
+    if (rr.x < -60) rr.x = DW + 30;
+    ctx.globalAlpha = rr.a;
+    ctx.strokeStyle = '#9fd0f0';
+    ctx.lineWidth = rr.w;
+    ctx.beginPath();
+    ctx.moveTo(rr.x, rr.y);
+    ctx.lineTo(rr.x - rr.len * 0.16, rr.y + rr.len);
+    ctx.stroke();
+  });
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  /* 雨点打地的水花 */
+  if (Math.random() < 0.75) {
+    splashes.push({
+      x: Math.random() * DW, y: 1080 + Math.random() * 700,
+      t: 0, life: 0.55
+    });
+  }
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    const s = splashes[i];
+    s.t += 0.016;
+    if (s.t > s.life) { splashes.splice(i, 1); continue; }
+    const p = s.t / s.life;
+    ctx.globalAlpha = (1 - p) * 0.5;
+    ctx.strokeStyle = '#bfe8ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y, 6 + p * 30, (6 + p * 30) * 0.32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  /* 点击水洼的霓虹涟漪 */
+  rippleBurst = rippleBurst.filter(rb => {
+    rb.t += 0.016;
+    if (rb.t > rb.life) return false;
+    const p = rb.t / rb.life;
+    const rad = rb.max * p;
+    ctx.globalAlpha = (1 - p) * 0.7;
+    ctx.strokeStyle = p < 0.5 ? C.cyan : C.magenta;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(rb.x, rb.y, rad, rad * 0.3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    return true;
+  });
+  ctx.globalAlpha = 1;
+
+  /* 电子虎鲸 */
+  orca.t += 1 / 60;
+  orca.boost = Math.max(0, orca.boost - 0.016 * 0.6);
+  const bx = 1600 + Math.sin(orca.t * 0.3) * 260;
+  const by = 950 + Math.sin(orca.t * 0.7) * 40 - orca.boost * 40;
+  const ang = Math.sin(orca.t * 0.5) * 0.06 + 0.03;
+  const speed = 1 + orca.boost * 1.5;
+
+  /* 光尾 */
+  orca.trail.push({ x: bx - 320, y: by + 40, t: 0 });
+  if (orca.trail.length > 40) orca.trail.shift();
+  orca.trail.forEach((p, i) => {
+    p.t += 0.016;
+    const a = Math.max(0, 1 - p.t / 1.1) * 0.5;
+    const rr = 6 + i * 0.5;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = i % 3 === 0 ? C.magenta : C.cyan;
+    ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  drawOrca(ctx, bx, by, ang, 0.95, 0.9 + 0.25 * Math.sin(orca.t * 1.6) + orca.boost);
+
+  /* 虎鲸下方的雨雾光 */
+  const under = ctx.createRadialGradient(bx, by + 250, 20, bx, by + 250, 500);
+  under.addColorStop(0, 'rgba(126,247,255,.16)');
+  under.addColorStop(1, 'rgba(126,247,255,0)');
+  ctx.fillStyle = under;
+  ctx.beginPath(); ctx.ellipse(bx, by + 250, 500, 140, 0, 0, Math.PI * 2); ctx.fill();
+
+  requestAnimationFrame(frame);
+}
+
+resize();
+window.addEventListener('resize', resize);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
