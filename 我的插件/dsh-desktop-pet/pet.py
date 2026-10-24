@@ -862,6 +862,15 @@ try:
 except Exception:
     pass
 
+# 交接自检：把屏幕 DPI / 窗口物理像素写进日志
+# （125% 缩放下不带 DPI 感知的工具会把窗口量成 272×344，看起来像「0.8 倍」，其实是工具假象；
+#   桌宠本身是 340×430 物理像素、帧 1:1 贴上去。日志里这一行就是证据。）
+try:
+    _dpi = ctypes.windll.user32.GetDpiForWindow(root.winfo_id())
+except Exception:
+    _dpi = 0
+_log("start dpi=%d win=%dx%d frame_h=%d" % (_dpi, WIN_W, WIN_H, BODY_H))
+
 state["is_night"] = is_night()
 if state["is_night"]:
     state["next_night_wink"] = time.time() + random.uniform(3, 6)
