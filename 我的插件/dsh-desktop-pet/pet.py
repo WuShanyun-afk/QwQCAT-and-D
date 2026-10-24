@@ -737,6 +737,7 @@ def _tick():
     if eff != state.get("eff_outfit"):
         prev = state.get("eff_outfit")
         state["eff_outfit"] = eff
+        _log("outfit %s -> %s" % (prev, eff))   # 交接自检：换装记录（比如 21:00 自动换睡衣）
         if prev is not None:
             if eff == SLEEP_OUTFIT:
                 show_bubble("困困……妈妈，我换上睡衣啦", 3.6)
