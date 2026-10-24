@@ -295,6 +295,36 @@ def play(path):
         pass
 
 
+# ---------- 单实例：防止同时跑出两个番茄钟 ----------
+LOCK = os.path.join(APP, "study.lock")
+HEARTBEAT = os.path.join(APP, "study.hb")
+PAUSE = os.path.join(APP, "study.pause")
+
+
+def already_running():
+    try:
+        if os.path.exists(LOCK):
+            old = open(LOCK, "r", encoding="utf-8").read().strip()
+            if old.isdigit():
+                h = ctypes.windll.kernel32.OpenProcess(0x1000, False, int(old))
+                if h:
+                    ctypes.windll.kernel32.CloseHandle(h)
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+if already_running():
+    raise SystemExit(0)
+try:
+    open(LOCK, "w", encoding="utf-8").write(str(os.getpid()))
+    if os.path.exists(PAUSE):
+        os.remove(PAUSE)
+except Exception:
+    pass
+
+
 # ---------- 窗口 ----------
 root = tk.Tk()
 root.overrideredirect(True)
@@ -504,6 +534,11 @@ def to_corner():
 def quit_app():
     save_cfg()
     save_data()
+    try:
+        open(PAUSE, "w", encoding="utf-8").write(str(time.time()))
+        os.remove(LOCK)
+    except Exception:
+        pass
     root.destroy()
 
 
@@ -570,6 +605,14 @@ def face_now(now):
 def _tick():
     now = time.time()
     st["t"] += TICK / 1000.0
+
+    # 心跳：给看门狗看的（我还活着，别把我再拉一只出来）
+    if st.get("ticks", 0) % 60 == 0:
+        try:
+            open(HEARTBEAT, "w", encoding="utf-8").write(str(now))
+        except Exception:
+            pass
+    st["ticks"] = st.get("ticks", 0) + 1
 
     if st["mode"] in ("work", "break") and st["end_at"]:
         left = st["end_at"] - now
