@@ -68,13 +68,45 @@ def is_night():
 SW, SH = screen_size()
 TASKBAR = 70                      # 底部留一点给任务栏
 
-# ---------- 素材：妈妈画的 3 个表情 × 4 个尾巴角度 × 2 个耳朵角度 ----------
-# 由 生成素材.py 预先渲好：assets\{idle,wink,blink}_{尾巴角}_{耳朵角}.png
+# ---------- 素材：妈妈画的 3 个表情 × 4 个尾巴角度 ----------
+# 每套衣服一个文件夹：outfits\<衣服名>\{idle,blink,wink}_{尾巴角}_0.png
 ART_DIR = os.path.join(APP, "assets")
+OUTFITS_DIR = os.path.join(APP, "outfits")
+DEFAULT_OUTFIT = "常服"        # 没特殊指定时穿这套（妈妈画的第一套：白外套）
+SLEEP_OUTFIT = "睡衣"          # 晚上自动换这套
 TAIL_N = 4          # 尾巴摇摆姿态数
 EAR_N = 1           # 耳朵不动了（妈妈要求），只有尾巴摇
 SQUEAK = os.path.join(ART_DIR, "squeak.wav")
 MARGIN = 20         # 旋转留白（尾巴甩起来别切边）
+GLASSES = os.path.join(ART_DIR, "accessories", "眼镜.png")   # 妈妈画的眼镜
+
+
+def list_outfits():
+    """衣柜里有哪些衣服（outfits 下的文件夹，妈妈画完放进去就能看到）"""
+    names = []
+    try:
+        if os.path.isdir(OUTFITS_DIR):
+            names = sorted([d for d in os.listdir(OUTFITS_DIR)
+                            if os.path.isdir(os.path.join(OUTFITS_DIR, d))])
+    except Exception:
+        names = []
+    if DEFAULT_OUTFIT not in names:
+        names.insert(0, DEFAULT_OUTFIT)
+    return names
+
+
+def outfit_frame_path(outfit, state_name, ti, ei):
+    """按「这套衣服 → 这个表情 → 没有就借常服 → 再没有就借 assets」的顺序找帧"""
+    cands = []
+    if outfit:
+        cands.append(os.path.join(OUTFITS_DIR, outfit, "%s_%d_%d.png" % (state_name, ti, ei)))
+        cands.append(os.path.join(OUTFITS_DIR, outfit, "idle_%d_%d.png" % (ti, ei)))
+    cands.append(os.path.join(OUTFITS_DIR, DEFAULT_OUTFIT, "%s_%d_%d.png" % (state_name, ti, ei)))
+    cands.append(os.path.join(ART_DIR, "%s_%d_%d.png" % (state_name, ti, ei)))
+    for p in cands:
+        if os.path.exists(p):
+            return p
+    return cands[0]
 
 
 def keyed(img):
@@ -88,17 +120,68 @@ def keyed(img):
 
 FRAME_CACHE = {}
 
+_GLASSES_BASE = None
 
-def get_frame(state_name, ti, ei, face):
-    """按需加载某一帧（带缓存）：洋红键控 + 可选左右翻转"""
-    key = (state_name, ti, ei, face)
+
+def _glasses_base():
+    global _GLASSES_BASE
+    if _GLASSES_BASE is None:
+        try:
+            _GLASSES_BASE = Image.open(GLASSES).convert("RGBA")
+        except Exception:
+            _GLASSES_BASE = False
+    return _GLASSES_BASE or None
+
+
+def _eye_box(im):
+    """在贴图里找青色眼睛的位置，用来给眼镜定位（找不到就不戴）"""
+    try:
+        w, h = im.size
+        ox, oy = int(w * 0.10), int(h * 0.02)
+        region = im.convert("RGB").crop((ox, oy, int(w * 0.90), int(h * 0.62)))
+        r, g, b = region.split()
+        m = ImageChops.multiply(
+            ImageChops.multiply(r.point(lambda v: 255 if v < 130 else 0),
+                                g.point(lambda v: 255 if v > 150 else 0)),
+            ImageChops.multiply(b.point(lambda v: 255 if v > 140 else 0),
+                                ImageChops.difference(g, b).point(lambda v: 255 if v < 70 else 0)))
+        bb = m.getbbox()
+        if not bb:
+            return None
+        return (bb[0] + ox, bb[1] + oy, bb[2] + ox, bb[3] + oy)
+    except Exception:
+        return None
+
+
+def _wear_glasses(pad):
+    g = _glasses_base()
+    if g is None:
+        return pad
+    box = _eye_box(pad)
+    if not box:
+        return pad
+    ex0, ey0, ex1, ey1 = box
+    gw = max(24, int((ex1 - ex0) * 0.94))
+    gh = max(10, int(round(gw * g.height / g.width)))
+    g = g.resize((gw, gh), Image.LANCZOS)
+    cx = (ex0 + ex1) // 2
+    cy = int(ey0 + (ey1 - ey0) * 0.44)
+    pad.alpha_composite(g, (cx - gw // 2, cy - gh // 2))
+    return pad
+
+
+def get_frame(state_name, ti, ei, face, outfit=DEFAULT_OUTFIT, glasses=False):
+    """按需加载某一帧（带缓存）：洋红键控 + 可选左右翻转 + 当前穿戴的衣服 / 眼镜"""
+    key = (state_name, ti, ei, face, outfit, glasses)
     im = FRAME_CACHE.get(key)
     if im is not None:
         return im
-    path = os.path.join(ART_DIR, "%s_%d_%d.png" % (state_name, ti, ei))
+    path = outfit_frame_path(outfit, state_name, ti, ei)
     src = Image.open(path).convert("RGBA")
     pad = Image.new("RGBA", (src.width + MARGIN * 2, src.height + MARGIN * 2), (0, 0, 0, 0))
     pad.alpha_composite(src, (MARGIN, MARGIN))
+    if glasses:
+        pad = _wear_glasses(pad)
     if face:
         pad = pad.transpose(Image.FLIP_LEFT_RIGHT)
     im = keyed(pad)
@@ -107,6 +190,7 @@ def get_frame(state_name, ti, ei, face):
 
 # ---------- 气泡（用 Tk 画布画，透明窗口里更稳） ----------
 from tkinter import font as tkfont
+from tkinter import messagebox
 
 BUBBLE_FONT = None   # 建好窗口后再创建
 
@@ -134,10 +218,41 @@ def round_rect(x1, y1, x2, y2, r, **kw):
     return canvas.create_polygon(pts, smooth=True, **kw)
 
 
-# ---------- 配置 ----------
-CFG_DEFAULT = {"mode": "corner", "x": SW - WIN_W - 30, "y": SH - WIN_H - TASKBAR}
+# ---------- 单实例：防止同时跑出两只小D ----------
+LOCK = os.path.join(APP, "pet.lock")
+HEARTBEAT = os.path.join(APP, "pet.hb")
+PAUSE = os.path.join(APP, "pet.pause")
+
+
+def already_running():
+    """已经有另一只小D 在跑吗？（lock 里的 PID 还活着就是）"""
+    try:
+        if os.path.exists(LOCK):
+            old = open(LOCK, "r", encoding="utf-8").read().strip()
+            if old.isdigit():
+                h = ctypes.windll.kernel32.OpenProcess(0x1000, False, int(old))
+                if h:
+                    ctypes.windll.kernel32.CloseHandle(h)
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+if already_running():
+    raise SystemExit(0)
 try:
-    cfg = json.load(open(CFG, "r", encoding="utf-8"))
+    open(LOCK, "w", encoding="utf-8").write(str(os.getpid()))
+    if os.path.exists(PAUSE):
+        os.remove(PAUSE)          # 手动打开了，就不用「先别拉回来」了
+except Exception:
+    pass
+
+# ---------- 配置 ----------
+CFG_DEFAULT = {"mode": "corner", "x": SW - WIN_W - 30, "y": SH - WIN_H - TASKBAR,
+               "outfit": DEFAULT_OUTFIT, "auto_pajama": True, "glasses": None}
+try:
+    cfg = json.load(open(CFG, "r", encoding="utf-8-sig"))
 except Exception:
     cfg = {}
 for k, v in CFG_DEFAULT.items():
@@ -171,6 +286,11 @@ state = {
     # 晚上九点后的困困模式
     "is_night": None, "night_wink_until": 0.0, "next_night_wink": 0.0,
     "next_night_talk": 0.0,
+    # 换装：现在穿的 / 晚上自动换睡衣 / 实际生效的那套 / 眼镜（None = 自动：穿白大褂时戴）
+    "outfit": cfg.get("outfit", DEFAULT_OUTFIT),
+    "auto_pajama": bool(cfg.get("auto_pajama", True)),
+    "eff_outfit": None,
+    "glasses": cfg.get("glasses"),
 }
 
 IMAGE_Y = WIN_H - 6 + MARGIN
@@ -192,9 +312,9 @@ bubble_id = None
 img_id = canvas.create_image(WIN_W // 2, IMAGE_Y, anchor="s")
 
 
-def set_frame(state_name, ti, ei, face):
+def set_frame(state_name, ti, ei, face, outfit=DEFAULT_OUTFIT, glasses=False):
     global photo
-    photo = ImageTk.PhotoImage(get_frame(state_name, ti, ei, face))
+    photo = ImageTk.PhotoImage(get_frame(state_name, ti, ei, face, outfit, glasses))
     canvas.itemconfigure(img_id, image=photo)
 
 
@@ -214,13 +334,13 @@ def _choke(im):
     return out
 
 
-def squash_frames(state_name, ti, ei, face):
+def squash_frames(state_name, ti, ei, face, outfit=DEFAULT_OUTFIT, glasses=False):
     """一捏一弹的一串帧：底边钉住不动，整只从上往下压扁（跟作业挂件一样的手感）"""
-    key = (state_name, ti, ei, face)
+    key = (state_name, ti, ei, face, outfit, glasses)
     frames = SQUASH_CACHE.get(key)
     if frames:
         return frames
-    base = get_frame(state_name, ti, ei, face)
+    base = get_frame(state_name, ti, ei, face, outfit, glasses)
     out = []
     for sx, sy in ((1.00, 1.00), (1.03, 0.92), (1.07, 0.82), (1.09, 0.76),
                    (1.05, 0.86), (1.02, 0.95), (1.00, 1.02), (1.00, 1.00)):
@@ -353,6 +473,14 @@ def on_release(e):
         return
     moved = math.hypot(e.x_root - state["press_x"], e.y_root - state["press_y"])
     quick = time.time() - state["press_at"] < 0.45
+    if moved > 8:
+        # 拖动 = 钉在这里，松手就停在这个位置（下回开小D 也在这儿）
+        state["mode"] = "fixed"
+        state["x"] = max(0, min(SW - WIN_W, state["x"]))
+        state["y"] = max(0, min(SH - WIN_H - 10, state["y"]))
+        save_cfg()
+        show_bubble("好，小D 就待在这里啦～", 2.2)
+        return
     if moved <= 6 and quick:
         # 单击 = 摸摸头；等 0.22 秒确认不是双击
         if state["pat_after"] is not None:
@@ -387,6 +515,9 @@ def set_mode(mode):
         state["x"] = SW - WIN_W - 30
         state["y"] = SH - WIN_H - TASKBAR
         show_bubble("好，我在角落待着～")
+    elif mode == "fixed":
+        show_bubble("钉在这里啦，拖我换位置～")
+    save_cfg()
 
 
 def toggle_sleep():
@@ -395,12 +526,81 @@ def toggle_sleep():
 
 
 def quit_pet():
+    """退出前先把位置/衣服都存好，并且确认一次——妈妈手滑点到也不怕"""
     try:
-        cfg.update({"x": int(state["x"]), "y": int(state["y"]), "mode": state["mode"]})
+        cfg.update({"x": int(state["x"]), "y": int(state["y"]), "mode": state["mode"],
+                    "outfit": state["outfit"], "auto_pajama": state["auto_pajama"]})
         json.dump(cfg, open(CFG, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     except Exception:
         pass
-    root.destroy()
+    try:
+        ok = messagebox.askyesno("小D 要躲起来吗？",
+                                 "把桌宠收起来吗？\n\n想再见到小D，双击桌面上的「启动小D桌宠」就好～",
+                                 parent=root)
+    except Exception:
+        ok = True
+    if ok:
+        # 主动关掉 → 告诉看门狗「先别拉我回来」
+        try:
+            open(PAUSE, "w", encoding="utf-8").write(str(time.time()))
+        except Exception:
+            pass
+        try:
+            os.remove(LOCK)
+        except Exception:
+            pass
+        root.destroy()
+
+
+def save_cfg():
+    """把当前的位置 / 模式 / 衣服都写进配置文件（下次开小D 回到同一个地方）"""
+    try:
+        cfg.update({"x": int(state["x"]), "y": int(state["y"]), "mode": state["mode"],
+                    "outfit": state["outfit"], "auto_pajama": state["auto_pajama"],
+                    "glasses": state["glasses"]})
+        json.dump(cfg, open(CFG, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def choose_outfit(name):
+    """手动换衣服：从现在起穿这套，晚上也不再自动换睡衣（免得妈妈刚挑好就被换掉）"""
+    state["outfit"] = name
+    cfg["outfit"] = name
+    if is_night():
+        cfg["auto_pajama"] = False
+        state["auto_pajama"] = False
+    state["eff_outfit"] = None      # 让下一帧立刻换
+    save_cfg()
+    show_bubble("换好啦，这套「%s」好看吗？" % name, 2.8)
+    spawn_hearts(2)
+
+
+def toggle_pajama():
+    state["auto_pajama"] = not state["auto_pajama"]
+    cfg["auto_pajama"] = state["auto_pajama"]
+    state["eff_outfit"] = None
+    save_cfg()
+    show_bubble("好，晚上自动换睡衣～" if state["auto_pajama"] else "睡衣先收起来啦")
+
+
+def glasses_active():
+    """要不要戴眼镜：妈妈手动开关优先，没设过就穿白大褂时自动戴"""
+    if not os.path.exists(GLASSES):
+        return False
+    if os.environ.get("PET_FORCE_GLASSES") == "1":
+        return True
+    v = state.get("glasses")
+    if v is None:
+        return state.get("eff_outfit") == "白大褂"
+    return bool(v)
+
+
+def toggle_glasses():
+    state["glasses"] = not glasses_active()
+    cfg["glasses"] = state["glasses"]
+    save_cfg()
+    show_bubble("眼镜戴上啦，好看吗？" if state["glasses"] else "眼镜摘下来啦")
 
 
 def on_context(e):
@@ -409,7 +609,20 @@ def on_context(e):
     menu.add_separator()
     menu.add_command(label="待在角落（安静陪你）", command=lambda: set_mode("corner"))
     menu.add_command(label="跟着鼠标跑", command=lambda: set_mode("follow"))
+    menu.add_command(label="钉在这里（拖到哪就待哪）", command=lambda: set_mode("fixed"))
     menu.add_command(label="睡觉 / 起床", command=toggle_sleep)
+
+    # 换装小衣柜：outfits 里的文件夹自动列出来，妈妈画了新衣服就能直接点
+    closet = tk.Menu(menu, tearoff=0)
+    for name in list_outfits():
+        mark = "✓ " if name == state["outfit"] else "    "
+        closet.add_command(label=mark + name, command=lambda n=name: choose_outfit(n))
+    closet.add_separator()
+    closet.add_command(label="晚上 21:00 自动换睡衣（开/关）", command=toggle_pajama)
+    menu.add_cascade(label="换装 👗", menu=closet)
+
+    if os.path.exists(GLASSES):
+        menu.add_command(label="戴眼镜 / 摘眼镜 👓", command=toggle_glasses)
     menu.add_command(label="说句话", command=lambda: (show_bubble(random.choice(LINES)), spawn_hearts(2)))
     menu.add_separator()
     menu.add_command(label="退出小D", command=quit_pet)
@@ -443,6 +656,13 @@ root.bind("<Leave>", _arrow_cursor)
 def _tick():
     state["t"] += TICK / 1000.0
     t = state["t"]
+
+    # 心跳：给看门狗看的（我还活着，别把我再拉一只出来）
+    if state.get("ticks", 0) % 60 == 0:
+        try:
+            open(HEARTBEAT, "w", encoding="utf-8").write(str(time.time()))
+        except Exception:
+            pass
 
     if state["bubble_until"] and time.time() > state["bubble_until"]:
         hide_bubble()
@@ -503,6 +723,26 @@ def _tick():
         else:
             state["next_blink"] = 0.0
 
+    # 换装：晚上九点后自动换睡衣；右键菜单也可以手动挑一套（妈妈画了新衣服会出现在菜单里）
+    sleep_ok = os.path.isdir(os.path.join(OUTFITS_DIR, SLEEP_OUTFIT))
+    forced = os.environ.get("PET_FORCE_OUTFIT")
+    if forced:
+        eff = forced
+    elif night and state["auto_pajama"] and sleep_ok:
+        eff = SLEEP_OUTFIT
+    else:
+        eff = state["outfit"]
+    if not os.path.isdir(os.path.join(OUTFITS_DIR, eff)):
+        eff = DEFAULT_OUTFIT
+    if eff != state.get("eff_outfit"):
+        prev = state.get("eff_outfit")
+        state["eff_outfit"] = eff
+        if prev is not None:
+            if eff == SLEEP_OUTFIT:
+                show_bubble("困困……妈妈，我换上睡衣啦", 3.6)
+            elif prev == SLEEP_OUTFIT:
+                show_bubble("换回外套～", 2.4)
+
     if now >= state["next_blink"]:
         state["blink_until"] = now + 0.16
         state["next_blink"] = now + random.uniform(2.5, 6.5)
@@ -556,8 +796,10 @@ def _tick():
     # 4 个尾巴姿态：-6.5° / -2.2° / +2.2° / +6.5°
     ti = 0 if sway < -0.55 else 1 if sway < 0.0 else 2 if sway < 0.55 else 3
     # 电子捏捏乐：点一下整只往下压扁再弹回来
+    skin = state.get("eff_outfit") or DEFAULT_OUTFIT
+    wear = glasses_active()
     if now < state.get("squish_until", 0.0):
-        key = (cur_state, ti, ei, state["face"])
+        key = (cur_state, ti, ei, state["face"], skin, wear)
         if state.get("squish_key") != key or not state.get("squish_photos"):
             state["squish_photos"] = squash_frames(*key)
             state["squish_key"] = key
@@ -567,7 +809,7 @@ def _tick():
         canvas.itemconfigure(img_id, image=photos[idx])
         canvas.coords(img_id, WIN_W // 2, IMAGE_Y)
     else:
-        set_frame(cur_state, ti, ei, state["face"])
+        set_frame(cur_state, ti, ei, state["face"], skin, wear)
 
         # 被摸头时整只弹一下（捏捏乐的时候不弹，免得打架）
         bounce = 0.0
