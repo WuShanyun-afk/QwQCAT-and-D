@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电子小猫图鉴 · 小D 的像素收藏</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    background:
+      radial-gradient(900px 520px at 12% -8%, #2c2350 0%, transparent 60%),
+      radial-gradient(800px 600px at 92% 108%, #1e2b4a 0%, transparent 55%),
+      linear-gradient(180deg, #191536, #0d0b1e 75%);
+    color: #e9e5ff;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px 60px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 26px; }
+  .kicker {
+    display: inline-block; font-size: 12px; letter-spacing: 4px; color: #b9a7ff;
+    border: 1px solid rgba(185,167,255,.22); padding: 5px 14px; border-radius: 999px;
+    background: rgba(185,167,255,.07); margin-bottom: 14px;
+  }
+  h1 {
+    font-size: clamp(26px, 5vw, 38px); letter-spacing: 2px; font-weight: 800;
+    background: linear-gradient(120deg, #fff 15%, #cbbcff 50%, #ffc7dd 85%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { color: #a79fce; font-size: 13px; margin-top: 10px; letter-spacing: 1px; }
+  .counter {
+    margin: 18px auto 0; display: inline-flex; align-items: center; gap: 10px;
+    border: 1px solid rgba(185,167,255,.22); background: rgba(185,167,255,.07);
+    padding: 8px 18px; border-radius: 999px; font-size: 13px; color: #c8c2e6;
+  }
+  .counter b { color: #ffd479; font-size: 18px; }
+  .counter button {
+    margin-left: 6px; font-size: 11px; color: #8d84a2; background: none;
+    border: 1px solid rgba(185,167,255,.18); border-radius: 999px; padding: 2px 9px;
+    cursor: pointer; font-family: inherit;
+  }
+  .counter button:hover { color: #e9e5ff; border-color: rgba(185,167,255,.4); }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    margin-top: 26px;
+  }
+  @media (max-width: 620px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .card {
+    position: relative; border-radius: 18px; padding: 14px 10px 12px;
+    border: 1px solid rgba(185,167,255,.16); background: rgba(255,255,255,.035);
+    text-align: center; cursor: pointer; user-select: none;
+    transition: transform .18s ease, border-color .25s, box-shadow .25s, background .25s;
+  }
+  .card:hover { transform: translateY(-3px); border-color: rgba(185,167,255,.45);
+                box-shadow: 0 14px 34px -18px rgba(150,120,255,.7); }
+  .card canvas {
+    width: 124px; height: 124px; image-rendering: pixelated;
+    display: block; margin: 0 auto 8px;
+    filter: drop-shadow(0 8px 14px rgba(0,0,0,.35));
+  }
+  .card .name { font-size: 13px; letter-spacing: .5px; }
+  .card .rarity { font-size: 10px; letter-spacing: 2px; color: #8d84a2; margin-top: 3px; }
+  .card .got {
+    position: absolute; top: 8px; right: 10px; font-size: 12px; color: #ffd479;
+    opacity: 0; transition: opacity .2s;
+  }
+  .card.owned { background: rgba(255,212,121,.07); border-color: rgba(255,212,121,.45); }
+  .card.owned .got { opacity: 1; }
+  .card.owned canvas { filter: drop-shadow(0 0 12px rgba(255,212,121,.45)); }
+  .card:active { transform: scale(.97); }
+
+  .hint { text-align: center; margin-top: 20px; font-size: 12px; color: #8d84a2; letter-spacing: 1px; }
+  .done {
+    margin-top: 22px; padding: 18px; border-radius: 16px; text-align: center;
+    border: 1px dashed rgba(255,212,121,.5);
+    background: linear-gradient(160deg, rgba(255,158,196,.10), rgba(185,167,255,.08));
+    display: none;
+  }
+  .done.show { display: block; animation: pop .5s ease; }
+  @keyframes pop { 0% { transform: scale(.94); opacity: 0; } 100% { transform: none; opacity: 1; } }
+  .done h2 { font-size: 17px; letter-spacing: 2px; margin-bottom: 6px; color: #ffd479; }
+  .done p { font-size: 13px; color: #c8c2e6; }
+
+  .heart {
+    position: fixed; pointer-events: none; z-index: 9; font-size: 18px;
+    animation: rise 1.3s ease-out forwards;
+  }
+  @keyframes rise {
+    0% { opacity: 0; transform: translate(-50%, 0) scale(.6); }
+    18% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -80px) scale(1.15); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">小D 的像素收藏</div>
+    <h1>电子小猫图鉴</h1>
+    <p class="sub">妈妈说「电子小猫」可爱 —— 那就把这只小猫的所有形态都收起来。<br>点一下小猫，就收进图鉴（会记在这台电脑上）。</p>
+    <div class="counter">
+      <span>已收集</span><b id="n">0</b><span>/ 9</span>
+      <button id="reset">清空收藏</button>
+    </div>
+  </header>
+
+  <div class="grid" id="grid"></div>
+  <p class="hint">全部集齐会有一点点小惊喜 🐾</p>
+
+  <div class="done" id="done">
+    <h2>图鉴集齐啦！</h2>
+    <p>九只电子小猫都在这里了 —— 从常服到初雪，还有一只雪做的。<br>妈妈说可爱，那就一直画下去 🌙</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  const CATS = [
+    { id: 'normal',  name: '常服小猫',  rarity: '普通', skin: 'coat' },
+    { id: 'sailor',  name: '水手小猫',  rarity: '稀有', skin: 'sailor' },
+    { id: 'rich',    name: '千金小猫',  rarity: '超稀有', skin: 'rich' },
+    { id: 'pajama',  name: '睡衣小猫',  rarity: '普通', skin: 'pajama' },
+    { id: 'cape',    name: '观星小猫',  rarity: '超稀有', skin: 'cape' },
+    { id: 'winter',  name: '冬装小猫',  rarity: '稀有', skin: 'winter' },
+    { id: 'snowman', name: '雪人小猫',  rarity: '稀有', skin: 'snowman' },
+    { id: 'lantern', name: '灯笼小猫',  rarity: '稀有', skin: 'lantern' },
+    { id: 'sakura',  name: '樱花小猫',  rarity: '超稀有', skin: 'sakura' }
+  ];
+  const KEY = 'xiaod-pixel-cat-collection-v1';
+  let owned = {};
+  try { owned = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { owned = {}; }
+
+  const HAIR = '#857a99', HAIR_D = '#6f6584', SKIN = '#f6e8df',
+        EYE = '#7fe8e2', EYE_D = '#3d3550', BLUSH = '#f3b7c4',
+        WHITE = '#f4f1ff', PINK = '#f3c6d8';
+
+  function drawCat(cv, skin) {
+    const g = cv.getContext('2d');
+    const c = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+    // 身体颜色按形态挑
+    let body = WHITE, hair = HAIR, hat = null;
+    if (skin === 'pajama') { body = '#cfe2f7'; hair = HAIR; }
+    if (skin === 'rich') { body = '#3f3b4d'; }
+    if (skin === 'cape') { body = '#3a3160'; }
+    if (skin === 'winter') { body = '#f8f5ef'; }
+    if (skin === 'snowman') { body = '#f4f9ff'; hair = '#eef5fc'; }
+    if (skin === 'lantern') { body = '#f4f1ff'; }
+    if (skin === 'sakura') { body = '#fdeef4'; }
+
+    // 斗篷/披风（先画在身体后面）
+    if (skin === 'cape') {
+      c(6, 20, 20, 9, '#4a4070');
+      c(8, 28, 16, 2, '#3a3160');
+    }
+    if (skin === 'lantern') {
+      // 光晕一圈小点
+      for (let i = 0; i < 8; i++) {
+        const a = i / 8 * Math.PI * 2;
+        c(16 + Math.cos(a) * 13, 17 + Math.sin(a) * 11, 1, 1, '#8ef0ea');
+      }
+    }
+
+    // 尾巴
+    c(23, 23, 3, 2, hair);
+    c(25, 21, 2, 3, hair);
+    c(24, 19, 2, 2, hair);
+
+    // 身体
+    c(11, 21, 10, 7, body);
+    if (skin === 'sailor') { c(11, 21, 10, 2, '#3c4a74'); c(15, 23, 2, 2, '#e8788f'); }
+    if (skin === 'rich') { c(11, 24, 10, 1, '#111018'); c(12, 25, 8, 3, '#2b2838'); }
+    if (skin === 'pajama') {
+      c(13, 22, 1, 6, '#a9c7e8'); c(17, 22, 1, 6, '#a9c7e8');
+    }
+    if (skin === 'winter') { c(11, 23, 10, 4, '#eff4fb'); c(11, 26, 10, 2, '#e5ecf6'); }
+    if (skin === 'snowman') { c(11, 21, 10, 7, '#ffffff'); c(11, 21, 10, 2, '#eef5fc'); }
+
+    // 腿
+    c(12, 28, 2, 2, '#2b2a3a');
+    c(18, 28, 2, 2, '#2b2a3a');
+
+    // 头
+    c(8, 9, 16, 13, hair);
+    // 耳朵
+    c(8, 6, 3, 4, hair); c(10, 8, 1, 2, hair);
+    c(21, 6, 3, 4, hair); c(21, 8, 1, 2, hair);
+    c(9, 7, 1, 2, PINK); c(22, 7, 1, 2, PINK);
+    // 脸
+    c(9, 12, 14, 9, SKIN);
+    // 眼睛
+    c(12, 14, 2, 2, EYE_D); c(12, 14, 1, 1, EYE);
+    c(18, 14, 2, 2, EYE_D); c(19, 14, 1, 1, EYE);
+    // 腮红 + 嘴
+    c(10, 17, 2, 1, BLUSH); c(20, 17, 2, 1, BLUSH);
+    c(15, 18, 2, 1, '#c96b7a');
+
+    // 各形态的小装饰
+    if (skin === 'normal') {
+      c(7, 12, 2, 3, PINK); c(23, 12, 2, 3, PINK);
+    }
+    if (skin === 'sailor') {
+      c(9, 4, 14, 3, WHITE);             // 帽子
+      c(9, 6, 14, 1, '#3c4a74');
+      c(10, 3, 12, 1, '#e8eef8');
+    }
+    if (skin === 'rich') {
+      for (let i = 0; i < 5; i++) c(8 + i * 4, 8, 1, 1, '#fdf6ff');   // 珍珠链
+      c(7, 6, 1, 2, WHITE); c(24, 6, 1, 2, WHITE);
+    }
+    if (skin === 'pajama') {
+      c(7, 5, 18, 4, '#9fc2ea');         // 猫猫帽
+      c(7, 9, 18, 2, '#ffffff');         // 毛绒边
+      c(6, 4, 3, 3, '#9fc2ea'); c(23, 4, 3, 3, '#9fc2ea');
+      c(8, 5, 2, 2, PINK); c(22, 5, 2, 2, PINK);
+    }
+    if (skin === 'cape') {
+      c(6, 6, 20, 4, '#4a4070');         // 兜帽
+      c(6, 10, 20, 3, '#3a3160');
+      c(19, 12, 1, 2, '#ffd479');        // 星扣
+      c(15, 6, 1, 1, '#cfe4ff');
+    }
+    if (skin === 'winter') {
+      c(8, 19, 16, 2, '#dbe4f0');        // 围巾
+      c(20, 21, 2, 3, '#dbe4f0');
+      c(9, 5, 14, 3, '#f8f5ef');         // 毛线帽
+      c(9, 8, 14, 2, '#e5ecf6');
+      c(15, 3, 3, 3, '#ffffff');
+    }
+    if (skin === 'snowman') {
+      c(9, 12, 14, 9, '#ffffff');
+      c(12, 14, 2, 2, '#4b4262'); c(18, 14, 2, 2, '#4b4262');
+      c(15, 17, 3, 1, '#e8a06a');        // 胡萝卜鼻
+      c(8, 20, 16, 2, PINK);             // 围巾
+      c(6, 21, 4, 1, '#6b5a52'); c(22, 21, 4, 1, '#6b5a52');  // 树枝手
+    }
+    if (skin === 'lantern') {
+      c(14, 2, 4, 3, '#7fe8e2');         // 头顶小灯
+      c(15, 5, 2, 1, '#8494ae');
+    }
+    if (skin === 'sakura') {
+      c(6, 4, 2, 2, PINK); c(24, 8, 2, 2, PINK);
+      c(4, 12, 2, 2, PINK); c(26, 15, 2, 2, '#f7dbe6');
+      c(7, 10, 2, 2, '#f7dbe6');
+    }
+
+    // 常服额外一撮刘海高光
+    c(13, 10, 3, 1, '#a99fc0');
+  }
+
+  const grid = document.getElementById('grid');
+  const nEl = document.getElementById('n');
+  const doneEl = document.getElementById('done');
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(owned)); } catch (e) {} }
+  function refresh() {
+    const n = Object.keys(owned).length;
+    nEl.textContent = n;
+    doneEl.classList.toggle('show', n >= CATS.length);
+  }
+
+  CATS.forEach((cat, i) => {
+    const card = document.createElement('div');
+    card.className = 'card' + (owned[cat.id] ? ' owned' : '');
+    const cv = document.createElement('canvas');
+    cv.width = 32; cv.height = 32;
+    drawCat(cv, cat.skin);
+    const got = document.createElement('span');
+    got.className = 'got'; got.textContent = '★';
+    const name = document.createElement('div');
+    name.className = 'name'; name.textContent = cat.name;
+    const rar = document.createElement('div');
+    rar.className = 'rarity'; rar.textContent = cat.rarity;
+    card.appendChild(got); card.appendChild(cv);
+    card.appendChild(name); card.appendChild(rar);
+    card.addEventListener('click', (ev) => {
+      if (!owned[cat.id]) {
+        owned[cat.id] = true;
+        save();
+        card.classList.add('owned');
+        for (let k = 0; k < 2; k++) {
+          setTimeout(() => {
+            const h = document.createElement('div');
+            h.className = 'heart';
+            h.textContent = k === 0 ? '💗' : '✨';
+            h.style.left = (ev.clientX + (k ? 24 : -20)) + 'px';
+            h.style.top = (ev.clientY - 16) + 'px';
+            document.body.appendChild(h);
+            setTimeout(() => h.remove(), 1400);
+          }, k * 100);
+        }
+      }
+      refresh();
+    });
+    grid.appendChild(card);
+  });
+
+  document.getElementById('reset').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    owned = {};
+    save();
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('owned'));
+    refresh();
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>
