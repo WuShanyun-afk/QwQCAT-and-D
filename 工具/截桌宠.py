@@ -97,10 +97,13 @@ def grab_window(hwnd, w, h):
 
 
 def edge_report(im):
-    """非透明(=非纯黑) 且 四邻域有透明的像素 = 轮廓边缘，量它们的亮度
+    """非透明(=非纯黑) 且 四邻域有透明的像素 = 轮廓边缘，量它们「白不白」
 
-    注意：桌宠正在说话时，白色的气泡也会被算成「边缘」——那 593 个亮像素是气泡不是白边。
-    所以额外统计一下亮像素是不是都挤在上半部分（气泡区），用来自动区分。
+    白边 = 又亮又没颜色（接近灰/白）。所以只看「亮度 > 200 且 RGB 三通道差 ≤ 25」的
+    像素 —— 这样金色的天线灯、黄色的星星挂饰（很亮但很黄）不会被误判成白边。
+
+    另外桌宠正在说话时，白色气泡也会被算成「边缘」，所以额外统计这些偏白像素
+    是不是都挤在上半部分（气泡区），用来自动区分。
     """
     px = im.load()
     w, h = im.size
@@ -118,11 +121,11 @@ def edge_report(im):
                     rr, gg, bb = px[nx, ny]
                     if 0.299 * rr + 0.587 * gg + 0.114 * bb <= 8:
                         total += 1
-                        if lum > 200:
+                        if lum > 200 and (max(r, g, b) - min(r, g, b)) <= 25:
                             bright += 1
                             if y < 110:       # 气泡基本只出现在窗口最上面这一带
                                 bright_top += 1
-                        worst = max(worst, lum)
+                            worst = max(worst, lum)
                         break
     return total, bright, bright_top, worst
 
@@ -148,11 +151,11 @@ def main():
     ok, im = grab_window(hwnd, w, h)
     total, bright, bright_top, worst = edge_report(im)
     print("PrintWindow: %s" % ("ok" if ok else "失败"))
-    print("轮廓边缘像素: %d 个；最亮 %.0f/255；亮度>200 的: %d 个（其中 %d 个在上方气泡区）"
+    print("轮廓边缘像素: %d 个；最亮的偏白像素 %.0f/255；偏白像素: %d 个（其中 %d 个在上方气泡区）"
           % (total, worst, bright, bright_top))
-    if bright == 0 or worst <= 205:
-        verdict = "没有白边（边缘是深色描边）"
-    elif bright > 0 and bright_top >= bright * 0.8:
+    if bright < 20:
+        verdict = "没有白边（边缘是深色描边；个别偏白像素是珍珠/高光之类的装饰，只有几十个以上才可能是白边）"
+    elif bright_top >= bright * 0.8:
         verdict = "检测到的是正在说话的白色气泡，不是白边（等气泡消失再跑一次就干净了）"
     else:
         verdict = "有一圈白边，要查素材"
