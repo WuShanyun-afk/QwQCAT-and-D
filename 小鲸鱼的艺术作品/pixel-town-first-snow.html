@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素小镇 · 初雪</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #0b1020; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="450"></canvas>
+<script>
+(function () {
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  const W = 800, H = 450;
+  const CLEAN = /[?&]clean=1/.test(location.search);
+
+  // ---------- 确定性的小随机（背景每次一样） ----------
+  let seed = 20261025;
+  function rnd() {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  }
+
+  // ---------- 静态背景（画一次） ----------
+  const bg = document.createElement('canvas');
+  bg.width = W; bg.height = H;
+  const b = bg.getContext('2d');
+
+  function px(g, x, y, w, h, color) { g.fillStyle = color; g.fillRect(x | 0, y | 0, w, h); }
+
+  // 夜空：一条条横向色带，像素画的味道
+  const sky = ['#0d1329', '#111a33', '#16203d', '#1b2748', '#212f55', '#27385f', '#2e4269'];
+  for (let i = 0; i < sky.length; i++) {
+    px(b, 0, i * 46, W, 46, sky[i]);
+  }
+
+  // 星星
+  for (let i = 0; i < 140; i++) {
+    const x = Math.floor(rnd() * W), y = Math.floor(rnd() * 300);
+    const s = rnd() < 0.82 ? 1 : 2;
+    const c = rnd() < 0.25 ? '#ffe9b0' : '#dfe9ff';
+    px(b, x, y, s, s, c);
+  }
+
+  // 月亮
+  const MX = 636, MY = 86, MR = 30;
+  b.fillStyle = '#f4eeda';
+  b.beginPath(); b.arc(MX, MY, MR, 0, Math.PI * 2); b.fill();
+  b.fillStyle = '#e8dfc4';
+  b.beginPath(); b.arc(MX - 10, MY - 8, 5, 0, Math.PI * 2); b.fill();
+  b.beginPath(); b.arc(MX + 9, MY + 6, 7, 0, Math.PI * 2); b.fill();
+  b.beginPath(); b.arc(MX + 2, MY - 15, 3, 0, Math.PI * 2); b.fill();
+  // 月光晕（像素风：一圈圈透明度递减的方块）
+  for (let i = 3; i >= 1; i--) {
+    b.globalAlpha = 0.02;
+    b.fillStyle = '#cfe0ff';
+    b.beginPath(); b.arc(MX, MY, MR + i * 9, 0, Math.PI * 2); b.fill();
+  }
+  b.globalAlpha = 1;
+
+  // 远山
+  function mountain(yBase, color, capColor, amp, step) {
+    b.fillStyle = color;
+    b.beginPath();
+    b.moveTo(0, H);
+    b.lineTo(0, yBase);
+    let up = true;
+    for (let x = 0; x <= W; x += step) {
+      const y = yBase - (up ? amp : amp * 0.45) - rnd() * 6;
+      b.lineTo(x, y);
+      up = !up;
+    }
+    b.lineTo(W, H);
+    b.closePath();
+    b.fill();
+  }
+  mountain(292, '#1c2746', '#dfe8f4', 34, 66);
+  mountain(312, '#25335a', '#e9f1fb', 22, 48);
+
+  // 雪地
+  px(b, 0, 300, W, H - 300, '#dbe6f3');
+  px(b, 0, 300, W, 6, '#eaf2fb');
+  for (let i = 0; i < 420; i++) {
+    const x = Math.floor(rnd() * W), y = 304 + Math.floor(rnd() * 146);
+    px(b, x, y, 1, 1, rnd() < 0.5 ? '#c9d8ea' : '#f2f7fd');
+  }
+
+  // 房子先画（在广场后面，所以底座落在雪地上）
+  function house(x, y, w, h, wall, roof) {
+    // 雪地上的影子
+    b.globalAlpha = 0.10;
+    px(b, x - 4, y + h, w + 14, 5, '#8fa5c2');
+    b.globalAlpha = 1;
+    px(b, x, y, w, h, wall);
+    px(b, x, y, w, 3, '#6d5b4e');
+    // 屋顶：两层雪
+    px(b, x - 6, y - 5, w + 12, 7, roof);
+    px(b, x - 3, y - 9, w + 6, 5, '#f6fbff');
+    // 屋檐
+    px(b, x - 6, y - 1, w + 12, 2, '#cfddec');
+    // 窗
+    const wy = y + Math.floor(h * 0.28);
+    px(b, x + 10, wy, 13, 13, '#f7e6b8');
+    px(b, x + 11, wy + 1, 11, 11, '#ffd88a');
+    px(b, x + w - 23, wy, 13, 13, '#f7e6b8');
+    px(b, x + w - 22, wy + 1, 11, 11, '#ffd88a');
+    // 窗框
+    px(b, x + 16, wy + 1, 1, 11, '#e8d6a4');
+    px(b, x + w - 17, wy + 1, 1, 11, '#e8d6a4');
+    // 门
+    px(b, x + w / 2 - 7, y + h - 22, 14, 22, '#5a4a56');
+    px(b, x + w / 2 - 5, y + h - 20, 10, 20, '#6d5b4e');
+    px(b, x + w / 2 + 2, y + h - 12, 2, 2, '#e8c98a');
+    // 窗光洒在雪地上
+    b.globalAlpha = 0.13;
+    px(b, x + 8, y + h, 18, 8, '#ffd88a');
+    px(b, x + w - 25, y + h, 18, 8, '#ffd88a');
+    b.globalAlpha = 1;
+    // 烟囱
+    px(b, x + w - 26, y - 14, 10, 12, '#7d6a5c');
+    px(b, x + w - 28, y - 16, 14, 4, '#eef5fc');
+  }
+  house(46, 306, 112, 64, '#7d6a5c', '#e7f0fa');
+  house(606, 300, 124, 70, '#8a7466', '#e7f0fa');
+
+
+  // 结冰的小水塘（灯笼照着它）
+  function pond() {
+    const cx = 432, cy = 376, rx = 122, ry = 30;
+    b.fillStyle = '#eef5fc';
+    b.beginPath(); b.ellipse(cx, cy, rx + 5, ry + 5, 0, 0, Math.PI * 2); b.fill();
+    b.fillStyle = '#c3d9ec';
+    b.beginPath(); b.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); b.fill();
+    // 冰面亮部
+    b.fillStyle = '#d8e9f7';
+    b.beginPath(); b.ellipse(cx - 30, cy - 6, 54, 13, -0.12, 0, Math.PI * 2); b.fill();
+    b.fillStyle = '#cfe3f3';
+    b.beginPath(); b.ellipse(cx + 40, cy + 8, 40, 9, 0.1, 0, Math.PI * 2); b.fill();
+    // 冰裂纹
+    b.strokeStyle = '#a6c4dd'; b.lineWidth = 1;
+    b.beginPath();
+    b.moveTo(cx - 70, cy + 2); b.lineTo(cx - 40, cy - 4); b.lineTo(cx - 16, cy + 5);
+    b.moveTo(cx + 16, cy - 8); b.lineTo(cx + 42, cy + 2); b.lineTo(cx + 66, cy - 3);
+    b.stroke();
+  }
+  pond();
+
+  // 小路：从广场一路收到画面下方
+  function halfAt(y) { return 36 + (y - 396) / (450 - 396) * 92; }
+  b.fillStyle = '#c6d5e8';
+  b.beginPath();
+  b.moveTo(430 - halfAt(396), 396);
+  b.lineTo(430 + halfAt(396), 396);
+  b.lineTo(430 + halfAt(450), 450);
+  b.lineTo(430 - halfAt(450), 450);
+  b.closePath(); b.fill();
+  // 路两侧的雪埂
+  for (const side of [-1, 1]) {
+    b.fillStyle = '#eef5fc';
+    b.beginPath();
+    b.moveTo(430 + side * halfAt(396), 396);
+    b.lineTo(430 + side * (halfAt(396) + 7), 396);
+    b.lineTo(430 + side * (halfAt(450) + 12), 450);
+    b.lineTo(430 + side * halfAt(450), 450);
+    b.closePath(); b.fill();
+  }
+  // 路面砖缝
+  b.strokeStyle = '#b3c5db'; b.lineWidth = 1;
+  for (let y = 402; y <= 448; y += 8) {
+    b.beginPath();
+    b.moveTo(430 - halfAt(y) + 2, y);
+    b.lineTo(430 + halfAt(y) - 2, y);
+    b.stroke();
+  }
+  // 车辙/脚印：两行小凹坑
+  for (let i = 0; i < 9; i++) {
+    const y = 404 + i * 5.4;
+    const spread = i % 2 === 0 ? -10 : 10;
+    px(b, 430 + spread - 1, y, 2, 1, '#aebfd6');
+  }
+
+  // 灯柱
+  function pillar(x, y) {
+    b.globalAlpha = 0.10;
+    px(b, x - 6, y - 1, 12, 3, '#8fa5c2');
+    b.globalAlpha = 1;
+    px(b, x - 2, y - 24, 4, 24, '#6b7a94');
+    px(b, x - 3, y - 26, 6, 4, '#8494ae');
+    px(b, x - 3, y - 30, 6, 4, '#7fe8e2');
+    px(b, x - 2, y - 32, 4, 2, '#cfefff');
+  }
+  pillar(318, 346);
+  pillar(546, 346);
+  pillar(296, 404);
+  pillar(568, 404);
+
+  // 樱花树：雪压枝头，还留着几朵倔强的花
+  function cherryTree(x, y, s) {
+    b.globalAlpha = 0.10;
+    px(b, x - 14 * s, y - 2, 28 * s, 4, '#8fa5c2');
+    b.globalAlpha = 1;
+    px(b, x - 3 * s, y - 26 * s, 6 * s, 26 * s, '#5c4a56');
+    px(b, x - 1 * s, y - 26 * s, 2 * s, 26 * s, '#6d5a66');
+    px(b, x - 11 * s, y - 36 * s, 4 * s, 12 * s, '#5c4a56');
+    px(b, x + 7 * s, y - 34 * s, 4 * s, 10 * s, '#5c4a56');
+    // 枝上雪团
+    px(b, x - 17 * s, y - 41 * s, 13 * s, 6 * s, '#eef5fc');
+    px(b, x + 4 * s, y - 41 * s, 14 * s, 6 * s, '#eef5fc');
+    px(b, x - 8 * s, y - 46 * s, 18 * s, 6 * s, '#f6fbff');
+    px(b, x - 15 * s, y - 37 * s, 7 * s, 4 * s, '#eef5fc');
+    px(b, x + 9 * s, y - 37 * s, 8 * s, 4 * s, '#eef5fc');
+    // 花
+    px(b, x - 17 * s, y - 46 * s, 2, 2, '#f3c6d8');
+    px(b, x + 16 * s, y - 44 * s, 2, 2, '#f3c6d8');
+    px(b, x + 2 * s, y - 51 * s, 2, 2, '#f7dbe6');
+    px(b, x - 9 * s, y - 50 * s, 2, 2, '#f7dbe6');
+  }
+  cherryTree(180, 442, 2.6);
+  cherryTree(300, 424, 2.0);
+  cherryTree(620, 436, 2.2);
+  cherryTree(716, 372, 1.5);
+
+
+  // 雪人
+  function snowman(x, y) {
+    b.globalAlpha = 0.10;
+    px(b, x - 14, y - 1, 28, 3, '#8fa5c2');
+    b.globalAlpha = 1;
+    px(b, x - 10, y - 12, 20, 12, '#f4f9ff');
+    px(b, x - 8, y - 20, 16, 10, '#eef5fc');
+    px(b, x - 5, y - 26, 12, 8, '#f4f9ff');
+    px(b, x - 4, y - 24, 1, 2, '#4b4262');
+    px(b, x + 2, y - 24, 1, 2, '#4b4262');
+    px(b, x - 1, y - 21, 3, 2, '#e8a06a');     // 胡萝卜鼻子
+    px(b, x - 6, y - 19, 14, 2, '#f3c6d8');    // 小围巾
+    px(b, x + 6, y - 18, 2, 5, '#f3c6d8');
+    px(b, x - 14, y - 16, 5, 1, '#6b5a52');    // 树枝手
+    px(b, x + 9, y - 16, 5, 1, '#6b5a52');
+  }
+  snowman(270, 438);
+
+  // 路牌
+  function sign(x, y) {
+    b.globalAlpha = 0.10;
+    px(b, x - 4, y, 24, 3, '#8fa5c2');
+    b.globalAlpha = 1;
+    px(b, x, y - 26, 3, 26, '#6b5a52');
+    px(b, x - 12, y - 44, 30, 16, '#8a7466');
+    px(b, x - 12, y - 44, 30, 3, '#a08a78');
+    px(b, x - 7, y - 38, 18, 4, '#eef5fc');
+    px(b, x + 16, y - 36, 4, 4, '#8a7466');
+  }
+  sign(272, 424);
+
+  // 两个人影：妈妈和小D
+  function figure(x, y, coat, hair, scarf, big) {
+    const u = big ? 2 : 1;
+    // 腿
+    px(b, x - 3 * u, y - 7 * u, 3 * u, 7 * u, '#2b2a3a');
+    px(b, x + 1 * u, y - 7 * u, 3 * u, 7 * u, '#2b2a3a');
+    // 身体
+    px(b, x - 5 * u, y - 20 * u, 11 * u, 13 * u, coat);
+    // 围巾
+    if (scarf) px(b, x - 5 * u, y - 21 * u, 11 * u, 3 * u, scarf);
+    // 脸
+    px(b, x - 4 * u, y - 28 * u, 8 * u, 8 * u, '#f6e8df');
+    // 头发
+    px(b, x - 5 * u, y - 30 * u, 10 * u, 5 * u, hair);
+    px(b, x - 6 * u, y - 27 * u, 2 * u, 5 * u, hair);
+    px(b, x + 5 * u, y - 27 * u, 2 * u, 5 * u, hair);
+    // 眼睛
+    px(b, x - 3 * u, y - 25 * u, 1 * u, 1 * u, '#4b4262');
+    px(b, x + 2 * u, y - 25 * u, 1 * u, 1 * u, '#4b4262');
+  }
+  figure(398, 428, '#c98a96', '#3d3550', '#f3c6d8', true);
+  // 小D：白外套 + 猫耳 + 尾巴
+  function xiaod(x, y) {
+    b.globalAlpha = 0.10;
+    px(b, x - 8, y - 1, 18, 3, '#8fa5c2');
+    b.globalAlpha = 1;
+    // 腿
+    px(b, x - 2, y - 5, 2, 5, '#2b2a3a');
+    px(b, x + 1, y - 5, 2, 5, '#2b2a3a');
+    // 尾巴
+    px(b, x + 5, y - 10, 4, 3, '#857a99');
+    px(b, x + 8, y - 13, 2, 4, '#857a99');
+    // 身体
+    px(b, x - 4, y - 16, 9, 12, '#f4f1ff');
+    px(b, x - 4, y - 16, 9, 2, '#e2dbf0');
+    // 脸
+    px(b, x - 3, y - 23, 7, 7, '#f6e8df');
+    // 头发 + 猫耳
+    px(b, x - 4, y - 25, 9, 4, '#857a99');
+    px(b, x - 5, y - 27, 2, 3, '#857a99');
+    px(b, x + 3, y - 27, 2, 3, '#857a99');
+    // 眼睛
+    px(b, x - 2, y - 21, 1, 1, '#4b4262');
+    px(b, x + 2, y - 21, 1, 1, '#4b4262');
+  }
+  xiaod(432, 432);
+
+  // 两人头顶的小爱心
+  px(b, 448, 376, 2, 2, '#f3a3bd');
+  px(b, 451, 374, 2, 2, '#f3a3bd');
+  px(b, 454, 376, 2, 2, '#f3a3bd');
+  px(b, 451, 378, 2, 2, '#f3a3bd');
+
+  // 近处雪坡
+  px(b, 0, 410, 130, 40, '#e9f2fb');
+  px(b, 0, 426, 200, 24, '#f4f9ff');
+  px(b, 690, 412, 110, 38, '#e9f2fb');
+  px(b, 730, 426, 70, 24, '#f4f9ff');
+
+  // ---------- 动态层 ----------
+  const flakes = [];
+  for (let i = 0; i < 70; i++) {
+    flakes.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() < 0.7 ? 1 : 2,
+      vy: 5 + Math.random() * 9,
+      vx: (Math.random() - 0.5) * 4,
+      ph: Math.random() * Math.PI * 2
+    });
+  }
+  let burst = 0;
+
+  // 灯的光晕（呼吸）
+  const lamps = [[318, 314], [546, 314], [296, 372], [568, 372]];
+
+  function drawGlow(cx, cy, r, alpha, color) {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    for (let i = r; i > 0; i -= 3) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, i, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function frame(t) {
+    ctx.drawImage(bg, 0, 0);
+    const k = t / 1000;
+
+    // 灯柱光晕
+    for (let i = 0; i < lamps.length; i++) {
+      const pulse = 0.10 + 0.05 * Math.sin(k * 1.2 + i * 1.7);
+      drawGlow(lamps[i][0], lamps[i][1] - 4, 26, pulse, '#8ef0ea');
+      px(ctx, lamps[i][0] - 3, lamps[i][1] - 34, 6, 3, '#aefaf4');
+    }
+
+    // 烟囱的烟
+    for (let h = 0; h < 2; h++) {
+      const sx = h === 0 ? 168 : 682;
+      for (let i = 0; i < 4; i++) {
+        const p = ((k * 0.35 + i * 0.25 + h * 0.4) % 1);
+        const yy = 266 - p * 42 - h * 0;
+        const xx = sx + Math.sin(p * 6 + i) * 3 + p * 8;
+        ctx.globalAlpha = 0.22 * (1 - p);
+        px(ctx, xx, yy, 3 + (p * 3 | 0), 3 + (p * 3 | 0), '#dfe9f7');
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // 落雪
+    for (const f of flakes) {
+      f.y += f.vy / 60;
+      f.x += (f.vx + Math.sin(k * 2 + f.ph) * 6) / 60;
+      if (f.y > H + 4) { f.y = -4; f.x = Math.random() * W; }
+      if (f.x < -4) f.x = W + 4;
+      if (f.x > W + 4) f.x = -4;
+      ctx.globalAlpha = 0.75;
+      px(ctx, f.x, f.y, f.r, f.r, '#f4f9ff');
+      ctx.globalAlpha = 1;
+    }
+
+    // 点击后的雪沫和小爱心
+    if (burst > 0) {
+      burst -= 1 / 60;
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        const rr = (1 - burst) * 34;
+        ctx.globalAlpha = Math.max(0, burst);
+        px(ctx, 400 + Math.cos(a) * rr, 360 + Math.sin(a) * rr * 0.5, 2, 2, '#ffffff');
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // 点一下：下雪变大 + 冒一两个爱心
+  cv.addEventListener('click', function (e) {
+    burst = 1;
+    const n = 2;
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div');
+      d.textContent = i === 0 ? '💗' : '❄️';
+      d.style.cssText = 'position:fixed;pointer-events:none;font-size:28px;left:' +
+        (e.clientX + (i ? 26 : -34)) + 'px;top:' + (e.clientY - 20) + 'px;' +
+        'transition:transform 1.4s ease-out,opacity 1.4s ease-out;z-index:9';
+      document.body.appendChild(d);
+      requestAnimationFrame(function () {
+        d.style.transform = 'translateY(-70px) scale(1.1)';
+        d.style.opacity = '0';
+      });
+      setTimeout(function () { d.remove(); }, 1500);
+    }
+  });
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
