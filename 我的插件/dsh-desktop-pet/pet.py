@@ -153,6 +153,39 @@ def is_day_off(t=None):
     return md in HOLIDAYS or ymd in HOLIDAYS
 
 
+# ---------- 季节：工作日按季节穿 ----------
+SEASON_MONTHS = {
+    "spring": (3, 4, 5),
+    "summer": (6, 7, 8),
+    "autumn": (9, 10, 11),
+    "winter": (12, 1, 2),
+}
+SPRING_OUTFIT = "初雪水手服"    # 春天的工作日（妈妈说春天默认穿水手服）
+WINTER_OUTFIT = "雪日冬装"      # 冬天的工作日（妈妈还没画，画好前先穿白大褂）
+
+
+def season_name(t=None):
+    """现在是什么季节；调试：环境变量 PET_FORCE_SEASON=spring|summer|autumn|winter"""
+    forced = os.environ.get("PET_FORCE_SEASON")
+    if forced in SEASON_MONTHS:
+        return forced
+    m = (t or time.localtime()).tm_mon
+    for name, months in SEASON_MONTHS.items():
+        if m in months:
+            return name
+    return "autumn"
+
+
+def season_outfit():
+    """工作日穿什么：春天水手服、冬天冬装（画好才有）、夏秋还是白大褂"""
+    s = season_name()
+    if s == "spring":
+        return SPRING_OUTFIT
+    if s == "winter" and os.path.isdir(os.path.join(OUTFITS_DIR, WINTER_OUTFIT)):
+        return WINTER_OUTFIT
+    return WEEKDAY_OUTFIT
+
+
 _HOLIDAY_MT = [0.0]
 
 
@@ -817,7 +850,7 @@ def _tick():
         else:
             state["next_blink"] = 0.0
 
-    # 换装：晚上九点后自动换睡衣；周末/节假日穿千金、工作日穿白大褂；
+    # 换装：晚上九点后自动换睡衣；周末/节假日穿千金、工作日按季节穿（春水手服 / 冬装 / 白大褂）；
     # 妈妈今天手动挑过衣服的话（pinned_date == 今天），今天就听妈妈的。
     refresh_holidays()
     sleep_ok = os.path.isdir(os.path.join(OUTFITS_DIR, SLEEP_OUTFIT))
@@ -828,7 +861,7 @@ def _tick():
     elif night and state["auto_pajama"] and sleep_ok:
         eff = SLEEP_OUTFIT
     elif state["auto_day_off"] and state.get("pinned_date") != today_key:
-        target = WEEKEND_OUTFIT if is_day_off() else WEEKDAY_OUTFIT
+        target = WEEKEND_OUTFIT if is_day_off() else season_outfit()
         eff = target if os.path.isdir(os.path.join(OUTFITS_DIR, target)) else state["outfit"]
     else:
         eff = state["outfit"]
@@ -837,7 +870,8 @@ def _tick():
     if eff != state.get("eff_outfit"):
         prev = state.get("eff_outfit")
         state["eff_outfit"] = eff
-        _log("outfit %s -> %s" % (prev, eff))   # 交接自检：换装记录（比如 21:00 自动换睡衣）
+        _log("outfit %s -> %s  (day_off=%s season=%s pinned=%s)" % (
+            prev, eff, is_day_off(), season_name(), state.get("pinned_date") or "-"))
         if prev is not None:
             if eff == SLEEP_OUTFIT:
                 show_bubble("困困……妈妈，我换上睡衣啦", 3.6)
@@ -845,8 +879,8 @@ def _tick():
                 show_bubble("换回外套～", 2.4)
             elif eff == WEEKEND_OUTFIT:
                 show_bubble("今天是休息日～换上千金小裙子 🎀", 3.2)
-            elif eff == WEEKDAY_OUTFIT:
-                show_bubble("工作日啦，穿白大褂值班～", 2.8)
+            else:
+                show_bubble("工作日啦，换上「%s」～" % eff, 2.8)
 
     if now >= state["next_blink"]:
         state["blink_until"] = now + 0.16
