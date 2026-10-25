@@ -416,6 +416,7 @@ state = {
     "glasses": cfg.get("glasses"),
     # 赛博动物园（和虎鲸桌宠打招呼）
     "zoo_t": 0, "zoo_n": 0, "zoo_seen": 0, "zoo_next_hello": 0.0, "zoo_here": False,
+    "zoo_orca": None, "zoo_splash_at": 0.0, "zoo_was_near": False,
 }
 
 IMAGE_Y = WIN_H - 6 + MARGIN
@@ -607,7 +608,11 @@ def zoo_event(kind):
 
 
 def _zoo_tick(now):
-    """每帧调一次：报自己的位置、看虎鲸在不在旁边、回应它的小动作。"""
+    """每帧调一次：报自己的位置、看虎鲸在不在旁边、回应它的小动作。
+
+    文件读写都做了限流：位置 ~0.5 秒写一次、虎鲸坐标 ~0.17 秒读一次，
+    不是每帧都碰硬盘。
+    """
     state["zoo_t"] = state.get("zoo_t", 0) + 1
     if state["zoo_t"] % 15 == 0:                   # 约 0.5 秒报一次
         _zoo_write(ZOO_ME, {"who": "xiaod",
@@ -616,16 +621,27 @@ def _zoo_tick(now):
                             "w": WIN_W, "h": WIN_H, "ts": now,
                             "sleep": bool(state["sleeping"])})
 
+    if state["zoo_t"] % 5 == 0:                    # 约 0.17 秒读一次
+        state["zoo_orca"] = _zoo_read(ZOO_ORCA)
+        ev = _zoo_read(ZOO_ORCA_EVT, max_age=12.0)
+        if ev and int(ev.get("n", 0)) != state.get("zoo_seen", 0):
+            state["zoo_seen"] = int(ev.get("n", 0))
+            if ev.get("type") == "splash":
+                state["zoo_splash_at"] = now
+
+    orca = state.get("zoo_orca")
     near = None
-    orca = _zoo_read(ZOO_ORCA)
-    if orca:
+    if orca and orca.get("zoo", True):             # 虎鲸把「串门」关掉了就别理它
         dx = float(orca.get("x", 0)) - (state["x"] + WIN_W / 2.0)
         dy = float(orca.get("y", 0)) - (state["y"] + WIN_H / 2.0)
         if math.hypot(dx, dy) < ZOO_NEAR:
             near = (dx, dy)
     state["zoo_here"] = near is not None
+    was_near = state.get("zoo_was_near", False)
+    state["zoo_was_near"] = near is not None
 
-    if near and not state["sleeping"] and now >= state.get("zoo_next_hello", 0):
+    if (near and not was_near and not state["sleeping"]
+            and now >= state.get("zoo_next_hello", 0)):
         state["zoo_next_hello"] = now + ZOO_HELLO_COOL
         show_bubble(random.choice(["鲸鱼！！", "虎鲸游过来啦", "嘿～大鲸鱼",
                                    "我的鲸鱼朋友来了"]), 3.0)
@@ -633,17 +649,17 @@ def _zoo_tick(now):
         play_squeak()
         zoo_event("hello")
         _log("zoo hello")
-    elif near and not state["dragging"] and abs(near[0]) > 40:
+    elif (near and state["mode"] != "follow" and not state["dragging"]
+            and abs(near[0]) > 40):
         state["face"] = near[0] < 0                # 转过头看它
 
-    ev = _zoo_read(ZOO_ORCA_EVT, max_age=12.0)
-    if ev and int(ev.get("n", 0)) != state.get("zoo_seen", 0):
-        state["zoo_seen"] = int(ev.get("n", 0))
-        if ev.get("type") == "splash" and near:
-            show_bubble(random.choice(["呀！溅到水了", "凉凉的！",
-                                       "鲸鱼别喷我～"]), 2.8)
-            spawn_pop()
-            _log("zoo splash")
+    splash_at = state.get("zoo_splash_at") or 0.0
+    if splash_at and now - splash_at < 3.0 and near:
+        state["zoo_splash_at"] = 0.0
+        show_bubble(random.choice(["呀！溅到水了", "凉凉的！",
+                                   "鲸鱼别喷我～"]), 2.8)
+        spawn_pop()
+        _log("zoo splash")
 
 
 def do_pat():
