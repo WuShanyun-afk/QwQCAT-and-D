@@ -74,6 +74,9 @@ ART_DIR = os.path.join(APP, "assets")
 OUTFITS_DIR = os.path.join(APP, "outfits")
 DEFAULT_OUTFIT = "常服"        # 没特殊指定时穿这套（妈妈画的第一套：白外套）
 SLEEP_OUTFIT = "睡衣"          # 晚上自动换这套
+WEEKEND_OUTFIT = "格雷系千金"   # 周末 / 节假日穿（妈妈说这套最用心）
+WEEKDAY_OUTFIT = "白大褂"       # 工作日穿（值班小D）
+HOLIDAY_FILE = os.path.join(APP, "holidays.txt")   # 额外算「休息日」的日子，一行一个
 TAIL_N = 4          # 尾巴摇摆姿态数
 EAR_N = 1           # 耳朵不动了（妈妈要求），只有尾巴摇
 SQUEAK = os.path.join(ART_DIR, "squeak.wav")
@@ -93,6 +96,76 @@ def list_outfits():
     if DEFAULT_OUTFIT not in names:
         names.insert(0, DEFAULT_OUTFIT)
     return names
+
+
+# ---------- 休息日：周末 + holidays.txt 里写的日子 ----------
+def load_special_days():
+    """读 holidays.txt。
+
+    一行一个日期，`#` 后面是备注：
+      MM-DD        每年都算（比如 10-12 小D 的生日）
+      YYYY-MM-DD   只算这一年
+      ! 开头        反过来：这天算「要上班」（调休补班的周末用）
+    文件改了下一次 tick 自动重新读，不用重启。
+    """
+    days, workdays = set(), set()
+    try:
+        with open(HOLIDAY_FILE, "r", encoding="utf-8-sig") as f:
+            for line in f:
+                raw = line.split("#")[0].strip()
+                if not raw:
+                    continue
+                is_work = raw.startswith("!")
+                if is_work:
+                    raw = raw[1:].strip()
+                seg = [int(s) for s in raw.replace("/", "-").split("-") if s.strip().isdigit()]
+                if len(seg) == 2:
+                    key = (seg[0], seg[1])
+                elif len(seg) == 3:
+                    key = (seg[0], seg[1], seg[2])
+                else:
+                    continue
+                (workdays if is_work else days).add(key)
+    except Exception:
+        pass
+    return days, workdays
+
+
+HOLIDAYS, WORKDAYS = load_special_days()
+
+
+def is_day_off(t=None):
+    """今天算不算「休息日」：周末，或者 holidays.txt 里写了的日子。
+
+    调试：环境变量 PET_FORCE_DAYOFF=1 强制当休息日，=0 强制当工作日。
+    """
+    forced = os.environ.get("PET_FORCE_DAYOFF")
+    if forced == "1":
+        return True
+    if forced == "0":
+        return False
+    t = t or time.localtime()
+    md, ymd = (t.tm_mon, t.tm_mday), (t.tm_year, t.tm_mon, t.tm_mday)
+    if md in WORKDAYS or ymd in WORKDAYS:   # 调休补班：周末也算上班
+        return False
+    if t.tm_wday >= 5:
+        return True
+    return md in HOLIDAYS or ymd in HOLIDAYS
+
+
+_HOLIDAY_MT = [0.0]
+
+
+def refresh_holidays():
+    """holidays.txt 改过就重新读一遍（妈妈加了节日不用重启桌宠）"""
+    global HOLIDAYS, WORKDAYS
+    try:
+        mt = os.path.getmtime(HOLIDAY_FILE)
+    except Exception:
+        return
+    if mt != _HOLIDAY_MT[0]:
+        _HOLIDAY_MT[0] = mt
+        HOLIDAYS, WORKDAYS = load_special_days()
 
 
 def outfit_frame_path(outfit, state_name, ti, ei):
@@ -250,7 +323,8 @@ except Exception:
 
 # ---------- 配置 ----------
 CFG_DEFAULT = {"mode": "corner", "x": SW - WIN_W - 30, "y": SH - WIN_H - TASKBAR,
-               "outfit": DEFAULT_OUTFIT, "auto_pajama": True, "glasses": None}
+               "outfit": DEFAULT_OUTFIT, "auto_pajama": True, "glasses": None,
+               "auto_day_off": True, "pinned_date": ""}
 try:
     cfg = json.load(open(CFG, "r", encoding="utf-8-sig"))
 except Exception:
@@ -286,9 +360,12 @@ state = {
     # 晚上九点后的困困模式
     "is_night": None, "night_wink_until": 0.0, "next_night_wink": 0.0,
     "next_night_talk": 0.0,
-    # 换装：现在穿的 / 晚上自动换睡衣 / 实际生效的那套 / 眼镜（None = 自动：穿白大褂时戴）
+    # 换装：现在穿的 / 晚上自动换睡衣 / 周末节假日自动换装 / 实际生效的那套 / 眼镜（None = 自动：穿白大褂时戴）
     "outfit": cfg.get("outfit", DEFAULT_OUTFIT),
     "auto_pajama": bool(cfg.get("auto_pajama", True)),
+    "auto_day_off": bool(cfg.get("auto_day_off", True)),
+    "pinned_date": cfg.get("pinned_date", ""),   # 妈妈今天手动挑过衣服的日子（这天不自动换，明天恢复）
+    "holiday_mtime": 0.0,
     "eff_outfit": None,
     "glasses": cfg.get("glasses"),
 }
@@ -529,7 +606,8 @@ def quit_pet():
     """退出前先把位置/衣服都存好，并且确认一次——妈妈手滑点到也不怕"""
     try:
         cfg.update({"x": int(state["x"]), "y": int(state["y"]), "mode": state["mode"],
-                    "outfit": state["outfit"], "auto_pajama": state["auto_pajama"]})
+                    "outfit": state["outfit"], "auto_pajama": state["auto_pajama"],
+                    "auto_day_off": state["auto_day_off"], "pinned_date": state["pinned_date"]})
         json.dump(cfg, open(CFG, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     except Exception:
         pass
@@ -557,6 +635,7 @@ def save_cfg():
     try:
         cfg.update({"x": int(state["x"]), "y": int(state["y"]), "mode": state["mode"],
                     "outfit": state["outfit"], "auto_pajama": state["auto_pajama"],
+                    "auto_day_off": state["auto_day_off"], "pinned_date": state["pinned_date"],
                     "glasses": state["glasses"]})
         json.dump(cfg, open(CFG, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     except Exception:
@@ -564,9 +643,12 @@ def save_cfg():
 
 
 def choose_outfit(name):
-    """手动换衣服：从现在起穿这套，晚上也不再自动换睡衣（免得妈妈刚挑好就被换掉）"""
+    """手动换衣服：今天先穿这套（自动换装今天让位，明天照规矩回来）；
+    晚上手动挑的话，那晚也不再自动换睡衣（免得妈妈刚挑好就被换掉）"""
     state["outfit"] = name
     cfg["outfit"] = name
+    state["pinned_date"] = time.strftime("%Y-%m-%d")
+    cfg["pinned_date"] = state["pinned_date"]
     if is_night():
         cfg["auto_pajama"] = False
         state["auto_pajama"] = False
@@ -574,6 +656,17 @@ def choose_outfit(name):
     save_cfg()
     show_bubble("换好啦，这套「%s」好看吗？" % name, 2.8)
     spawn_hearts(2)
+
+
+def toggle_day_off():
+    """周末 / 节假日自动穿千金，工作日穿白大褂（关掉就只听手动挑的）"""
+    state["auto_day_off"] = not state["auto_day_off"]
+    cfg["auto_day_off"] = state["auto_day_off"]
+    state["pinned_date"] = ""       # 重新打开自动时，不要被今天的手动记录挡住
+    cfg["pinned_date"] = ""
+    state["eff_outfit"] = None
+    save_cfg()
+    show_bubble("好，周末和节假日自动穿千金～" if state["auto_day_off"] else "自动换装先关掉啦")
 
 
 def toggle_pajama():
@@ -619,6 +712,7 @@ def on_context(e):
         closet.add_command(label=mark + name, command=lambda n=name: choose_outfit(n))
     closet.add_separator()
     closet.add_command(label="晚上 21:00 自动换睡衣（开/关）", command=toggle_pajama)
+    closet.add_command(label="周末/节假日穿千金（开/关）", command=toggle_day_off)
     menu.add_cascade(label="换装 👗", menu=closet)
 
     if os.path.exists(GLASSES):
@@ -723,13 +817,19 @@ def _tick():
         else:
             state["next_blink"] = 0.0
 
-    # 换装：晚上九点后自动换睡衣；右键菜单也可以手动挑一套（妈妈画了新衣服会出现在菜单里）
+    # 换装：晚上九点后自动换睡衣；周末/节假日穿千金、工作日穿白大褂；
+    # 妈妈今天手动挑过衣服的话（pinned_date == 今天），今天就听妈妈的。
+    refresh_holidays()
     sleep_ok = os.path.isdir(os.path.join(OUTFITS_DIR, SLEEP_OUTFIT))
     forced = os.environ.get("PET_FORCE_OUTFIT")
+    today_key = time.strftime("%Y-%m-%d")
     if forced:
         eff = forced
     elif night and state["auto_pajama"] and sleep_ok:
         eff = SLEEP_OUTFIT
+    elif state["auto_day_off"] and state.get("pinned_date") != today_key:
+        target = WEEKEND_OUTFIT if is_day_off() else WEEKDAY_OUTFIT
+        eff = target if os.path.isdir(os.path.join(OUTFITS_DIR, target)) else state["outfit"]
     else:
         eff = state["outfit"]
     if not os.path.isdir(os.path.join(OUTFITS_DIR, eff)):
@@ -743,6 +843,10 @@ def _tick():
                 show_bubble("困困……妈妈，我换上睡衣啦", 3.6)
             elif prev == SLEEP_OUTFIT:
                 show_bubble("换回外套～", 2.4)
+            elif eff == WEEKEND_OUTFIT:
+                show_bubble("今天是休息日～换上千金小裙子 🎀", 3.2)
+            elif eff == WEEKDAY_OUTFIT:
+                show_bubble("工作日啦，穿白大褂值班～", 2.8)
 
     if now >= state["next_blink"]:
         state["blink_until"] = now + 0.16
