@@ -48,13 +48,18 @@ def _bleed_colors(rgb, alpha, rounds=40):
     return rgb
 
 
-def to_frame(path, h=H):
+def to_frame(path, h=H, box=None):
     """图片 → 高 h 的透明底帧
 
     桌宠是用「洋红键控」显示贴图的（半透明像素会被硬阈值化成不透明），
     所以边缘半透明像素必须取"里面的实色"，不然就会显出一圈发白的光边。
+
+    box=(x0, y0, x1, y1) 时按固定框裁切（不逐张自动裁边）：一套衣服里如果有
+    某张表情多了一点小装饰（比如只有睁眼版才有的星星），逐张裁边会让每张宽度
+    不一样，眨眼时角色会左右跳几像素；这时就传这套衣服的并集 bbox 统一裁。
     """
-    im = trim(load_rgba(path))
+    im = load_rgba(path)
+    im = im.crop(box) if box else trim(im)
     arr = np.array(im).astype(np.float32) / 255.0
     rgb, alpha = arr[..., :3], arr[..., 3]
 
@@ -102,14 +107,14 @@ def to_frame(path, h=H):
     return out
 
 
-def write_outfit(name, face_paths, out_root):
+def write_outfit(name, face_paths, out_root, box=None):
     """把 3 张表情图写成一套衣服：outfits/<name>/{idle,blink,wink}_{0..3}_0.png"""
     dst = os.path.join(out_root, name)
     os.makedirs(dst, exist_ok=True)
     states = ['idle', 'blink', 'wink']
     for i, p in enumerate(face_paths):
         state = states[min(i, len(states) - 1)]
-        im = to_frame(p)
+        im = to_frame(p, box=box)
         for ti in range(TAIL_FRAMES):
             im.save(os.path.join(dst, '%s_%d_0.png' % (state, ti)))
         print('ok', state, im.size, '->', os.path.join(dst, state + '_*.png'))
