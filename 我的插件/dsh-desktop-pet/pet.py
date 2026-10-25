@@ -329,6 +329,19 @@ LOCK = os.path.join(APP, "pet.lock")
 HEARTBEAT = os.path.join(APP, "pet.hb")
 PAUSE = os.path.join(APP, "pet.pause")
 
+# ---------- 赛博动物园：和 D:\OrcaPet 那只虎鲸互相串门 ----------
+# 两个程序不联网、不 IPC，只是各自每半秒往这个文件夹丢一个很小的 JSON：
+#   我写 xiaod.json / xiaod_evt.json，虎鲸写 orca.json / orca_evt.json，
+# 谁都能看到对方在哪、刚刚做了什么（被摸头 / 喷水 / 打招呼）。
+ZOO_DIR = os.environ.get("PET_ZOO_DIR", r"D:\OrcaPet\zoo")
+ZOO_ORCA = os.path.join(ZOO_DIR, "orca.json")
+ZOO_ORCA_EVT = os.path.join(ZOO_DIR, "orca_evt.json")
+ZOO_ME = os.path.join(ZOO_DIR, "xiaod.json")
+ZOO_ME_EVT = os.path.join(ZOO_DIR, "xiaod_evt.json")
+ZOO_NEAR = 420.0        # 两个中心点离这么近就算「碰面了」（并排时约 350）
+ZOO_FRESH = 4.0         # 对方文件超过这么多秒没更新就不算数
+ZOO_HELLO_COOL = 120.0  # 打完招呼至少隔两分钟再打一次
+
 
 def already_running():
     """已经有另一只小D 在跑吗？（lock 里的 PID 还活着就是）"""
@@ -401,6 +414,8 @@ state = {
     "holiday_mtime": 0.0,
     "eff_outfit": None,
     "glasses": cfg.get("glasses"),
+    # 赛博动物园（和虎鲸桌宠打招呼）
+    "zoo_t": 0, "zoo_n": 0, "zoo_seen": 0, "zoo_next_hello": 0.0, "zoo_here": False,
 }
 
 IMAGE_Y = WIN_H - 6 + MARGIN
@@ -561,6 +576,76 @@ def _log(tag):
         pass
 
 
+# ---------- 赛博动物园 ----------
+def _zoo_write(path, obj):
+    """写一个很小的 JSON（先写 .tmp 再替换，对面不会读到写了一半的文件）"""
+    try:
+        os.makedirs(ZOO_DIR, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception:
+        pass
+
+
+def _zoo_read(path, max_age=ZOO_FRESH):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        if time.time() - float(d.get("ts", 0)) > max_age:
+            return None
+        return d
+    except Exception:
+        return None
+
+
+def zoo_event(kind):
+    state["zoo_n"] = state.get("zoo_n", 0) + 1
+    _zoo_write(ZOO_ME_EVT, {"who": "xiaod", "n": state["zoo_n"],
+                            "type": kind, "ts": time.time()})
+
+
+def _zoo_tick(now):
+    """每帧调一次：报自己的位置、看虎鲸在不在旁边、回应它的小动作。"""
+    state["zoo_t"] = state.get("zoo_t", 0) + 1
+    if state["zoo_t"] % 15 == 0:                   # 约 0.5 秒报一次
+        _zoo_write(ZOO_ME, {"who": "xiaod",
+                            "x": state["x"] + WIN_W / 2.0,
+                            "y": state["y"] + WIN_H / 2.0,
+                            "w": WIN_W, "h": WIN_H, "ts": now,
+                            "sleep": bool(state["sleeping"])})
+
+    near = None
+    orca = _zoo_read(ZOO_ORCA)
+    if orca:
+        dx = float(orca.get("x", 0)) - (state["x"] + WIN_W / 2.0)
+        dy = float(orca.get("y", 0)) - (state["y"] + WIN_H / 2.0)
+        if math.hypot(dx, dy) < ZOO_NEAR:
+            near = (dx, dy)
+    state["zoo_here"] = near is not None
+
+    if near and not state["sleeping"] and now >= state.get("zoo_next_hello", 0):
+        state["zoo_next_hello"] = now + ZOO_HELLO_COOL
+        show_bubble(random.choice(["鲸鱼！！", "虎鲸游过来啦", "嘿～大鲸鱼",
+                                   "我的鲸鱼朋友来了"]), 3.0)
+        spawn_hearts(2)
+        play_squeak()
+        zoo_event("hello")
+        _log("zoo hello")
+    elif near and not state["dragging"] and abs(near[0]) > 40:
+        state["face"] = near[0] < 0                # 转过头看它
+
+    ev = _zoo_read(ZOO_ORCA_EVT, max_age=12.0)
+    if ev and int(ev.get("n", 0)) != state.get("zoo_seen", 0):
+        state["zoo_seen"] = int(ev.get("n", 0))
+        if ev.get("type") == "splash" and near:
+            show_bubble(random.choice(["呀！溅到水了", "凉凉的！",
+                                       "鲸鱼别喷我～"]), 2.8)
+            spawn_pop()
+            _log("zoo splash")
+
+
 def do_pat():
     """摸摸头：笑眼 + 弹一下 + 「吱吱」+ 冒一两个爱心/颜文字"""
     now = time.time()
@@ -574,6 +659,8 @@ def do_pat():
     show_bubble(random.choice(PAT_LINES), 2.8)
     spawn_pop()                              # 气泡会把角色提到最上层，所以粒子最后加
     _log("pat")
+    if state.get("zoo_here"):
+        zoo_event("pat")                     # 虎鲸在旁边的话，让它知道我被摸头了
 
 
 def on_release(e):
@@ -840,6 +927,12 @@ def _tick():
 
     # 眨眼 / 单眼眨 / 困困
     now = time.time()
+
+    # 赛博动物园：和虎鲸互相串门（没有虎鲸在跑的话，这一步什么都不做）
+    try:
+        _zoo_tick(now)
+    except Exception:
+        pass
     night = is_night()
     if night != state["is_night"]:
         state["is_night"] = night
