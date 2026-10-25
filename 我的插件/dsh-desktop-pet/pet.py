@@ -581,6 +581,33 @@ def _log(tag):
         pass
 
 
+def _ensure_log_date(today):
+    """日志里「今天」还没有日期分隔线时才写一条。
+
+    桌宠一天会重启好几次，如果每次启动都写 `== 今天 ==`，日报脚本就没法
+    把这条线当成「当天起点」。所以先看日志末尾：最后一条日期线不是今天就补写。
+    """
+    last = None
+    try:
+        path = os.path.join(APP, "pet.log")
+        size = os.path.getsize(path)
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            if size > 200000:            # 只读最后 200KB，文件再大也不怕
+                f.seek(size - 200000)
+                f.readline()             # 丢掉可能被截断的半行
+            for ln in f:
+                parts = ln.split()
+                if (len(parts) >= 4 and parts[1] == "=="
+                        and len(parts[2]) == 10 and parts[2][:2] == "20"):
+                    last = parts[2]
+        # 循环到最后，last 就是「最后一条日期线」
+    except Exception:
+        last = None
+    if last == today:
+        return
+    _log("== %s ==" % today)
+
+
 # ---------- 赛博动物园 ----------
 def _zoo_write(path, obj):
     """写一个很小的 JSON（先写 .tmp 再替换，对面不会读到写了一半的文件）"""
@@ -897,6 +924,13 @@ def _tick():
             open(HEARTBEAT, "w", encoding="utf-8").write(str(time.time()))
         except Exception:
             pass
+
+    # 每天在日志里打一条日期分隔线：日报脚本靠它认出「今天」这一段
+    # （同一天重启不会再补写，见 _ensure_log_date）
+    _today = time.strftime("%Y-%m-%d")
+    if state.get("log_day") != _today:
+        state["log_day"] = _today
+        _ensure_log_date(_today)
 
     if state["bubble_until"] and time.time() > state["bubble_until"]:
         hide_bubble()
