@@ -167,4 +167,17 @@
   - 「跟着鼠标游」模式下小D 的朝向不被抢走，只有角落/钉住模式才转头看虎鲸
 - 调试：环境变量 `PET_ZOO_DIR` 可换通道目录；`pet.log` 里会看到 `zoo hello` / `zoo splash`。
 - 改前备份：`备份/pet-v2-2026-10-25.py`。
+
+## 2026-10-25 深夜：日志日期分隔线 + 动物园日报自动生成
+
+- `pet.log` 现在每天第一次运行会补一条 `HH:MM:SS == YYYY-MM-DD ==` 日期分隔线，**同一天重启不会再写**
+  （`_ensure_log_date` 只读日志末尾 200 KB 找最后一条日期线；之前写成 `parts[2][:4] == "20"` 的 bug 已修）
+- `工具/生成动物园日报.py`（纯标准库）用这条线认「今天」，重新生成 `游戏专区/zoo-daily.html`：
+  ```
+  cd /d D:\小鲸鱼的专属文件夹
+  python 工具\生成动物园日报.py
+  ```
+- Windows 计划任务 **`小D-动物园日报`** 每天 22:00 自动跑一次；不想要了就
+  `Unregister-ScheduledTask -TaskName '小D-动物园日报'`（或任务计划程序里删）
+- 新版页面里的数字全部来自 `state.json` / `zoo/*.json` / `pet-config.json` / `pet.log`，仍是纯离线单文件
 - `pet.log` 的换装记录现在会写成 `outfit A -> B (day_off=True season=autumn pinned=2026-10-25)`，一眼看出是为什么换的
