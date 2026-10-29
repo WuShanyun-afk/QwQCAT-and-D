@@ -19,8 +19,11 @@ import sys
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORY = os.path.join(BASE, "备份", "旅馆-剧情.json")
-MANIFEST = os.path.join(BASE, "小D", "网页", "旅馆图", "manifest.json")
-OUT = os.path.join(BASE, "小D", "网页", "深夜旅馆.html")
+MANIFEST = os.path.join(BASE, "小D", "网页", "inn", "manifest.json")
+# 网页发布用 ASCII 文件名（GitHub Pages 对中文路径不友好），本机另存一份中文名方便妈妈找
+OUT_WEB = os.path.join(BASE, "小D", "网页", "deep-night-inn.html")
+OUT_LOCAL = os.path.join(BASE, "小D", "网页", "深夜旅馆.html")
+IMG_PREFIX = "inn/"
 
 BG_IDS = {"group", "capy", "penguin", "cat", "bear", "otter"}
 WHO_IDS = {"小D", "水豚", "企鹅", "橘猫", "黑熊", "水獭", "旁白"}
@@ -492,9 +495,9 @@ def main():
             man = json.load(f)
         for k, v in man.items():
             if k in BG_IDS and isinstance(v, dict) and v.get("file"):
-                imgmap[k] = "旅馆图/" + v["file"]
+                imgmap[k] = IMG_PREFIX + v["file"]
     for k in BG_IDS:
-        imgmap.setdefault(k, "旅馆图/%s.jpg" % k)
+        imgmap.setdefault(k, IMG_PREFIX + "%s.jpg" % k)
 
     if args.check:
         return
@@ -502,10 +505,13 @@ def main():
     data_js = json.dumps(story, ensure_ascii=False).replace("</", "<\\/")
     html = TEMPLATE.replace("__DATA__", data_js).replace(
         "__IMG__", json.dumps(imgmap, ensure_ascii=False))
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "w", encoding="utf-8", newline="\n") as f:
-        f.write(html)
-    print("[out] %s (%.1f KB)" % (os.path.relpath(OUT, BASE), len(html.encode("utf-8")) / 1024))
+    os.makedirs(os.path.dirname(OUT_WEB), exist_ok=True)
+    for path in (OUT_WEB, OUT_LOCAL):
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(html)
+    print("[out] %s (%.1f KB)" % (os.path.relpath(OUT_WEB, BASE),
+                                  len(html.encode("utf-8")) / 1024))
+    print("[out] %s" % os.path.relpath(OUT_LOCAL, BASE))
 
 
 if __name__ == "__main__":
