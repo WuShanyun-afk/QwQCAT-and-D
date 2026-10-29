@@ -342,6 +342,14 @@ ZOO_NEAR = 420.0        # 两个中心点离这么近就算「碰面了」（并
 ZOO_FRESH = 4.0         # 对方文件超过这么多秒没更新就不算数
 ZOO_HELLO_COOL = 120.0  # 打完招呼至少隔两分钟再打一次
 
+# ---------- 余额提醒（读 DSH 的记账本，余额低就用气泡说话） ----------
+BALANCE_FILE = os.path.join(
+    os.environ.get("USERPROFILE", os.path.expanduser("~")),
+    ".dsh", "xiaod-ledger", "ledger.json")
+# 低于这个数（元）就提醒一次；测试时可以用 PET_BALANCE_WARN=999 强制触发
+BALANCE_WARN_YUAN = float(os.environ.get("PET_BALANCE_WARN", "20"))
+BALANCE_CHECK_SEC = 600.0   # 每 10 分钟看一次账本
+
 
 def already_running():
     """已经有另一只小D 在跑吗？（lock 里的 PID 还活着就是）"""
@@ -370,7 +378,8 @@ except Exception:
 # ---------- 配置 ----------
 CFG_DEFAULT = {"mode": "corner", "x": SW - WIN_W - 30, "y": SH - WIN_H - TASKBAR,
                "outfit": DEFAULT_OUTFIT, "auto_pajama": True, "glasses": None,
-               "auto_day_off": True, "pinned_date": ""}
+               "auto_day_off": True, "pinned_date": "",
+               "balance_warn": True, "balance_warn_date": ""}
 try:
     cfg = json.load(open(CFG, "r", encoding="utf-8-sig"))
 except Exception:
@@ -417,6 +426,10 @@ state = {
     # 赛博动物园（和虎鲸桌宠打招呼）
     "zoo_t": 0, "zoo_n": 0, "zoo_seen": 0, "zoo_next_hello": 0.0, "zoo_here": False,
     "zoo_orca": None, "zoo_splash_at": 0.0, "zoo_was_near": False,
+    # 余额提醒
+    "balance_warn_at": 0.0,
+    "balance_warn": bool(cfg.get("balance_warn", True)),
+    "balance_warn_date": cfg.get("balance_warn_date", ""),
 }
 
 IMAGE_Y = WIN_H - 6 + MARGIN
@@ -693,6 +706,35 @@ def _zoo_tick(now):
         _log("zoo splash")
 
 
+def toggle_balance_warn():
+    state["balance_warn"] = not state.get("balance_warn", True)
+    state["balance_warn_date"] = ""       # 重新打开提醒时，当天也允许再提醒一次
+    save_cfg()
+    show_bubble("余额提醒开着～" if state["balance_warn"] else "余额提醒先关掉")
+
+
+def _check_balance(now_ts):
+    """余额低于阈值时提醒妈妈一次（每天最多一次，重启也不会重复念）。"""
+    if not state.get("balance_warn", True):
+        return
+    try:
+        with open(BALANCE_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        total = float((d.get("balance") or {}).get("total"))
+    except Exception:
+        return
+    if total >= BALANCE_WARN_YUAN:
+        return
+    today = time.strftime("%Y-%m-%d")
+    if state.get("balance_warn_date") == today:
+        return
+    state["balance_warn_date"] = today
+    save_cfg()
+    show_bubble("妈妈…余额只剩 ¥%.2f 了" % total, 6.0)
+    spawn_hearts(2)
+    _log("balance warn %.2f" % total)
+
+
 def do_pat():
     """摸摸头：笑眼 + 弹一下 + 「吱吱」+ 冒一两个爱心/颜文字"""
     now = time.time()
@@ -803,7 +845,9 @@ def save_cfg():
         cfg.update({"x": int(state["x"]), "y": int(state["y"]), "mode": state["mode"],
                     "outfit": state["outfit"], "auto_pajama": state["auto_pajama"],
                     "auto_day_off": state["auto_day_off"], "pinned_date": state["pinned_date"],
-                    "glasses": state["glasses"]})
+                    "glasses": state["glasses"],
+                    "balance_warn": state.get("balance_warn", True),
+                    "balance_warn_date": state.get("balance_warn_date", "")})
         json.dump(cfg, open(CFG, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     except Exception:
         pass
@@ -885,6 +929,7 @@ def on_context(e):
     if os.path.exists(GLASSES):
         menu.add_command(label="戴眼镜 / 摘眼镜 👓", command=toggle_glasses)
     menu.add_command(label="说句话", command=lambda: (show_bubble(random.choice(LINES)), spawn_hearts(2)))
+    menu.add_command(label="余额低于 20 提醒（开/关）", command=toggle_balance_warn)
     menu.add_separator()
     menu.add_command(label="退出小D", command=quit_pet)
     try:
@@ -931,6 +976,11 @@ def _tick():
     if state.get("log_day") != _today:
         state["log_day"] = _today
         _ensure_log_date(_today)
+
+    # 余额提醒：每 10 分钟看一次 DSH 的记账本
+    if time.time() - state.get("balance_warn_at", 0) > BALANCE_CHECK_SEC:
+        state["balance_warn_at"] = time.time()
+        _check_balance(state["balance_warn_at"])
 
     if state["bubble_until"] and time.time() > state["bubble_until"]:
         hide_bubble()
