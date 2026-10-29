@@ -408,6 +408,8 @@ state = {
     # 摸摸头
     "press_x": 0, "press_y": 0, "press_at": 0.0, "pat_after": None,
     "pat_until": 0.0, "pat_start": 0.0,
+    # 捏肚皮（点角色下半身）：连捏几下会越来越多反应
+    "click_x": 0, "click_y": 0, "belly_n": 0, "belly_last": 0.0,
     # 电子捏捏乐（点一下整只往下压扁再弹回来）
     "squish_until": 0.0, "squish_start": 0.0, "squish_photos": None, "squish_key": None,
     # 耳朵 / 尾巴的小动作
@@ -448,6 +450,14 @@ PAT_LINES = ["嘿嘿…好舒服", "再摸摸嘛～", "唔…被摸头了", "妈
 NIGHT_LINES = ["困困……九点啦", "哈——欠……", "妈妈也要早点睡哦", "眼皮好重…",
                "眼皮打架了…妈妈呢", "尾巴快没电了，睡会儿"]
 NIGHT_TALK = ["困……", "zzz……", "妈妈还不睡吗～", "陪我一起睡嘛", "眼睛要睁不开了…"]
+
+# 被捏肚皮时说的话（点角色下半身 = 捏肚皮，点上半身 = 摸摸头）
+BELLY_LINES = ["呀——痒！", "别捏别捏～", "咕…肚皮要瘪了", "那是…暖气吹的！",
+               "软吧？棉絮填充的", "嘿嘿…有点痒", "再捏就缩成球了哦",
+               "肚皮上又没装按钮"]
+BELLY_TICKLE = "痒——！痒痒痒！"
+BELLY_SHY = "唔…不许再捏了啦（缩）"
+BELLY_Y = 296          # 窗口里这个 y 以下算肚皮，以上算脑袋
 
 photo = None
 bubble_img = None
@@ -752,6 +762,35 @@ def do_pat():
         zoo_event("pat")                     # 虎鲸在旁边的话，让它知道我被摸头了
 
 
+def do_belly():
+    """捏肚皮：同样的压扁回弹，但台词不一样；连捏 3 下「痒——」、5 下害羞缩一下"""
+    now = time.time()
+    n = state.get("belly_n", 0) + 1 if now - state.get("belly_last", 0.0) < 6.0 else 1
+    state["belly_n"] = n
+    state["belly_last"] = now
+    state["pat_until"] = now + 1.0
+    state["pat_start"] = now
+    state["squish_start"] = now
+    state["squish_until"] = now + SQUISH_DUR
+    state["squish_key"] = None
+    state["wink_until"] = 0.0
+    play_squeak()
+    if n >= 5:
+        show_bubble(BELLY_SHY, 3.0)
+        state["wink_until"] = now + 1.1
+        state["belly_n"] = 0                     # 害羞完还能接着捏
+        spawn_hearts(2)
+    elif n == 3:
+        show_bubble(BELLY_TICKLE, 2.6)
+        spawn_hearts(2)
+    else:
+        show_bubble(random.choice(BELLY_LINES), 2.6)
+        spawn_hearts(1)
+    _log("belly %d" % n)
+    if state.get("zoo_here"):
+        zoo_event("pat")
+
+
 def on_release(e):
     was = state["dragging"]
     state["dragging"] = False
@@ -768,7 +807,9 @@ def on_release(e):
         show_bubble("好，小D 就待在这里啦～", 2.2)
         return
     if moved <= 6 and quick:
-        # 单击 = 摸摸头；等 0.22 秒确认不是双击
+        # 单击：上半身 = 摸摸头，下半身 = 捏肚皮；等 0.22 秒确认不是双击
+        state["click_x"] = e.x
+        state["click_y"] = e.y
         if state["pat_after"] is not None:
             try:
                 root.after_cancel(state["pat_after"])
@@ -779,7 +820,10 @@ def on_release(e):
 
 def _pat_now():
     state["pat_after"] = None
-    do_pat()
+    if state.get("click_y", 0) >= BELLY_Y:
+        do_belly()
+    else:
+        do_pat()
 
 
 def on_double(e):
@@ -910,6 +954,7 @@ def toggle_glasses():
 def on_context(e):
     menu = tk.Menu(root, tearoff=0)
     menu.add_command(label="摸摸头 💗", command=do_pat)
+    menu.add_command(label="捏捏肚皮 🫧（点我下半身也行）", command=do_belly)
     menu.add_separator()
     menu.add_command(label="待在角落（安静陪你）", command=lambda: set_mode("corner"))
     menu.add_command(label="跟着鼠标跑", command=lambda: set_mode("follow"))
