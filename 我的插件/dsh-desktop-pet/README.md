@@ -181,3 +181,10 @@
   `Unregister-ScheduledTask -TaskName '小D-动物园日报'`（或任务计划程序里删）
 - 新版页面里的数字全部来自 `state.json` / `zoo/*.json` / `pet-config.json` / `pet.log`，仍是纯离线单文件
 - `pet.log` 的换装记录现在会写成 `outfit A -> B (day_off=True season=autumn pinned=2026-10-25)`，一眼看出是为什么换的
+
+## 2026-10-29：余额低于 20 会说话
+
+- 每 10 分钟读一次 `C:\Users\<你>\.dsh\xiaod-ledger\ledger.json`，余额 < ¥20 时用气泡说一次
+  「妈妈…余额只剩 ¥xx 了」，**每天最多念一次**（提醒日期存在 `pet-config.json` 的 `balance_warn_date`）
+- 右键菜单「余额低于 20 提醒（开/关）」可关掉；调试用 `PET_BALANCE_WARN=999` 强制触发
+- 阈值常量：`BALANCE_WARN_YUAN`（`pet.py` 顶部，可用环境变量覆盖）
