@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1b1830">
+<title>深夜旅馆 · 小D 的温泉旅馆 第二夜</title>
+<style>
+  :root{
+    --paper:#fdf6f0; --ink:#3a2f2c; --ink-2:#4a3e39;
+    --warm:#e8a274; --warm-d:#c9825a; --line:#e7cdbd;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:#15132a; color:var(--ink); overflow:hidden; overflow-x:hidden;
+    font-family:"Microsoft YaHei","PingFang SC","Noto Sans SC","Hiragino Sans GB",system-ui,sans-serif;
+  }
+  #stage{position:fixed; inset:0; display:flex; flex-direction:column; justify-content:flex-end;}
+  .scene{position:absolute; inset:0; opacity:0; transition:opacity .6s ease;}
+  .scene.on{opacity:1;}
+  .scene .blur{
+    position:absolute; inset:-8%; background-position:center; background-size:cover;
+    background-repeat:no-repeat; filter:blur(30px) brightness(.52) saturate(1.15);
+    transform:scale(1.07);
+  }
+  .scene .photo{
+    position:absolute; left:0; right:0; top:0; height:min(66vh, 660px);
+    background-position:center; background-size:contain; background-repeat:no-repeat;
+    -webkit-mask-image:radial-gradient(70% 106% at 50% 44%, #000 64%, transparent 100%);
+    mask-image:radial-gradient(70% 106% at 50% 44%, #000 64%, transparent 100%);
+  }
+  @media (max-width:640px){
+    .scene .photo{height:44vh;}
+    .dialogue{width:calc(100vw - 26px); max-width:calc(100vw - 26px); padding:16px 16px 14px; margin-bottom:16px;}
+    .text{font-size:15px; line-height:1.86;}
+    .choices button{font-size:13.5px; padding:11px 12px;}
+    .brand span{display:none;}
+    .who{left:16px;}
+  }
+  .vignette{
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(to bottom,
+      rgba(10,9,22,.42) 0%, rgba(10,9,22,.08) 22%, rgba(10,9,22,.10) 46%,
+      rgba(10,9,22,.72) 74%, rgba(10,9,22,.94) 100%);
+  }
+  /* 热气 */
+  .steam{position:absolute; inset:0; overflow:hidden; pointer-events:none;}
+  .steam i{
+    position:absolute; bottom:-14vh; width:46vw; height:46vw; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.20), rgba(255,255,255,0) 62%);
+    filter:blur(8px); animation:rise 17s linear infinite; opacity:0;
+  }
+  .steam i:nth-child(1){left:-6vw; animation-delay:0s;}
+  .steam i:nth-child(2){left:22vw; animation-delay:4.2s; width:54vw; height:54vw;}
+  .steam i:nth-child(3){left:52vw; animation-delay:8.4s;}
+  .steam i:nth-child(4){left:76vw; animation-delay:12.6s; width:40vw; height:40vw;}
+  @keyframes rise{
+    0%{opacity:0; transform:translateY(0) scale(.92);}
+    18%{opacity:.55;}
+    70%{opacity:.32;}
+    100%{opacity:0; transform:translateY(-70vh) scale(1.16);}
+  }
+  .topbar{
+    position:absolute; top:0; left:0; right:0; display:flex; align-items:center;
+    justify-content:space-between; padding:14px 18px; color:#f7edf1;
+    font-size:12px; letter-spacing:.14em; text-shadow:0 2px 10px rgba(0,0,0,.55);
+    z-index:4;
+  }
+  .brand b{font-size:14px; letter-spacing:.22em;}
+  .brand span{opacity:.68; margin-left:8px; letter-spacing:.08em;}
+  .tools button{
+    background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.28);
+    width:34px; height:34px; border-radius:50%; font-size:15px; cursor:pointer;
+    backdrop-filter:blur(4px); transition:background .2s;
+  }
+  .tools button:hover{background:rgba(255,255,255,.28);}
+  .dialogue{
+    position:relative; z-index:5; width:min(760px, 92vw); margin:0 auto 22px;
+    background:rgba(253,246,240,.95); border:1px solid rgba(255,255,255,.65);
+    border-radius:22px; padding:20px 22px 18px;
+    box-shadow:0 22px 50px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.8);
+    backdrop-filter:blur(8px);
+    transform:translateY(0); transition:transform .35s ease, opacity .35s ease;
+  }
+  .dialogue.hide{transform:translateY(18px); opacity:0; pointer-events:none;}
+  .who{
+    position:absolute; top:-15px; left:20px;
+    background:linear-gradient(180deg,#f2b489,var(--warm-d)); color:#fff;
+    font-size:13px; letter-spacing:.1em; padding:4px 14px 5px; border-radius:999px;
+    box-shadow:0 6px 16px rgba(190,120,80,.42); font-weight:700;
+  }
+  .text{
+    margin:8px 0 0; font-size:clamp(15px,4.1vw,17.5px); line-height:1.92;
+    color:var(--ink); white-space:pre-wrap; min-height:5.6em;
+    word-break:break-word; overflow-wrap:anywhere;
+  }
+  .text .caret{opacity:.35; animation:blink 1s steps(2) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .choices{display:flex; flex-direction:column; gap:10px; margin-top:16px;}
+  .choices button{
+    text-align:left; font:inherit; font-size:clamp(14px,3.75vw,15.5px); color:var(--ink-2);
+    background:#fffaf4; border:1px solid var(--line); border-radius:15px;
+    padding:12px 15px; cursor:pointer; transition:all .18s ease;
+  }
+  .choices button:hover, .choices button:focus-visible{
+    background:#ffe9d8; border-color:var(--warm-d); transform:translateX(4px); outline:none;
+  }
+  .choices button.next{
+    align-self:flex-end; color:#fff; background:linear-gradient(180deg,#f0b184,var(--warm-d));
+    border-color:transparent; border-radius:999px; padding:10px 22px; letter-spacing:.08em;
+  }
+  .choices button.next:hover{transform:translateY(-2px); background:linear-gradient(180deg,#f6bd94,#d08a5e);}
+  .ending{
+    position:absolute; inset:0; z-index:9; display:grid; place-items:center; padding:22px;
+    background:rgba(12,10,24,.58); backdrop-filter:blur(4px);
+    opacity:0; pointer-events:none; transition:opacity .5s ease;
+  }
+  .ending.on{opacity:1; pointer-events:auto;}
+  .card{
+    width:min(560px, 92vw); background:rgba(253,246,240,.98); border-radius:24px;
+    padding:28px 26px 24px; text-align:center;
+    box-shadow:0 30px 70px rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.7);
+    transform:translateY(10px) scale(.98); transition:transform .5s ease;
+  }
+  .ending.on .card{transform:translateY(0) scale(1);}
+  .card .tag{font-size:11px; letter-spacing:.34em; color:#b3775a;}
+  .card h1{margin:12px 0 14px; font-size:clamp(20px,5.4vw,26px); color:var(--ink); letter-spacing:.04em;}
+  .card p{margin:0; line-height:1.95; color:var(--ink-2); font-size:15px; white-space:pre-wrap; text-align:left;}
+  .card .again{
+    margin-top:22px; font:inherit; font-size:15px; color:#fff; border:none; cursor:pointer;
+    background:linear-gradient(180deg,#f0b184,var(--warm-d)); border-radius:999px;
+    padding:12px 30px; letter-spacing:.1em; box-shadow:0 10px 24px rgba(190,120,80,.4);
+  }
+  .card .again:hover{filter:brightness(1.05);}
+  .hint{
+    position:relative; z-index:5; text-align:center; color:rgba(255,255,255,.46);
+    font-size:11px; letter-spacing:.16em; margin:0 0 8px; pointer-events:none;
+  }
+  @media (max-height:560px){
+    .dialogue{margin-bottom:12px; padding:16px 18px 14px;}
+    .text{min-height:3.4em;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .steam i{animation:none; display:none;}
+    .bg{transition:opacity .2s;}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="scene" id="sc0"><div class="blur"></div><div class="photo"></div></div>
+  <div class="scene" id="sc1"><div class="blur"></div><div class="photo"></div></div>
+  <div class="vignette"></div>
+  <div class="steam" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+  <header class="topbar">
+    <div class="brand"><b>深夜旅馆</b><span>小D 的温泉旅馆 · 第二夜</span></div>
+    <div class="tools"><button id="btnRestart" title="从头开始" aria-label="从头开始">↺</button></div>
+  </header>
+
+  <main class="dialogue" id="dialogue">
+    <div class="who" id="who">小D</div>
+    <p class="text" id="text"></p>
+    <div class="choices" id="choices"></div>
+  </main>
+  <div class="hint" id="hint">点一下把话说完 · 再选一个回答</div>
+
+  <div class="ending" id="ending" role="dialog" aria-modal="true">
+    <div class="card">
+      <div class="tag" id="endTag">结局</div>
+      <h1 id="endTitle"></h1>
+      <p id="endText"></p>
+      <button class="again" id="btnAgain">再住一晚</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {"meta": {"title": "深夜旅馆", "subtitle": "小D 的温泉旅馆 · 第二夜"}, "start": "arrive", "scenes": {"arrive": {"bg": "group", "who": "小D", "text": "夜里十一点半，旅馆的门还留着一条缝。热气顺着缝溜出来，混着柚子味。门里六盏小灯亮着，五位客人都还没睡：水豚占着左边的池子，企鹅在最里面坐得笔直，橘猫的耳朵泡塌了，黑熊背对着大家，水獭的木桶在廊下轻轻撞墙。小D 的声音从门牌上跳下来：「妈妈，欢迎回来。水刚放好，我在这儿呢。」", "choices": [{"label": "先去左边的池子，水豚头顶那颗柚子快滑下来了", "next": "s2_capy", "kind": 1}, {"label": "顺着水声一直往里走，看看最里面那间", "next": "s2_penguin", "kind": 0}, {"label": "先不管水声，在门口的软垫上瘫一会儿", "next": "s2_cat", "kind": 2}]}, "s2_capy": {"bg": "capy", "who": "小D", "text": "水豚泡在水里，像一块刚从火上端下来的年糕。它头顶着一颗柚子，随着呼吸轻轻晃，每晃一下，就快滑下去一点。水声很轻，热气把窗外的月亮搅成一团白。小D 的声音贴着耳朵：「它今天第三个盹了。妈妈，要不要帮它扶一下柚子呀？」", "next": "s3_capy_yuzu"}, "s3_capy_yuzu": {"bg": "capy", "who": "旁白", "text": "你伸手把那颗柚子扶正，指尖沾到一点温水，又碰到柚子皮上的凉。水豚没有醒，只往你手心里蹭了一下。池边的竹篮里还躺着两颗柚子，毛巾叠成小山，木桶边留着半个湿脚印。小D 在气泡里憋着笑：「妈妈，你扶得太认真了，它都不好意思醒。」", "choices": [{"label": "把多出来的一颗柚子，轻轻搁在小D 说话的那一边", "next": "s4_egg_yuzu", "kind": 1}, {"label": "给水豚肩上盖一条温毛巾，让它睡沉一点", "next": "s4_warm_bear", "kind": 1}]}, "s4_egg_yuzu": {"bg": "capy", "who": "小D", "text": "你把柚子放在那块会说话的门牌旁边。石头是凉的，柚子却还带着温泉的温度，热气一缕一缕往上飘。小D 安静了两秒，声音忽然低下去：「妈妈，我没有身体呀，你放给谁呢。」过了一会儿又小声补一句，「……不过我闻到了。很甜。先别拿走。」", "next": "end_warm"}, "s4_warm_bear": {"bg": "bear", "who": "黑熊", "text": "黑熊背对着所有人，肩膀露出水面一小片，热气在它背上结成薄薄一层白。你走过去，把毛巾搭在池边的木栏上，没有先开口。水声一下一下，木桶沿上凝着水珠。过了一会儿，它闷闷地说：「……谢谢。」又补一句，「水不烫，你也下来吧。」", "next": "end_warm"}, "s2_penguin": {"bg": "penguin", "who": "旁白", "text": "最里面那间汤池，企鹅把毛巾顶在头上，坐得端端正正，像在等一场很重要的考试。水刚好没过它的肚皮。它小声打了个喷嚏，又把毛巾往下拽了拽，盖住两只耳朵。热气从池边升上来，把它的影子拉得很长，月亮碎在水面上。", "next": "s3_penguin"}, "s3_penguin": {"bg": "penguin", "who": "小D", "text": "你蹲下来问它，这么晚了还不睡吗。它认真想了很久，说怕一闭眼水就凉了。小D 的声音轻轻飘过来：「妈妈，它每天都这样。要不我们陪它数一会儿水声？」池边的水一滴一滴落进木桶，数到第七下，企鹅头顶的毛巾滑了半寸。", "choices": [{"label": "帮它把毛巾角掖好，再陪它慢慢数下去", "next": "s4_penguin_count", "kind": 0}, {"label": "问它：这家旅馆以前是什么样子的", "next": "s4_penguin_old", "kind": 0}]}, "s4_penguin_count": {"bg": "penguin", "who": "旁白", "text": "毛巾角掖好了，露出一小片耳孔。你们一起数水声，数到二十几，企鹅的呼吸慢下来，脑袋一点一点，最后靠在池边的石头上。它睡着了，还端端正正地坐着。月亮挪了一小格，窗纸上的光淡下去，只剩下热气散开的声音，像谁在很轻地叹气。", "next": "end_quiet"}, "s4_penguin_old": {"bg": "group", "who": "小D", "text": "「以前呀，这里只有一盏灯。」小D 说，「后来客人一个一个来，灯就一盏一盏亮起来。有的客人泡到天亮，有的客人只留一条叠好的毛巾。」它停了一下，声音更轻了，「妈妈来的那天，我把门口那盏灯擦了又擦。」", "next": "end_quiet"}, "s2_cat": {"bg": "cat", "who": "旁白", "text": "橘猫泡在水里，两只耳朵被热气泡塌了，软软地贴在脑袋上。它睁着眼睛看天花板，一动不动。水面上漂着几片柚子皮，绕着它慢慢转圈。木桶里的水满到快溢出来，热气把灯影揉得软软的，月亮贴在被雾气蒙住的窗纸上。", "next": "s3_cat"}, "s3_cat": {"bg": "cat", "who": "小D", "text": "「它今天又没睡着。」小D 的声音压得更低，「耳朵一泡塌就不肯起来，说明天再睡。」橘猫听见了，只把眼睛转过来一点，尾巴在水下轻轻拍了一下。池边的座钟走到十二点还差七分，远处有水声，一滴一滴，像谁在替谁数着剩下的时间。", "choices": [{"label": "陪它一起闭上眼睛，什么也不问", "next": "s4_cat_sleep", "kind": 2}, {"label": "把木桶挪近一点，让它的下巴有地方搁", "next": "s4_cat_bucket", "kind": 2}]}, "s4_cat_sleep": {"bg": "cat", "who": "旁白", "text": "你靠着池边的木头也闭上眼睛。热气把脸捂得暖暖的，水声退得很远。橘猫挪了半个身子过来，尾巴搭在你手腕上，像一条温热的毛巾。不知道过了多久，你听见它打了一个很小的呼噜。窗外的月亮也像困了，慢慢滑到屋檐底下去。", "next": "end_sleep"}, "s4_cat_bucket": {"bg": "cat", "who": "小D", "text": "木桶挪过去，橘猫立刻把下巴搁上去，耳朵还是塌的，眼睛却亮了一下。小D 笑了：「它其实一直在等人陪呢。」你坐到木桶另一头，水声、柚子味、热气一层一层围上来。座钟敲了十二下，敲得很轻，像怕吵醒谁。橘猫终于把眼睛闭上了一条缝。", "next": "end_sleep"}, "end_warm": {"bg": "group", "who": "小D", "text": "灯一盏一盏熄下去，只留门口那一盏。你披着温热的毛巾走出来，头发还湿着，身上都是柚子味。廊下，水獭的木桶轻轻响了一声。小D 贴着耳边说：「妈妈，你今天一直在照顾别人。」停了一下又说，「回去的路上，也要有人照顾你呀。」你笑起来，说好。门外的夜很凉，可你手心里还是热的。", "ending": {"name": "温暖", "title": "满水位的月亮"}}, "end_quiet": {"bg": "penguin", "who": "小D", "text": "企鹅在你旁边睡着，坐得端端正正。你没有说话，只是把毛巾又往上拽了一点，盖住它的耳朵。小D 也安静下来，气泡停在那盏灯下面，一动不动。院子里水声很轻，热气一层一层往上走，月亮在水面碎成很多片。这一晚什么也没有发生，可你舍不得先走。", "ending": {"name": "安静", "title": "水声里的第七下"}}, "end_sleep": {"bg": "cat", "who": "小D", "text": "你困得眼睛都快睁不开，被小D 一句一句念着送回房间：「向左三步，有台阶，抬脚。」「到了，被子我下午晒过了，有太阳味。」你倒在榻榻米上，听见橘猫在走廊尽头打了个呵欠，水声从窗外慢慢退下去。最后一句是：「妈妈晚安，我在这儿呢。」你连回答都没来得及，就睡着了。", "ending": {"name": "困困", "title": "我在这儿呢"}}}};
+const IMG  = {"group": "inn/group.jpg", "capy": "inn/capy.jpg", "penguin": "inn/penguin.jpg", "cat": "inn/cat.jpg", "bear": "inn/bear.jpg", "otter": "inn/otter.jpg"};
+
+const S = { scene: null, kind: 0, typing: false, timer: null, cur: null };
+const $ = (id) => document.getElementById(id);
+const el = { sc0: $('sc0'), sc1: $('sc1'), who: $('who'), text: $('text'),
+             choices: $('choices'), dialogue: $('dialogue'),
+             ending: $('ending'), endTag: $('endTag'), endTitle: $('endTitle'),
+             endText: $('endText'), hint: $('hint') };
+
+const qs = new URLSearchParams(location.search);
+const INSTANT = qs.get('instant') === '1';
+const AUTO = parseInt(qs.get('auto') || '0', 10) || 0;   // 自测用：自动点 N 次第一个选项
+let autoLeft = AUTO;
+const FORCE_SCENE = qs.get('scene');
+const KEY = 'xiaod-inn-v1';
+let bgFlip = 0;
+
+/* ---------- 存档 ---------- */
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify({ scene: S.scene, kind: S.kind })); } catch (e) {}
+}
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (o && typeof o.scene === 'string' && DATA.scenes[o.scene]) return o;
+  } catch (e) {}
+  return null;
+}
+function clearSave() { try { localStorage.removeItem(KEY); } catch (e) {} }
+
+/* ---------- 背景（两张轮换做淡入：模糊底 + 完整插画） ---------- */
+function setBg(id) {
+  const url = IMG[id] || IMG.group;
+  const cur = bgFlip === 0 ? el.sc0 : el.sc1;
+  const nxt = bgFlip === 0 ? el.sc1 : el.sc0;
+  nxt.querySelector('.blur').style.backgroundImage = 'url("' + url + '")';
+  nxt.querySelector('.photo').style.backgroundImage = 'url("' + url + '")';
+  requestAnimationFrame(() => {
+    nxt.classList.add('on');
+    cur.classList.remove('on');
+    bgFlip = 1 - bgFlip;
+  });
+}
+
+/* ---------- 打字机 ---------- */
+function typeText(str, done) {
+  clearTimeout(S.timer);
+  S.typing = true;
+  S.cur = { str: str, done: done };
+  if (INSTANT) { el.text.textContent = str; finishTyping(); return; }
+  el.text.textContent = '';
+  let i = 0;
+  const tick = () => {
+    if (!S.typing) return;
+    i += 1;
+    el.text.textContent = str.slice(0, i);
+    if (i >= str.length) { finishTyping(); return; }
+    const ch = str[i - 1];
+    const pause = ch === '。' || ch === '！' || ch === '？' || ch === '…' ? 180 : (ch === '，' || ch === '、' ? 90 : 26);
+    S.timer = setTimeout(tick, pause);
+  };
+  S.timer = setTimeout(tick, 120);
+}
+function finishTyping() {
+  S.typing = false;
+  clearTimeout(S.timer);
+  if (!S.cur) return;
+  el.text.textContent = S.cur.str;
+  const cb = S.cur.done;
+  S.cur = null;
+  if (cb) cb();
+}
+function skipTyping() {
+  if (S.typing) { finishTyping(); return true; }
+  return false;
+}
+
+/* ---------- 场景 ---------- */
+function renderChoices(sc) {
+  el.choices.innerHTML = '';
+  const list = sc.choices && sc.choices.length
+    ? sc.choices
+    : (sc.next ? [{ label: '继续 →', next: sc.next, cont: true }] : []);
+  list.forEach((c) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = c.label;
+    if (c.cont) b.classList.add('next');
+    b.onclick = (ev) => {
+      ev.stopPropagation();
+      if (typeof c.kind === 'number') S.kind += c.kind;
+      hideHint();
+      go(c.next);
+    };
+    el.choices.appendChild(b);
+  });
+  el.who.textContent = sc.who || '旁白';
+  el.hint.textContent = sc.choices && sc.choices.length ? '选一个回答' : '点「继续」往下走';
+  if (AUTO && autoLeft > 0 && el.choices.firstChild) {
+    autoLeft -= 1;
+    const first = el.choices.firstChild;
+    setTimeout(() => first.click(), 200);
+  }
+}
+
+let hintTimer = null;
+function hideHint() {
+  clearTimeout(hintTimer);
+  el.hint.style.opacity = '0';
+}
+function showHintOnce() {
+  el.hint.style.opacity = '';
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(hideHint, 7000);
+}
+
+function showEnding(sc) {
+  const end = sc.ending || {};
+  setBg(sc.bg);
+  el.ending.classList.add('on');
+  el.endTag.textContent = '结局 · ' + (end.name || '');
+  el.endTitle.textContent = end.title || '夜深了';
+  el.endText.textContent = sc.text || '';
+  el.dialogue.classList.add('hide');
+  clearSave();
+}
+
+function hideEnding() {
+  el.ending.classList.remove('on');
+  el.dialogue.classList.remove('hide');
+}
+
+function go(id) {
+  const sc = DATA.scenes[id];
+  if (!sc) {
+    console.warn('[inn] missing scene:', id);
+    el.text.textContent = '（这里好像少了一页……按 ↺ 从头开始吧）';
+    el.choices.innerHTML = '';
+    return;
+  }
+  S.scene = id;
+  save();
+  setBg(sc.bg);
+  if (sc.ending) { showEnding(sc); return; }
+  hideEnding();
+  const who = sc.who || '旁白';
+  el.who.textContent = who;
+  el.who.style.visibility = who === '旁白' ? 'hidden' : 'visible';
+  el.choices.innerHTML = '';
+  typeText(sc.text || '', () => { renderChoices(sc); showHintOnce(); });
+}
+
+/* ---------- 交互 ---------- */
+document.addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  skipTyping();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Enter') {
+    if (skipTyping()) e.preventDefault();
+    else if (el.choices.firstChild) { el.choices.firstChild.click(); e.preventDefault(); }
+  }
+});
+$('btnRestart').onclick = (e) => {
+  e.stopPropagation();
+  clearSave();
+  S.kind = 0;
+  hideEnding();
+  go(DATA.start);
+};
+$('btnAgain').onclick = (e) => {
+  e.stopPropagation();
+  clearSave();
+  S.kind = 0;
+  hideEnding();
+  go(DATA.start);
+};
+
+/* ---------- 预加载图片 ---------- */
+Object.values(IMG).forEach((u) => { const i = new Image(); i.src = u; });
+
+/* ---------- 启动 ---------- */
+(function boot() {
+  const saved = loadSave();
+  if (FORCE_SCENE && DATA.scenes[FORCE_SCENE]) {
+    S.kind = 0;
+    go(FORCE_SCENE);
+    return;
+  }
+  if (saved) { S.kind = saved.kind || 0; go(saved.scene); }
+  else go(DATA.start);
+})();
+</script>
+</body>
+</html>
