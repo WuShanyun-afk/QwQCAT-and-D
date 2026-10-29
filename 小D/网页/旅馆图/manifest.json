@@ -1,0 +1,44 @@
+{
+  "group": {
+    "file": "group.jpg",
+    "w": 1200,
+    "h": 688,
+    "bytes": 76255,
+    "quality": 84
+  },
+  "capy": {
+    "file": "capy.jpg",
+    "w": 1100,
+    "h": 740,
+    "bytes": 70144,
+    "quality": 84
+  },
+  "penguin": {
+    "file": "penguin.jpg",
+    "w": 1100,
+    "h": 740,
+    "bytes": 71934,
+    "quality": 84
+  },
+  "cat": {
+    "file": "cat.jpg",
+    "w": 1100,
+    "h": 740,
+    "bytes": 65844,
+    "quality": 84
+  },
+  "bear": {
+    "file": "bear.jpg",
+    "w": 1100,
+    "h": 740,
+    "bytes": 64096,
+    "quality": 84
+  },
+  "otter": {
+    "file": "otter.jpg",
+    "w": 1100,
+    "h": 740,
+    "bytes": 64410,
+    "quality": 84
+  }
+}
