@@ -596,7 +596,7 @@ footer{text-align:center;font-size:11.5px;color:#ababb3;padding:0 20px 34px}
   'use strict';
 
   /* ---------------- 常量 ---------------- */
-  const PASSWORD    = 'shenshuwan520';   // 密码
+  const PASSWORD_SHA256 = '29ca7bbdf06cd0a767803be449cf480ad73825c53ce79afa270ce57692f25634';  // 口令的 SHA-256（仓库内不保存明文）
   const MAX_UPLOAD  = 20 * 1024 * 1024;  // 选文件硬上限 20MB
   const SOFT_LIMIT  = 5 * 1024 * 1024;   // 单个文件存进 IndexedDB 的上限 5MB
   const MAX_TAGS    = 4;                 // 每张卡片最多 4 个标签
@@ -850,9 +850,16 @@ footer{text-align:center;font-size:11.5px;color:#ababb3;padding:0 20px 34px}
   }
 
   /* ================= 密码门 ================= */
-  function tryUnlock() {
+  async function sha256Hex(str) {
+    const buf = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function tryUnlock() {
     const v = $('#pwdInput').value;
-    if (v === PASSWORD) {
+    let ok = false;
+    try { ok = (await sha256Hex(v)) === PASSWORD_SHA256; } catch (e) { ok = false; }
+    if (ok) {
       try { sessionStorage.setItem(SESSION_KEY, '1'); } catch (e) {}
       $('#pwdErr').classList.remove('show');
       enterApp();
